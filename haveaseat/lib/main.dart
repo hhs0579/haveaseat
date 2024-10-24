@@ -4,7 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:haveaseat/firebase_options.dart';
 import 'package:haveaseat/pages/login.dart';
 import 'package:haveaseat/provider/mainmodel.dart';
-import 'package:haveaseat/widget/behavior.dart';
+import 'package:haveaseat/components/behavior.dart';
 import 'package:provider/provider.dart';
 
 void main() async {
