@@ -56,8 +56,10 @@ dev_dependencies:
   firebase_auth:
   firebase_storage:
   cloud_firestore:
-  provider:
+  shared_preferences:
+  go_router:
   table_calendar:
+  flutter_riverpod:
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
