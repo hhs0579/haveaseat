@@ -47,7 +47,7 @@ class signUp extends ConsumerWidget {
                       '관리자 회원가입',
                       style: TextStyle(
                         color: AppColor.font1,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w600,
                         fontSize: 24,
                       ),
                     ),
@@ -61,7 +61,7 @@ class signUp extends ConsumerWidget {
                           const Text('이름',
                               style: TextStyle(
                                 color: AppColor.font1,
-                                fontWeight: FontWeight.bold,
+                                fontWeight: FontWeight.w600,
                                 fontSize: 14,
                               )),
                           const SizedBox(height: 12),
@@ -106,7 +106,7 @@ class signUp extends ConsumerWidget {
                           const Text('사원정보',
                               style: TextStyle(
                                 color: AppColor.font1,
-                                fontWeight: FontWeight.bold,
+                                fontWeight: FontWeight.w600,
                                 fontSize: 14,
                               )),
                           const SizedBox(
@@ -143,7 +143,7 @@ class signUp extends ConsumerWidget {
                           const Text('이메일',
                               style: TextStyle(
                                 color: AppColor.font1,
-                                fontWeight: FontWeight.bold,
+                                fontWeight: FontWeight.w600,
                                 fontSize: 14,
                               )),
                           const SizedBox(height: 12),
@@ -208,80 +208,76 @@ class signUp extends ConsumerWidget {
                                   ),
                                 ),
                                 const SizedBox(width: 12), // 간격 조정
-                                SizedBox(
-                                  width: 87, // 버튼 너비 고정
-                                  height: 48, // TextFormField와 동일한 높이
-                                  child: ElevatedButton(
-                                    onPressed: () async {
-                                      if (_emailController.text.isEmpty) {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          const SnackBar(
-                                              content: Text('이메일을 입력해주세요')),
-                                        );
-                                        return;
-                                      }
-                                      if (!_emailController.text
-                                          .contains('@')) {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          const SnackBar(
-                                              content:
-                                                  Text('올바른 이메일 형식이 아닙니다')),
-                                        );
-                                        return;
-                                      }
+                                InkWell(
+                                  onTap: () async {
+                                    if (_emailController.text.isEmpty) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                            content: Text('이메일을 입력해주세요')),
+                                      );
+                                      return;
+                                    }
+                                    if (!_emailController.text.contains('@')) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                            content: Text('올바른 이메일 형식이 아닙니다')),
+                                      );
+                                      return;
+                                    }
 
-                                      try {
-                                        final exists = await ref
-                                            .read(emailCheckProvider.notifier)
-                                            .checkEmailExists(
-                                                _emailController.text);
+                                    try {
+                                      final exists = await ref
+                                          .read(emailCheckProvider.notifier)
+                                          .checkEmailExists(
+                                              _emailController.text);
 
-                                        if (exists) {
-                                          if (context.mounted) {
-                                            ScaffoldMessenger.of(context)
-                                                .showSnackBar(
-                                              const SnackBar(
-                                                  content:
-                                                      Text('이미 등록된 이메일입니다')),
-                                            );
-                                          }
-                                        } else {
-                                          if (context.mounted) {
-                                            ScaffoldMessenger.of(context)
-                                                .showSnackBar(
-                                              const SnackBar(
-                                                  content:
-                                                      Text('사용 가능한 이메일입니다')),
-                                            );
-                                          }
-                                        }
-                                      } catch (e) {
+                                      if (exists) {
                                         if (context.mounted) {
                                           ScaffoldMessenger.of(context)
                                               .showSnackBar(
-                                            SnackBar(
-                                                content:
-                                                    Text('이메일 확인 중 오류: $e')),
+                                            const SnackBar(
+                                                content: Text('이미 등록된 이메일입니다')),
+                                          );
+                                        }
+                                      } else {
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            const SnackBar(
+                                                content: Text('사용 가능한 이메일입니다')),
                                           );
                                         }
                                       }
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppColor.primary,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      padding:
-                                          EdgeInsets.zero, // 패딩 제거로 텍스트 중앙 정렬
-                                    ),
+                                    } catch (e) {
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          SnackBar(
+                                              content: Text('이메일 확인 중 오류: $e')),
+                                        );
+                                      }
+                                    }
+                                  },
+                                  child: Container(
+                                    alignment: Alignment.center,
+                                    padding: EdgeInsets.zero,
+                                    width: 87, // 버튼 너비 고정
+                                    height: 48, // TextFormField와 동일한 높이
+                                    decoration: BoxDecoration(
+                                        color: Colors.transparent,
+                                        border: Border.all(
+                                            color: AppColor.font1, width: 1),
+                                        borderRadius: const BorderRadius.all(
+                                            Radius.circular(4))),
+
                                     child: const Text(
                                       '중복확인',
                                       style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
+                                        color: AppColor.font1,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
                                   ),
@@ -294,7 +290,7 @@ class signUp extends ConsumerWidget {
                           const Text('비밀번호',
                               style: TextStyle(
                                 color: AppColor.font1,
-                                fontWeight: FontWeight.bold,
+                                fontWeight: FontWeight.w600,
                                 fontSize: 14,
                               )),
                           const SizedBox(height: 12),
@@ -410,7 +406,7 @@ class signUp extends ConsumerWidget {
                                       style: TextStyle(
                                         color: Colors.white,
                                         fontSize: 16,
-                                        fontWeight: FontWeight.bold,
+                                        fontWeight: FontWeight.w600,
                                       )),
                             ),
                           ),
