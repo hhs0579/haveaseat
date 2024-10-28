@@ -129,9 +129,39 @@ class _loginState extends ConsumerState<login> {
                                       }
                                       return null;
                                     },
-                                    decoration: const InputDecoration(
+                                    decoration: InputDecoration(
                                       hintText: '이메일을 입력해 주세요',
-                                      // ... 나머지 decoration 설정 동일
+                                      hintStyle: const TextStyle(
+                                        color: AppColor.font2,
+                                        fontSize: 14,
+                                      ),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(4),
+                                        borderSide: const BorderSide(
+                                            color: AppColor.line1),
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(4),
+                                        borderSide: const BorderSide(
+                                            color: AppColor.line1),
+                                      ),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(4),
+                                        borderSide: const BorderSide(
+                                            color: AppColor.line1),
+                                      ),
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 12,
+                                      ),
+                                      errorStyle: const TextStyle(
+                                          height: 0), // 에러 메시지 공간 제거
+                                      // 또는
+                                      // errorStyle: const TextStyle(
+                                      //   height: 0.5,
+                                      //   fontSize: 12,
+                                      // ),
                                     ),
                                   ),
                                   const SizedBox(height: 24),
@@ -146,16 +176,44 @@ class _loginState extends ConsumerState<login> {
                                   const SizedBox(height: 12),
                                   TextFormField(
                                     controller: _passwordController,
-                                    obscureText: true,
+                                    obscureText: true, // 패스워드 숨김 처리
                                     validator: (value) {
                                       if (value?.isEmpty ?? true) {
                                         return '비밀번호를 입력해주세요';
                                       }
+                                      // 필요한 경우 비밀번호 유효성 검사 추가
+                                      // 예: 최소 길이, 특수문자 포함 등
                                       return null;
                                     },
                                     decoration: const InputDecoration(
                                       hintText: '비밀번호를 입력해 주세요',
-                                      // ... 나머지 decoration 설정 동일
+                                      hintStyle: TextStyle(
+                                        color: AppColor.font2,
+                                        fontSize: 14,
+                                      ),
+                                      border: OutlineInputBorder(
+                                        borderSide:
+                                            BorderSide(color: AppColor.line1),
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderSide:
+                                            BorderSide(color: AppColor.line1),
+                                      ),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderSide:
+                                            BorderSide(color: AppColor.line1),
+                                      ),
+                                      contentPadding: EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 12,
+                                      ),
+                                      errorStyle:
+                                          TextStyle(height: 0), // 에러 메시지 공간 제거
+                                      // 또는
+                                      // errorStyle: const TextStyle(
+                                      //   height: 0.5,
+                                      //   fontSize: 12,
+                                      // ),
                                     ),
                                   ),
                                   const SizedBox(height: 36),
@@ -166,7 +224,10 @@ class _loginState extends ConsumerState<login> {
                                       onPressed: _isLoading ? null : _signIn,
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: AppColor.primary,
-                                        shape: const RoundedRectangleBorder(),
+                                        shape: const RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.all(
+                                              Radius.circular(4)),
+                                        ),
                                       ),
                                       child: _isLoading
                                           ? const SizedBox(
@@ -197,7 +258,7 @@ class _loginState extends ConsumerState<login> {
                                         InkWell(
                                           onTap: () {
                                             // 회원가입 처리
-                                            context.push('/signup');
+                                            context.go('/signup');
                                           },
                                           child: const Text(
                                             '회원가입',

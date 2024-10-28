@@ -16,9 +16,13 @@ class signUp extends ConsumerWidget {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _selectedRole = StateProvider<String?>((ref) => null);
-
+  final _emailValidationMessage = StateProvider<String?>((ref) => null);
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // StateProvider 추가 (클래스 최상단에)
+    final emailValidationMessage = ref.watch(_emailValidationMessage);
+// build 메서드 내에서 상태 읽기 추가
+
     // 회원가입 상태 감시
     final signUpState = ref.watch(signUpNotifierProvider);
     final selectedRole = ref.watch(_selectedRole);
@@ -147,143 +151,165 @@ class signUp extends ConsumerWidget {
                                 fontSize: 14,
                               )),
                           const SizedBox(height: 12),
-                          IntrinsicHeight(
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  child: TextFormField(
-                                    controller: _emailController,
-                                    validator: (value) {
-                                      if (value?.isEmpty ?? true) {
-                                        return '이메일을 입력해주세요';
-                                      }
-                                      if (!value!.contains('@')) {
-                                        return '올바른 이메일 형식이 아닙니다';
-                                      }
-                                      if (!ref.read(emailCheckProvider)) {
-                                        return '이메일 중복 확인이 필요합니다';
-                                      }
-                                      return null;
-                                    },
-                                    decoration: InputDecoration(
-                                      hintText: '이메일을 입력해 주세요',
-                                      hintStyle: const TextStyle(
-                                        color: AppColor.font2,
-                                        fontSize: 14,
-                                      ),
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(4),
-                                        borderSide: const BorderSide(
-                                            color: AppColor.line1),
-                                      ),
-                                      focusedBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(4),
-                                        borderSide: const BorderSide(
-                                            color: AppColor.line1),
-                                      ),
-                                      enabledBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(4),
-                                        borderSide: const BorderSide(
-                                            color: AppColor.line1),
-                                      ),
-                                      contentPadding:
-                                          const EdgeInsets.symmetric(
-                                        horizontal: 16,
-                                        vertical: 12,
-                                      ),
-                                      errorStyle: const TextStyle(
-                                          height: 0), // 에러 메시지 공간 제거
-                                      // 또는
-                                      // errorStyle: const TextStyle(
-                                      //   height: 0.5,
-                                      //   fontSize: 12,
-                                      // ),
-                                    ),
-                                    onChanged: (value) {
-                                      ref
-                                          .read(emailCheckProvider.notifier)
-                                          .state = false;
-                                    },
-                                  ),
-                                ),
-                                const SizedBox(width: 12), // 간격 조정
-                                InkWell(
-                                  onTap: () async {
-                                    if (_emailController.text.isEmpty) {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        const SnackBar(
-                                            content: Text('이메일을 입력해주세요')),
-                                      );
-                                      return;
-                                    }
-                                    if (!_emailController.text.contains('@')) {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        const SnackBar(
-                                            content: Text('올바른 이메일 형식이 아닙니다')),
-                                      );
-                                      return;
-                                    }
-
-                                    try {
-                                      final exists = await ref
-                                          .read(emailCheckProvider.notifier)
-                                          .checkEmailExists(
-                                              _emailController.text);
-
-                                      if (exists) {
-                                        if (context.mounted) {
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(
-                                            const SnackBar(
-                                                content: Text('이미 등록된 이메일입니다')),
-                                          );
-                                        }
-                                      } else {
-                                        if (context.mounted) {
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(
-                                            const SnackBar(
-                                                content: Text('사용 가능한 이메일입니다')),
-                                          );
-                                        }
-                                      }
-                                    } catch (e) {
-                                      if (context.mounted) {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          SnackBar(
-                                              content: Text('이메일 확인 중 오류: $e')),
-                                        );
-                                      }
-                                    }
-                                  },
-                                  child: Container(
-                                    alignment: Alignment.center,
-                                    padding: EdgeInsets.zero,
-                                    width: 87, // 버튼 너비 고정
-                                    height: 48, // TextFormField와 동일한 높이
-                                    decoration: BoxDecoration(
-                                        color: Colors.transparent,
-                                        border: Border.all(
-                                            color: AppColor.font1, width: 1),
-                                        borderRadius: const BorderRadius.all(
-                                            Radius.circular(4))),
-
-                                    child: const Text(
-                                      '중복확인',
-                                      style: TextStyle(
-                                        color: AppColor.font1,
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              IntrinsicHeight(
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: TextFormField(
+                                        controller: _emailController,
+                                        validator: (value) {
+                                          if (value?.isEmpty ?? true) {
+                                            return '이메일을 입력해주세요';
+                                          }
+                                          if (!value!.contains('@')) {
+                                            return '올바른 이메일 형식이 아닙니다';
+                                          }
+                                          if (!ref.read(emailCheckProvider)) {
+                                            return '이메일 중복 확인이 필요합니다';
+                                          }
+                                          return null;
+                                        },
+                                        decoration: InputDecoration(
+                                          hintText: '이메일을 입력해 주세요',
+                                          hintStyle: const TextStyle(
+                                            color: AppColor.font2,
+                                            fontSize: 14,
+                                          ),
+                                          border: OutlineInputBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(4),
+                                            borderSide: const BorderSide(
+                                                color: AppColor.line1),
+                                          ),
+                                          focusedBorder: OutlineInputBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(4),
+                                            borderSide: const BorderSide(
+                                                color: AppColor.line1),
+                                          ),
+                                          enabledBorder: OutlineInputBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(4),
+                                            borderSide: const BorderSide(
+                                                color: AppColor.line1),
+                                          ),
+                                          contentPadding:
+                                              const EdgeInsets.symmetric(
+                                            horizontal: 16,
+                                            vertical: 12,
+                                          ),
+                                          errorStyle: const TextStyle(
+                                              height: 0), // 에러 메시지 공간 제거
+                                          // 또는
+                                          // errorStyle: const TextStyle(
+                                          //   height: 0.5,
+                                          //   fontSize: 12,
+                                          // ),
+                                        ),
+                                        onChanged: (value) {
+                                          ref
+                                              .read(emailCheckProvider.notifier)
+                                              .state = false;
+                                          ref
+                                              .read(_emailValidationMessage
+                                                  .notifier)
+                                              .state = null;
+                                        },
                                       ),
                                     ),
+                                    const SizedBox(width: 12), // 간격 조정
+                                    InkWell(
+                                      onTap: () async {
+                                        if (_emailController.text.isEmpty) {
+                                          ref
+                                              .read(_emailValidationMessage
+                                                  .notifier)
+                                              .state = '이메일을 입력해주세요';
+                                          return;
+                                        }
+                                        if (!_emailController.text
+                                            .contains('@')) {
+                                          ref
+                                              .read(_emailValidationMessage
+                                                  .notifier)
+                                              .state = '올바른 이메일 형식이 아닙니다';
+                                          return;
+                                        }
+
+                                        try {
+                                          final exists = await ref
+                                              .read(emailCheckProvider.notifier)
+                                              .checkEmailExists(
+                                                  _emailController.text);
+
+                                          if (exists) {
+                                            ref
+                                                .read(_emailValidationMessage
+                                                    .notifier)
+                                                .state = '이미 등록된 이메일입니다';
+                                          } else {
+                                            ref
+                                                .read(_emailValidationMessage
+                                                    .notifier)
+                                                .state = '사용 가능한 이메일입니다';
+                                            ref
+                                                .read(
+                                                    emailCheckProvider.notifier)
+                                                .state = true;
+                                          }
+                                        } catch (e) {
+                                          ref
+                                              .read(_emailValidationMessage
+                                                  .notifier)
+                                              .state = '이메일 확인 중 오류가 발생했습니다';
+                                        }
+                                      },
+                                      child: Container(
+                                        alignment: Alignment.center,
+                                        padding: EdgeInsets.zero,
+                                        width: 87, // 버튼 너비 고정
+                                        height: 48, // TextFormField와 동일한 높이
+                                        decoration: BoxDecoration(
+                                            color: Colors.transparent,
+                                            border: Border.all(
+                                                color: AppColor.font1,
+                                                width: 1),
+                                            borderRadius:
+                                                const BorderRadius.all(
+                                                    Radius.circular(4))),
+
+                                        child: const Text(
+                                          '중복확인',
+                                          style: TextStyle(
+                                            color: AppColor.font1,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (emailValidationMessage != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 8),
+                                  child: Text(
+                                    emailValidationMessage,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: emailValidationMessage ==
+                                              '사용 가능한 이메일입니다'
+                                          ? Colors.green
+                                          : Colors.red,
+                                    ),
                                   ),
                                 ),
-                              ],
-                            ),
+                            ],
                           ),
                           // ... 비밀번호 입력 필드 ...
                           const SizedBox(height: 20),
