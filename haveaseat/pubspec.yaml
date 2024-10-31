@@ -60,6 +60,7 @@ dev_dependencies:
   go_router:
   table_calendar:
   flutter_riverpod:
+
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
