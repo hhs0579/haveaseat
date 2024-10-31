@@ -1,14 +1,13 @@
-// lib/pages/main_page.dart
-
 import 'package:flutter/material.dart';
 import 'package:haveaseat/components/colors.dart';
 import 'package:haveaseat/components/screensize.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart'; // 이 줄 추가
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:haveaseat/riverpod/usermodel.dart';
 
-class MainPage extends ConsumerWidget {
-  const MainPage({super.key});
+class addCustomerPage extends ConsumerWidget {
+  const addCustomerPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -100,7 +99,7 @@ class MainPage extends ConsumerWidget {
                           child: Container(
                               width: 200,
                               height: 48,
-                              color: AppColor.primary,
+                              color: Colors.transparent,
                               child: const Row(
                                 children: [
                                   SizedBox(
@@ -108,7 +107,7 @@ class MainPage extends ConsumerWidget {
                                   ),
                                   Icon(
                                     Icons.search_outlined,
-                                    color: Colors.white,
+                                    color: Colors.black,
                                     size: 20,
                                   ),
                                   SizedBox(
@@ -118,7 +117,7 @@ class MainPage extends ConsumerWidget {
                                     '대시보드',
                                     style: TextStyle(
                                         fontWeight: FontWeight.w600,
-                                        color: Colors.white,
+                                        color: AppColor.font1,
                                         fontSize: 16),
                                   ),
                                 ],

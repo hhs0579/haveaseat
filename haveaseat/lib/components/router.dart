@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:haveaseat/pages/addcustomer.dart';
 import 'package:haveaseat/pages/login.dart';
 import 'package:haveaseat/pages/mainpage.dart';
 import 'package:haveaseat/pages/signup.dart';
@@ -42,6 +43,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/main',
         builder: (context, state) => const MainPage(),
+      ),
+      GoRoute(
+        path: '/main/addpage',
+        builder: (context, state) => const addCustomerPage(),
       ),
     ],
     errorBuilder: (context, state) => const login(),
