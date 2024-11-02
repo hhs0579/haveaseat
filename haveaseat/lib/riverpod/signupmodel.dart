@@ -10,7 +10,17 @@ final authProvider = Provider<FirebaseAuth>((ref) {
 final firestoreProvider = Provider<FirebaseFirestore>((ref) {
   return FirebaseFirestore.instance;
 });
-
+final userDataProvider = StreamProvider<Map<String, dynamic>?>((ref) {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user != null) {
+    return FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .snapshots()
+        .map((snapshot) => snapshot.data());
+  }
+  return Stream.value(null);
+});
 // 회원가입 상태 및 로직을 관리하는 provider
 // signupmodel.dart
 

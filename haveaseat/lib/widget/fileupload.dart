@@ -5,19 +5,22 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:haveaseat/components/colors.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'dart:io';
 
 class FileUploadField extends StatefulWidget {
   final String label;
   final String uploadPath;
-  final bool isAllFileTypes; // 모든 파일 타입 허용 여부
+  final bool isAllFileTypes;
   final Function(String)? onFileUploaded;
+  final Function(File)? onFileSelected;
 
   const FileUploadField({
     Key? key,
     required this.label,
     required this.uploadPath,
-    this.isAllFileTypes = false, // 기본값은 false (제한된 파일 타입)
+    this.isAllFileTypes = false,
     this.onFileUploaded,
+    this.onFileSelected,
   }) : super(key: key);
 
   @override
@@ -26,10 +29,9 @@ class FileUploadField extends StatefulWidget {
 
 class _FileUploadFieldState extends State<FileUploadField> {
   String? _selectedFileName;
-  Uint8List? _selectedFile;
+  File? _selectedFile;
   bool _isUploading = false;
-
-  Future<void> pickAndUploadFile() async {
+  Future<void> pickFile() async {
     try {
       final result = await FilePicker.platform.pickFiles(
         type: widget.isAllFileTypes ? FileType.any : FileType.custom,
@@ -39,10 +41,10 @@ class _FileUploadFieldState extends State<FileUploadField> {
         withData: true,
       );
 
-      if (result != null) {
-        final file = result.files.first;
-        // 파일 크기 체크 (20MB)
-        if (file.size > 20 * 1024 * 1024) {
+      if (result != null && result.files.isNotEmpty) {
+        final platformFile = result.files.first;
+
+        if (platformFile.size > 20 * 1024 * 1024) {
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('파일 크기는 20MB를 초과할 수 없습니다.')),
@@ -52,12 +54,44 @@ class _FileUploadFieldState extends State<FileUploadField> {
         }
 
         setState(() {
-          _selectedFileName = file.name;
-          _selectedFile = file.bytes;
+          _selectedFileName = platformFile.name;
         });
 
-        if (_selectedFile != null) {
-          await uploadFileToFirebase();
+        // 파일 업로드 시작
+        setState(() {
+          _isUploading = true;
+        });
+
+        try {
+          final fileName =
+              '${DateTime.now().millisecondsSinceEpoch}_${platformFile.name}';
+          final ref = FirebaseStorage.instance
+              .ref()
+              .child(widget.uploadPath)
+              .child(fileName);
+
+          // 웹 환경에서는 bytes를 사용
+          final uploadTask = ref.putData(
+            platformFile.bytes!,
+            SettableMetadata(contentType: 'application/octet-stream'),
+          );
+
+          final snapshot = await uploadTask;
+          final downloadUrl = await snapshot.ref.getDownloadURL();
+
+          print('File uploaded successfully, URL: $downloadUrl');
+          widget.onFileUploaded?.call(downloadUrl);
+        } catch (e) {
+          print('Error uploading file: $e');
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('파일 업로드 실패: $e')),
+            );
+          }
+        } finally {
+          setState(() {
+            _isUploading = false;
+          });
         }
       }
     } catch (e) {
@@ -73,22 +107,17 @@ class _FileUploadFieldState extends State<FileUploadField> {
     });
 
     try {
-      final String fileName =
+      final fileName =
           '${DateTime.now().millisecondsSinceEpoch}_$_selectedFileName';
-      final Reference storageRef = FirebaseStorage.instance
+      final ref = FirebaseStorage.instance
           .ref()
           .child(widget.uploadPath)
           .child(fileName);
 
-      final UploadTask uploadTask = storageRef.putData(
-        _selectedFile!,
-        SettableMetadata(contentType: 'application/octet-stream'),
-      );
+      final uploadTask = ref.putFile(_selectedFile!);
+      final snapshot = await uploadTask;
+      final downloadUrl = await snapshot.ref.getDownloadURL();
 
-      final TaskSnapshot snapshot = await uploadTask;
-      final String downloadUrl = await snapshot.ref.getDownloadURL();
-
-      // 콜백으로 URL 전달
       widget.onFileUploaded?.call(downloadUrl);
     } catch (e) {
       if (context.mounted) {
@@ -168,7 +197,7 @@ class _FileUploadFieldState extends State<FileUploadField> {
             ),
             const SizedBox(width: 12),
             InkWell(
-              onTap: _isUploading ? null : pickAndUploadFile,
+              onTap: _isUploading ? null : pickFile,
               child: Container(
                 width: 104,
                 height: 48,

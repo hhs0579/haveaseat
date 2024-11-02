@@ -145,8 +145,6 @@ class _AddressSearchFieldState extends State<AddressSearchField> {
             ),
           ),
         ),
-    
-
       ],
     );
   }
