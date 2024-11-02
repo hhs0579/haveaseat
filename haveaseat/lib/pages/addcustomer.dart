@@ -10,6 +10,7 @@ import 'package:haveaseat/riverpod/customermodel.dart';
 import 'package:haveaseat/riverpod/usermodel.dart';
 import 'package:haveaseat/widget/address.dart';
 import 'package:haveaseat/widget/fileupload.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class addCustomerPage extends ConsumerStatefulWidget {
   // ConsumerWidget을 ConsumerStatefulWidget으로 변경
@@ -38,9 +39,9 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
   final List<File> _otherDocumentFiles = [];
   int _fileFieldCounter = 0;
   final _formKey = GlobalKey<FormState>(); // Form Key 추가
-  final List<String> _otherDocumentUrls = []; // URL 저장용 리스트 추가
+  List<String> _otherDocumentUrls = []; // URL 저장용 리스트 추가
   String? _businessLicenseUrl; // URL 저장용 변수 추가
-
+  String? _tempSaveDocId;
   void onBusinessLicenseUploaded(File file) {
     setState(() {
       _businessLicenseFile = file;
@@ -102,6 +103,119 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
     print('파일 필드 추가됨. 현재 개수: ${_additionalFiles.length}');
   }
 
+  Future<void> _loadTempSavedData() async {
+    try {
+      final user = ref.read(UserProvider.currentUserProvider).value;
+      if (user == null) return;
+
+      final tempDoc = await FirebaseFirestore.instance
+          .collection('temp_customers')
+          .where('assignedTo', isEqualTo: user.uid)
+          .where('isTemp', isEqualTo: true)
+          .get();
+
+      if (tempDoc.docs.isNotEmpty) {
+        final data = tempDoc.docs.first.data();
+        setState(() {
+          _tempSaveDocId = tempDoc.docs.first.id;
+          _nameController.text = data['name'] ?? '';
+          _phoneController.text = data['phone'] ?? '';
+
+          // 이메일 처리
+          if (data['email'] != null) {
+            final emailParts = data['email'].split('@');
+            if (emailParts.length == 2) {
+              _emailController.text = emailParts[0];
+              final domain = emailParts[1];
+              if ([
+                'gmail.com',
+                'naver.com',
+                'kakao.com',
+                'nate.com',
+                'hanmail.net',
+                'daum.net'
+              ].contains(domain)) {
+                selectedDomain = domain;
+                isDirectInput = false;
+              } else {
+                _directDomainController.text = domain;
+                selectedDomain = null;
+                isDirectInput = true;
+              }
+            }
+          }
+
+          // 주소 처리
+          if (data['address'] != null) {
+            final addressParts = data['address'].split(' ');
+            _addressController.text =
+                addressParts.take(addressParts.length - 1).join(' ');
+            _detailAddressController.text = addressParts.last;
+          }
+
+          _noteController.text = data['note'] ?? '';
+          _businessLicenseUrl = data['businessLicenseUrl'];
+          _otherDocumentUrls =
+              List<String>.from(data['otherDocumentUrls'] ?? []);
+        });
+      }
+    } catch (e) {
+      print('임시 저장 데이터 로드 중 오류: $e');
+    }
+  }
+
+  // 임시 저장 함수
+  Future<void> _saveTempCustomer() async {
+    try {
+      final user = ref.read(UserProvider.currentUserProvider).value;
+      if (user == null) {
+        throw Exception('로그인이 필요합니다');
+      }
+
+      final tempCustomerData = {
+        'name': _nameController.text,
+        'phone': _phoneController.text,
+        'email':
+            '${_emailController.text}@${selectedDomain ?? _directDomainController.text}',
+        'address':
+            '${_addressController.text} ${_detailAddressController.text}',
+        'businessLicenseUrl': _businessLicenseUrl,
+        'otherDocumentUrls': _otherDocumentUrls,
+        'note': _noteController.text,
+        'assignedTo': user.uid,
+        'isTemp': true,
+        'lastUpdated': FieldValue.serverTimestamp(),
+      };
+
+      if (_tempSaveDocId != null) {
+        // 기존 임시 저장 문서 업데이트
+        await FirebaseFirestore.instance
+            .collection('temp_customers')
+            .doc(_tempSaveDocId)
+            .update(tempCustomerData);
+      } else {
+        // 새로운 임시 저장 문서 생성
+        final docRef = await FirebaseFirestore.instance
+            .collection('temp_customers')
+            .add(tempCustomerData);
+        _tempSaveDocId = docRef.id;
+      }
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('임시 저장되었습니다')),
+        );
+      }
+    } catch (e) {
+      print('임시 저장 중 오류: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('임시 저장 중 오류가 발생했습니다: $e')),
+        );
+      }
+    }
+  }
+
   List<String> getAllUploadedUrls() {
     return _uploadedUrls;
   }
@@ -141,9 +255,6 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
         throw Exception('로그인이 필요합니다');
       }
 
-      print(
-          '저장 시도 전 URLs - 사업자: $_businessLicenseUrl, 기타: $_otherDocumentUrls');
-
       await ref.read(customerDataProvider.notifier).addCustomer(
             name: _nameController.text,
             phone: _phoneController.text,
@@ -151,11 +262,19 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
                 '${_emailController.text}@${selectedDomain ?? _directDomainController.text}',
             address:
                 '${_addressController.text} ${_detailAddressController.text}',
-            businessLicenseUrl: _businessLicenseUrl ?? '', // null 체크 추가
-            otherDocumentUrls: _otherDocumentUrls, // 직접 저장된 URL 리스트 사용
+            businessLicenseUrl: _businessLicenseUrl ?? '',
+            otherDocumentUrls: _otherDocumentUrls,
             note: _noteController.text,
             assignedTo: user.uid,
           );
+
+      // 저장 성공 시 임시 저장 문서 삭제
+      if (_tempSaveDocId != null) {
+        await FirebaseFirestore.instance
+            .collection('temp_customers')
+            .doc(_tempSaveDocId)
+            .delete();
+      }
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -169,7 +288,6 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
         SnackBar(content: Text('저장 중 오류가 발생했습니다: $e')),
       );
     }
-    // 기타 서류 파일들 업로드
   }
 
   @override
@@ -180,6 +298,8 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
         _textLength = _noteController.text.length;
       });
     });
+    // 컴포넌트가 마운트될 때 임시 저장 데이터 불러오기
+    _loadTempSavedData();
   }
 
   @override
@@ -704,9 +824,7 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
                             ),
                             const SizedBox(width: 8),
                             InkWell(
-                              onTap: () {
-                                // 고객 추가 처리
-                              },
+                              onTap: _saveTempCustomer,
                               child: Container(
                                 width: 87,
                                 height: 48,
