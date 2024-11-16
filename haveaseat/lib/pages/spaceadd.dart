@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:haveaseat/riverpod/spacemodel.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:haveaseat/components/colors.dart';
@@ -12,105 +13,70 @@ import 'package:haveaseat/widget/address.dart';
 import 'package:haveaseat/widget/fileupload.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-class addCustomerPage extends ConsumerStatefulWidget {
+class SpaceAddPage extends ConsumerStatefulWidget {
   // ConsumerWidget을 ConsumerStatefulWidget으로 변경
-  const addCustomerPage({super.key});
+  final String customerId; // 고객 ID를 받아옴
+
+  const SpaceAddPage({
+    super.key,
+    required this.customerId,
+  });
 
   @override
-  ConsumerState<addCustomerPage> createState() => _addCustomerPageState();
+  ConsumerState<SpaceAddPage> createState() => _SpaceAddPageState();
 }
 
-class _addCustomerPageState extends ConsumerState<addCustomerPage> {
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _addressController = TextEditingController();
-  final TextEditingController _detailAddressController =
+class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
+  final TextEditingController _siteAddressController = TextEditingController();
+  final TextEditingController _detailSiteAddressController =
       TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _directDomainController = TextEditingController();
-  String? selectedDomain = 'gmail.com';
-  bool isDirectInput = false;
-  final TextEditingController _noteController = TextEditingController();
-  int _textLength = 0;
-  final List<Widget> _additionalFiles = [];
-  final List<String> _uploadedUrls = []; // URL 저장용 리스트
-  File? _businessLicenseFile; // 추가
-  List<File?> otherDocumentFiles = []; // 추가
-  final List<File> _otherDocumentFiles = [];
-  int _fileFieldCounter = 0;
+  final TextEditingController _recipientController = TextEditingController();
+  final TextEditingController _contactNumberController =
+      TextEditingController();
+  final TextEditingController _additionalNotesController =
+      TextEditingController();
   final _formKey = GlobalKey<FormState>(); // Form Key 추가
-  List<String> _otherDocumentUrls = []; // URL 저장용 리스트 추가
-  String? _businessLicenseUrl; // URL 저장용 변수 추가
+  final int _textLength = 0;
+  // 상태 변수들
+  DateTime? _openingDate;
+  String? _deliveryMethod;
   String? _tempSaveDocId;
-  void onBusinessLicenseUploaded(File file) {
-    setState(() {
-      _businessLicenseFile = file;
+  int _notesLength = 0;
+
+  // 배송 방법 옵션
+  final List<String> _deliveryMethods = ['직접 배송', '택배', '용달', '기타'];
+
+  @override
+  void initState() {
+    super.initState();
+    _additionalNotesController.addListener(() {
+      setState(() {
+        _notesLength = _additionalNotesController.text.length;
+      });
     });
+    _loadTempSavedData();
   }
 
-  void onOtherDocumentUploaded(File file) {
-    setState(() {
-      otherDocumentFiles.add(file);
-    });
+  @override
+  void dispose() {
+    _siteAddressController.dispose();
+    _detailSiteAddressController.dispose();
+    _recipientController.dispose();
+    _contactNumberController.dispose();
+    _additionalNotesController.dispose();
+    super.dispose();
   }
 
-  void _addFileUploadField() {
-    final int currentIndex = _fileFieldCounter++;
-
-    setState(() {
-      _additionalFiles.add(
-        Column(
-          children: [
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: FileUploadField(
-                    label: '',
-                    uploadPath: 'other_documents',
-                    isAllFileTypes: true,
-                    onFileUploaded: (String url) {
-                      print('추가 파일 업로드 전 URLs: $_otherDocumentUrls');
-                      setState(() {
-                        if (_otherDocumentUrls.length > currentIndex) {
-                          _otherDocumentUrls[currentIndex] = url;
-                        } else {
-                          _otherDocumentUrls.add(url);
-                        }
-                      });
-                      print('추가 파일 업로드 후 URLs: $_otherDocumentUrls');
-                    },
-                    onFileSelected: (_) {}, // 웹에서는 필요 없음
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete_outline, color: AppColor.font2),
-                  onPressed: () {
-                    setState(() {
-                      _additionalFiles.removeAt(currentIndex);
-                      if (_otherDocumentUrls.length > currentIndex) {
-                        _otherDocumentUrls.removeAt(currentIndex);
-                      }
-                    });
-                  },
-                ),
-              ],
-            ),
-          ],
-        ),
-      );
-    });
-    print('파일 필드 추가됨. 현재 개수: ${_additionalFiles.length}');
-  }
-
+  // 임시 저장 데이터 불러오기
   Future<void> _loadTempSavedData() async {
     try {
       final user = ref.read(UserProvider.currentUserProvider).value;
       if (user == null) return;
 
       final tempDoc = await FirebaseFirestore.instance
-          .collection('temp_customers')
+          .collection('temp_space_basic_infos')
           .where('assignedTo', isEqualTo: user.uid)
+          .where('customerId', isEqualTo: widget.customerId)
           .where('isTemp', isEqualTo: true)
           .get();
 
@@ -118,45 +84,24 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
         final data = tempDoc.docs.first.data();
         setState(() {
           _tempSaveDocId = tempDoc.docs.first.id;
-          _nameController.text = data['name'] ?? '';
-          _phoneController.text = data['phone'] ?? '';
-
-          // 이메일 처리
-          if (data['email'] != null) {
-            final emailParts = data['email'].split('@');
-            if (emailParts.length == 2) {
-              _emailController.text = emailParts[0];
-              final domain = emailParts[1];
-              if ([
-                'gmail.com',
-                'naver.com',
-                'kakao.com',
-                'nate.com',
-                'hanmail.net',
-                'daum.net'
-              ].contains(domain)) {
-                selectedDomain = domain;
-                isDirectInput = false;
-              } else {
-                _directDomainController.text = domain;
-                selectedDomain = null;
-                isDirectInput = true;
-              }
-            }
-          }
 
           // 주소 처리
-          if (data['address'] != null) {
-            final addressParts = data['address'].split(' ');
-            _addressController.text =
+          if (data['siteAddress'] != null) {
+            final addressParts = data['siteAddress'].split(' ');
+            _siteAddressController.text =
                 addressParts.take(addressParts.length - 1).join(' ');
-            _detailAddressController.text = addressParts.last;
+            _detailSiteAddressController.text = addressParts.last;
           }
 
-          _noteController.text = data['note'] ?? '';
-          _businessLicenseUrl = data['businessLicenseUrl'];
-          _otherDocumentUrls =
-              List<String>.from(data['otherDocumentUrls'] ?? []);
+          // 날짜 처리
+          if (data['openingDate'] != null) {
+            _openingDate = (data['openingDate'] as Timestamp).toDate();
+          }
+
+          _recipientController.text = data['recipient'] ?? '';
+          _contactNumberController.text = data['contactNumber'] ?? '';
+          _deliveryMethod = data['deliveryMethod'];
+          _additionalNotesController.text = data['additionalNotes'] ?? '';
         });
       }
     } catch (e) {
@@ -164,40 +109,38 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
     }
   }
 
-  // 임시 저장 함수
-  Future<void> _saveTempCustomer() async {
+  // 임시 저장
+  Future<void> _saveTempBasicInfo() async {
     try {
       final user = ref.read(UserProvider.currentUserProvider).value;
       if (user == null) {
         throw Exception('로그인이 필요합니다');
       }
 
-      final tempCustomerData = {
-        'name': _nameController.text,
-        'phone': _phoneController.text,
-        'email':
-            '${_emailController.text}@${selectedDomain ?? _directDomainController.text}',
-        'address':
-            '${_addressController.text} ${_detailAddressController.text}',
-        'businessLicenseUrl': _businessLicenseUrl,
-        'otherDocumentUrls': _otherDocumentUrls,
-        'note': _noteController.text,
+      final tempData = {
+        'customerId': widget.customerId,
         'assignedTo': user.uid,
+        'siteAddress':
+            '${_siteAddressController.text} ${_detailSiteAddressController.text}',
+        'openingDate':
+            _openingDate != null ? Timestamp.fromDate(_openingDate!) : null,
+        'recipient': _recipientController.text,
+        'contactNumber': _contactNumberController.text,
+        'deliveryMethod': _deliveryMethod,
+        'additionalNotes': _additionalNotesController.text,
         'isTemp': true,
         'lastUpdated': FieldValue.serverTimestamp(),
       };
 
       if (_tempSaveDocId != null) {
-        // 기존 임시 저장 문서 업데이트
         await FirebaseFirestore.instance
-            .collection('temp_customers')
+            .collection('temp_space_basic_infos')
             .doc(_tempSaveDocId)
-            .update(tempCustomerData);
+            .update(tempData);
       } else {
-        // 새로운 임시 저장 문서 생성
         final docRef = await FirebaseFirestore.instance
-            .collection('temp_customers')
-            .add(tempCustomerData);
+            .collection('temp_space_basic_infos')
+            .add(tempData);
         _tempSaveDocId = docRef.id;
       }
 
@@ -216,72 +159,68 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
     }
   }
 
-  List<String> getAllUploadedUrls() {
-    return _uploadedUrls;
-  }
-
-Future<void> _saveCustomer() async {
+  // 최종 저장
+  Future<void> _saveSpaceBasicInfo() async {
     // 유효성 검사
-    if (_nameController.text.isEmpty) {
+    if (_siteAddressController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('고객명을 입력해주세요')),
+        const SnackBar(content: Text('현장 주소를 입력해주세요')),
       );
       return;
     }
 
-    if (_phoneController.text.isEmpty) {
+    if (_openingDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('공간 오픈 일정을 선택해주세요')),
+      );
+      return;
+    }
+
+    if (_recipientController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('수령자를 입력해주세요')),
+      );
+      return;
+    }
+
+    if (_contactNumberController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('연락처를 입력해주세요')),
       );
       return;
     }
 
-    if (_emailController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('이메일을 입력해주세요')),
-      );
-      return;
-    }
-
-    if (_addressController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('주소를 입력해주세요')),
-      );
-      return;
-    }
-    
     try {
       final user = ref.read(UserProvider.currentUserProvider).value;
       if (user == null) {
         throw Exception('로그인이 필요합니다');
       }
 
-      // 고객 정보 저장 및 ID 반환 받기
-      final String customerId = await ref.read(customerDataProvider.notifier).addCustomer(
-        name: _nameController.text,
-        phone: _phoneController.text,
-        email: '${_emailController.text}@${selectedDomain ?? _directDomainController.text}',
-        address: '${_addressController.text} ${_detailAddressController.text}',
-        businessLicenseUrl: _businessLicenseUrl ?? '',
-        otherDocumentUrls: _otherDocumentUrls,
-        note: _noteController.text,
-        assignedTo: user.uid,
-      );
+      await ref.read(spaceBasicInfoProvider.notifier).addSpaceBasicInfo(
+            customerId: widget.customerId,
+            siteAddress:
+                '${_siteAddressController.text} ${_detailSiteAddressController.text}',
+            openingDate: _openingDate!,
+            recipient: _recipientController.text,
+            contactNumber: _contactNumberController.text,
+            deliveryMethod: _deliveryMethod ?? '',
+            additionalNotes: _additionalNotesController.text,
+          );
 
       // 저장 성공 시 임시 저장 문서 삭제
       if (_tempSaveDocId != null) {
         await FirebaseFirestore.instance
-            .collection('temp_customers')
+            .collection('temp_space_basic_infos')
             .doc(_tempSaveDocId)
             .delete();
       }
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('고객 정보가 저장되었습니다')),
+          const SnackBar(content: Text('저장되었습니다')),
         );
-        // 공간 기본정보 페이지로 이동
-        context.go('/space-basic/$customerId');
+        // 다음 페이지로 이동
+        context.go('/customer/${widget.customerId}/space-detail');
       }
     } catch (e) {
       print('저장 중 오류: $e');
@@ -292,34 +231,9 @@ Future<void> _saveCustomer() async {
   }
 
   @override
-  void initState() {
-    super.initState();
-    _noteController.addListener(() {
-      setState(() {
-        _textLength = _noteController.text.length;
-      });
-    });
-    // 컴포넌트가 마운트될 때 임시 저장 데이터 불러오기
-    _loadTempSavedData();
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _phoneController.dispose();
-    _noteController.dispose();
-    _emailController.dispose();
-    _directDomainController.dispose();
-    _addressController.dispose();
-    _detailAddressController.dispose();
-
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final spaceBasicInfo = ref.watch(spaceBasicInfoProvider);
     final userData = ref.watch(UserProvider.userDataProvider);
-
     return Scaffold(
         body: ResponsiveLayout(
             mobile: const SingleChildScrollView(),
@@ -508,7 +422,7 @@ Future<void> _saveCustomer() async {
                         ),
                         const SizedBox(height: 56),
                         const Text(
-                          '고객 추가',
+                          '공간 기본 정보 입력',
                           style: TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.w600,
@@ -517,8 +431,13 @@ Future<void> _saveCustomer() async {
                         const SizedBox(
                           height: 32,
                         ),
+                        AddressSearchField(
+                          controller: _siteAddressController,
+                          detailController: _detailSiteAddressController,
+                          labelText: '현장 주소',
+                        ),
                         const Text(
-                          '고객명',
+                          '수령자',
                           style: TextStyle(
                               fontSize: 14,
                               color: AppColor.font1,
@@ -534,13 +453,13 @@ Future<void> _saveCustomer() async {
                             border: Border.all(color: AppColor.line1),
                           ),
                           child: TextFormField(
-                            controller: _nameController,
+                            controller: _recipientController,
                             decoration: const InputDecoration(
                               isDense: true,
                               contentPadding: EdgeInsets.symmetric(
                                   horizontal: 16, vertical: 14),
                               border: InputBorder.none,
-                              hintText: '고객명을 입력해 주세요',
+                              hintText: '수령자 이름을 입력해 주세요',
                               hintStyle: TextStyle(
                                   color: AppColor.font2, fontSize: 14),
                             ),
@@ -562,7 +481,7 @@ Future<void> _saveCustomer() async {
                             border: Border.all(color: AppColor.line1),
                           ),
                           child: TextFormField(
-                            controller: _phoneController,
+                            controller: _recipientController,
                             decoration: const InputDecoration(
                               isDense: true,
                               contentPadding: EdgeInsets.symmetric(
@@ -684,19 +603,7 @@ Future<void> _saveCustomer() async {
                         const SizedBox(
                           height: 24,
                         ),
-                        FileUploadField(
-                          label: '사업자등록증',
-                          uploadPath: 'business_licenses',
-                          isAllFileTypes: false,
-                          onFileUploaded: (String url) {
-                            print('사업자등록증 업로드 전 URL: $_businessLicenseUrl');
-                            setState(() {
-                              _businessLicenseUrl = url;
-                            });
-                            print('사업자등록증 업로드 후 URL: $_businessLicenseUrl');
-                          },
-                          onFileSelected: (_) {}, // 웹에서는 필요없음
-                        ),
+
                         const SizedBox(
                           height: 24,
                         ),
@@ -719,7 +626,7 @@ Future<void> _saveCustomer() async {
                           child: Stack(
                             children: [
                               TextFormField(
-                                controller: _noteController,
+                                controller: _additionalNotesController,
                                 maxLength: 2000,
                                 maxLines: null,
                                 decoration: const InputDecoration(
@@ -751,51 +658,7 @@ Future<void> _saveCustomer() async {
                         const SizedBox(
                           height: 24,
                         ),
-                        FileUploadField(
-                          label: '',
-                          uploadPath: 'other_documents',
-                          isAllFileTypes: true,
-                          onFileUploaded: (String url) {
-                            print('기타 서류 업로드 전 URLs: $_otherDocumentUrls');
-                            setState(() {
-                              _otherDocumentUrls.add(url);
-                            });
-                            print('기타 서류 업로드 후 URLs: $_otherDocumentUrls');
-                          },
-                          onFileSelected: (_) {}, // 웹에서는 필요없음
-                        ),
-                        ..._additionalFiles,
-                        const SizedBox(
-                          height: 12,
-                        ),
-                        InkWell(
-                          onTap: () {
-                            print('파일 추가 버튼 클릭');
-                            _addFileUploadField();
-                          },
-                          child: Container(
-                            height: 36,
-                            width: 720,
-                            decoration: BoxDecoration(
-                              border: Border.all(color: AppColor.line1),
-                            ),
-                            child: const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  '파일 추가',
-                                  style: TextStyle(
-                                    color: AppColor.font1,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                SizedBox(width: 8),
-                                Icon(Icons.add, color: AppColor.font1, size: 16)
-                              ],
-                            ),
-                          ),
-                        ),
+
                         const SizedBox(
                           height: 48,
                         ),

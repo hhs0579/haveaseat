@@ -8,11 +8,12 @@ import 'dart:js' as js;
 class AddressSearchField extends StatefulWidget {
   final TextEditingController controller;
   final TextEditingController detailController;
-
+  final String labelText;
   const AddressSearchField({
     Key? key,
     required this.controller,
     required this.detailController,
+    this.labelText = '배송지 주소',
   }) : super(key: key);
 
   @override
@@ -62,9 +63,9 @@ class _AddressSearchFieldState extends State<AddressSearchField> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          '배송지 주소',
-          style: TextStyle(
+        Text(
+          widget.labelText,
+          style: const TextStyle(
             fontSize: 14,
             color: AppColor.font1,
             fontWeight: FontWeight.w600,
