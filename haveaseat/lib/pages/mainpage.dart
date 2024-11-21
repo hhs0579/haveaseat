@@ -1,14 +1,13 @@
-// lib/pages/main_page.dart
-
 import 'package:flutter/material.dart';
 import 'package:haveaseat/components/colors.dart';
 import 'package:haveaseat/components/screensize.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart'; // 이 줄 추가
+import 'package:go_router/go_router.dart';
 import 'package:haveaseat/riverpod/customermodel.dart';
 import 'package:haveaseat/riverpod/usermodel.dart';
-import 'dart:html' as html; // 파일 다운로드를 위한 import
+import 'dart:html' as html;
 import 'package:firebase_storage/firebase_storage.dart';
+import 'dart:math' show max;
 
 class MainPage extends ConsumerStatefulWidget {
   const MainPage({super.key});
@@ -18,10 +17,20 @@ class MainPage extends ConsumerStatefulWidget {
 }
 
 class _MainPageState extends ConsumerState<MainPage> {
-  final Set<String> _selectedCustomers = {}; // 선택된 고객 ID를 저장할 Set
+  final Set<String> _selectedCustomers = {};
   bool _allCheck = false;
 
-  // 모든 체크박스 상태 변경
+  // 동적 너비 계산을 위한 상수
+  static const double CHECKBOX_WIDTH = 56;
+  static const double CUSTOMER_NAME_RATIO = 0.08;
+  static const double STATUS_RATIO = 0.08;
+  static const double PHONE_RATIO = 0.1;
+  static const double EMAIL_RATIO = 0.15;
+  static const double ADDRESS_RATIO = 0.2;
+  static const double LICENSE_RATIO = 0.09;
+  static const double BUDGET_RATIO = 0.1;
+  static const double NOTE_RATIO = 0.1;
+
   void _toggleAllCheck(bool? checked, List<Customer> customers) {
     setState(() {
       _allCheck = checked ?? false;
@@ -33,7 +42,6 @@ class _MainPageState extends ConsumerState<MainPage> {
     });
   }
 
-  // 개별 체크박스 상태 변경
   void _toggleCustomerCheck(bool? checked, String customerId) {
     setState(() {
       if (checked ?? false) {
@@ -44,7 +52,6 @@ class _MainPageState extends ConsumerState<MainPage> {
     });
   }
 
-  // 선택된 고객 삭제
   Future<void> _deleteSelectedCustomers() async {
     try {
       if (_selectedCustomers.isEmpty) {
@@ -54,7 +61,6 @@ class _MainPageState extends ConsumerState<MainPage> {
         return;
       }
 
-      // 확인 다이얼로그 표시
       final confirm = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
@@ -75,7 +81,6 @@ class _MainPageState extends ConsumerState<MainPage> {
 
       if (confirm != true) return;
 
-      // 각 고객에 대해 파일 삭제 및 문서 삭제 진행
       await Future.wait(
         _selectedCustomers.map((customerId) async {
           try {
@@ -84,7 +89,6 @@ class _MainPageState extends ConsumerState<MainPage> {
                 .getCustomer(customerId);
 
             if (customer != null) {
-              // 사업자등록증 삭제 시도
               if (customer.businessLicenseUrl.isNotEmpty) {
                 try {
                   final storageRef = FirebaseStorage.instance
@@ -92,29 +96,24 @@ class _MainPageState extends ConsumerState<MainPage> {
                   await storageRef.delete();
                 } catch (e) {
                   print('Failed to delete business license: $e');
-                  // 파일 삭제 실패해도 계속 진행
                 }
               }
 
-              // 기타 문서 삭제 시도
               for (final url in customer.otherDocumentUrls) {
                 try {
                   final storageRef = FirebaseStorage.instance.refFromURL(url);
                   await storageRef.delete();
                 } catch (e) {
                   print('Failed to delete other document: $e');
-                  // 파일 삭제 실패해도 계속 진행
                 }
               }
 
-              // Firestore 문서 삭제
               await ref
                   .read(customerDataProvider.notifier)
                   .deleteCustomer(customerId);
             }
           } catch (e) {
             print('Error processing customer $customerId: $e');
-            // 개별 고객 처리 실패해도 다른 고객 처리 계속 진행
           }
         }),
       );
@@ -139,379 +138,381 @@ class _MainPageState extends ConsumerState<MainPage> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final userData = ref.watch(UserProvider.userDataProvider);
-    final customers = ref.watch(customerDataProvider);
-    bool allCheck = false;
-    Widget buildDataCell(String text, double width) {
-      return Container(
-        width: width,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        child: Text(
-          text,
-          style: const TextStyle(
-            fontSize: 14,
-            color: AppColor.font1,
-          ),
-          overflow: TextOverflow.ellipsis,
+  Widget buildDataCell(String text, double width) {
+    return Container(
+      width: width,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 14,
+          color: AppColor.font1,
         ),
-      );
-    }
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  }
 
-    Widget buildHeaderCell(String text, double width) {
-      return Container(
-        width: width,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        child: Text(
-          text,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: AppColor.font1,
-          ),
-          overflow: TextOverflow.ellipsis,
+  Widget buildHeaderCell(String text, double width) {
+    return Container(
+      width: width,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: AppColor.font1,
         ),
-      );
-    }
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  }
 
-    Widget buildTableHeader() {
-      return Container(
-        width: MediaQuery.of(context).size.width - 336,
-        height: 48,
-        color: const Color(0xffF7F7FB),
-        child: Row(
-          children: [
-            const SizedBox(width: 16),
-            // 체크박스
-            SizedBox(
-              width: 40,
-              child: Checkbox(
-                value: _allCheck,
-                onChanged: (value) =>
-                    _toggleAllCheck(value, customers.value ?? []),
-              ),
+  Widget buildTableHeader(double totalWidth) {
+    return Container(
+      width: totalWidth,
+      height: 48,
+      color: const Color(0xffF7F7FB),
+      child: Row(
+        children: [
+          SizedBox(
+            width: CHECKBOX_WIDTH,
+            child: Checkbox(
+              value: _allCheck,
+              onChanged: (value) => _toggleAllCheck(
+                  value, ref.read(customerDataProvider).value ?? []),
             ),
-            // 각 컬럼 헤더
-            buildHeaderCell('고객명', 80),
-            buildHeaderCell('상태', 100),
-            buildHeaderCell('연락처', 120),
-            buildHeaderCell('이메일 주소', 180),
-            buildHeaderCell('주소', 360),
-            buildHeaderCell('사업자등록증', 100),
-            buildHeaderCell('금액', 120),
-            buildHeaderCell('기타입력사항', 120),
-          ],
-        ),
-      );
-    }
+          ),
+          buildHeaderCell('고객명', totalWidth * CUSTOMER_NAME_RATIO),
+          buildHeaderCell('상태', totalWidth * STATUS_RATIO),
+          buildHeaderCell('연락처', totalWidth * PHONE_RATIO),
+          buildHeaderCell('이메일 주소', totalWidth * EMAIL_RATIO),
+          buildHeaderCell('주소', totalWidth * ADDRESS_RATIO),
+          buildHeaderCell('사업자등록증', totalWidth * LICENSE_RATIO),
+          buildHeaderCell('금액', totalWidth * BUDGET_RATIO),
+          buildHeaderCell('기타입력사항', totalWidth * NOTE_RATIO),
+        ],
+      ),
+    );
+  }
 
-    // 고객 데이터 행을 생성하는 함수
-    Widget buildCustomerRow(Customer customer) {
-      return Container(
-        width: MediaQuery.of(context).size.width - 336,
-        height: 48,
-        decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: AppColor.line1)),
-        ),
-        child: Row(
-          children: [
-            const SizedBox(width: 16),
-            // 체크박스
-            SizedBox(
-              width: 40,
-              child: Checkbox(
-                value: _selectedCustomers.contains(customer.id),
-                onChanged: (value) => _toggleCustomerCheck(value, customer.id),
-              ),
+  Widget buildCustomerRow(Customer customer, double totalWidth) {
+    return Container(
+      width: totalWidth,
+      height: 48,
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColor.line1)),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: CHECKBOX_WIDTH,
+            child: Checkbox(
+              value: _selectedCustomers.contains(customer.id),
+              onChanged: (value) => _toggleCustomerCheck(value, customer.id),
             ),
-            // 각 데이터 셀
-            buildDataCell(customer.name, 80),
-            buildDataCell('진행중', 100), // 상태값은 필요에 따라 수정
-            buildDataCell(customer.phone, 120),
-            buildDataCell(customer.email, 180),
-            buildDataCell(customer.address, 360),
-            // 사업자등록증 셀
-            SizedBox(
-              width: 120,
-              child: customer.businessLicenseUrl.isEmpty
-                  ? const Text('미첨부', style: TextStyle(color: Colors.red))
-                  : TextButton(
+          ),
+          buildDataCell(customer.name, totalWidth * CUSTOMER_NAME_RATIO),
+          buildDataCell('진행중', totalWidth * STATUS_RATIO),
+          buildDataCell(customer.phone, totalWidth * PHONE_RATIO),
+          buildDataCell(customer.email, totalWidth * EMAIL_RATIO),
+          buildDataCell(customer.address, totalWidth * ADDRESS_RATIO),
+          SizedBox(
+            width: totalWidth * LICENSE_RATIO,
+            child: customer.businessLicenseUrl.isEmpty
+                ? const Center(
+                    child: Text('미첨부', style: TextStyle(color: Colors.red)))
+                : Center(
+                    child: TextButton(
                       onPressed: () {
-                        // 다운로드 로직
                         html.window.open(customer.businessLicenseUrl, '_blank');
                       },
                       child: const Icon(Icons.download, color: AppColor.font1),
                     ),
-            ),
-            buildDataCell('₩${customer.spaceDetailInfo?.budget ?? 0}', 100),
-            buildDataCell(customer.note, 120),
-          ],
-        ),
-      );
-    }
+                  ),
+          ),
+          buildDataCell('₩${customer.spaceDetailInfo?.budget ?? 0}',
+              totalWidth * BUDGET_RATIO),
+          buildDataCell(customer.note, totalWidth * NOTE_RATIO),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final userData = ref.watch(UserProvider.userDataProvider);
+    final customers = ref.watch(customerDataProvider);
 
     return Scaffold(
       body: ResponsiveLayout(
         mobile: const SingleChildScrollView(),
-        desktop: SingleChildScrollView(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SingleChildScrollView(
-                child: SizedBox(
-                  width: 240,
-                  child: Container(
-                    height: MediaQuery.of(context).size.height,
-                    constraints: const BoxConstraints(maxWidth: 240),
-                    decoration: const BoxDecoration(
-                        border:
-                            Border(right: BorderSide(color: AppColor.line1))),
-                    child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.center, // center로 변경
-                      mainAxisAlignment: MainAxisAlignment.start,
+        desktop: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 사이드바
+            Container(
+              width: 240,
+              height: MediaQuery.of(context).size.height,
+              decoration: const BoxDecoration(
+                border: Border(right: BorderSide(color: AppColor.line1)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const SizedBox(height: 40),
+                  SizedBox(
+                    width: 137,
+                    height: 17,
+                    child: Image.asset('assets/images/logo.png'),
+                  ),
+                  const SizedBox(height: 56),
+                  userData.when(
+                    data: (data) {
+                      if (data != null) {
+                        return Column(
+                          children: [
+                            Text(
+                              UserProvider.getUserName(data),
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w600,
+                                color: AppColor.font1,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              UserProvider.getDepartment(data),
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: AppColor.font4,
+                              ),
+                            ),
+                          ],
+                        );
+                      }
+                      return const Text('사용자 정보를 불러올 수 없습니다.');
+                    },
+                    loading: () => const CircularProgressIndicator(),
+                    error: (error, stack) => Text('오류: $error'),
+                  ),
+                  const SizedBox(height: 16),
+                  // 정보수정 버튼
+                  Container(
+                    width: 152,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: AppColor.line1),
+                    ),
+                    child: const Center(
+                      child: Text(
+                        '정보수정',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: AppColor.font1,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+                  // 메뉴 버튼들
+                  Container(
+                    width: 200,
+                    height: 48,
+                    color: AppColor.primary,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: const Row(
                       children: [
-                        const SizedBox(height: 40),
-                        SizedBox(
-                          width: 137,
-                          height: 17,
-                          child: Image.asset('assets/images/logo.png'),
-                        ),
-                        const SizedBox(height: 56),
-                        userData.when(
-                          data: (data) {
-                            if (data != null) {
-                              return Column(
-                                children: [
-                                  // crossAxisAlignment 제거
-                                  Text(
-                                    UserProvider.getUserName(data),
-                                    style: const TextStyle(
-                                        fontSize: 24,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColor.font1),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    UserProvider.getDepartment(data),
-                                    style: const TextStyle(
-                                        fontSize: 14, color: AppColor.font4),
-                                  ),
-                                ],
-                              );
-                            }
-                            return const Text('사용자 정보를 불러올 수 없습니다.');
-                          },
-                          loading: () => const CircularProgressIndicator(),
-                          error: (error, stack) => Text('오류: $error'),
-                        ),
-                        const SizedBox(
-                          height: 16,
-                        ),
-                        InkWell(
-                          onTap: () {},
-                          child: Container(
-                            width: 152,
-                            height: 48,
-                            decoration: BoxDecoration(
-                                color: Colors.transparent,
-                                border: Border.all(
-                                  color: AppColor.line1,
-                                )),
-                            child: const Center(
-                                child: Text(
-                              '정보수정',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColor.font1,
-                                  fontSize: 16),
-                            )),
+                        Icon(Icons.person_outline_sharp,
+                            color: Colors.white, size: 20),
+                        SizedBox(width: 8),
+                        Text(
+                          '담당 고객정보',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
                           ),
-                        ),
-                        const SizedBox(
-                          height: 40,
-                        ),
-                        InkWell(
-                          onTap: () {},
-                          child: Container(
-                              width: 200,
-                              height: 48,
-                              color: AppColor.primary,
-                              child: const Row(
-                                children: [
-                                  SizedBox(
-                                    width: 17.87,
-                                  ),
-                                  Icon(
-                                    Icons.person_outline_sharp,
-                                    color: Colors.white,
-                                    size: 20,
-                                  ),
-                                  SizedBox(
-                                    width: 3.85,
-                                  ),
-                                  Text(
-                                    '담당 고객정보',
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.white,
-                                        fontSize: 16),
-                                  ),
-                                ],
-                              )),
-                        ),
-                        InkWell(
-                          onTap: () {},
-                          child: Container(
-                              width: 200,
-                              height: 48,
-                              color: Colors.transparent,
-                              child: const Row(
-                                children: [
-                                  SizedBox(
-                                    width: 17.87,
-                                  ),
-                                  Icon(
-                                    Icons.person_outline_sharp,
-                                    color: Colors.black,
-                                    size: 20,
-                                  ),
-                                  SizedBox(
-                                    width: 3.85,
-                                  ),
-                                  Text(
-                                    '고객 정보',
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColor.font1,
-                                        fontSize: 16),
-                                  ),
-                                ],
-                              )),
                         ),
                       ],
                     ),
                   ),
-                ),
-              ),
-              const SizedBox(
-                width: 48,
-              ),
-              Expanded(
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  Container(
+                    width: 200,
+                    height: 48,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: const Row(
                       children: [
-                    const SizedBox(
-                      height: 40,
-                    ),
-                    SizedBox(
-                      // Container 추가하여 너비 제한
-                      width: MediaQuery.of(context).size.width -
-                          288, // 전체 너비 - (왼쪽 사이드바 240 + 간격 48)
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            '${DateTime.now().year}년 ${DateTime.now().month}월 ${DateTime.now().day}일',
-                            style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                                color: AppColor.font1),
-                          ),
-                          const Row(
-                            children: [
-                              Icon(
-                                Icons.person_outline_sharp,
-                                color: AppColor.font2,
-                              ),
-                              SizedBox(width: 16),
-                              Icon(
-                                Icons.notifications_none_outlined,
-                                color: AppColor.font2,
-                              ),
-                              SizedBox(width: 43), // 오른쪽 여백 추가
-                            ],
-                          )
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 56),
-                    const Text(
-                      '담당 고객정보',
-                      style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w600,
-                          color: AppColor.font1),
-                    ),
-                    Row(
-                      children: [
-                        InkWell(
-                          onTap: () {
-                            context.go('/main/addpage');
-                          },
-                          child: Container(
-                            color: AppColor.primary,
-                            width: 95,
-                            height: 36,
-                            child: const Center(
-                              child: Text(
-                                '고객추가 +',
-                                style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white),
-                              ),
-                            ),
-                          ),
-                        ),
-                        InkWell(
-                          onTap: _deleteSelectedCustomers,
-                          child: Container(
-                            color: Colors.transparent,
-                            width: 95,
-                            height: 36,
-                            child: const Center(
-                              child: Text(
-                                '삭제하기',
-                                style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.red),
-                              ),
-                            ),
+                        Icon(Icons.person_outline_sharp,
+                            color: Colors.black, size: 20),
+                        SizedBox(width: 8),
+                        Text(
+                          '고객 정보',
+                          style: TextStyle(
+                            color: AppColor.font1,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 24),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          buildTableHeader(),
+                  ),
+                ],
+              ),
+            ),
+            // 메인 컨텐츠
+// 테이블 영역 부분만 수정
+// 메인 컨텐츠 영역
+            Expanded(
+              child: LayoutBuilder(
+                builder: (BuildContext context, BoxConstraints constraints) {
+                  // constraints를 여기서 받음
+                  final double availableWidth = constraints.maxWidth - 48;
+                  final double tableWidth = max(1200, availableWidth);
 
-                          // 고객 리스트
-                          customers.when(
-                            data: (customerList) => Column(
-                              children: customerList
-                                  .map((customer) => buildCustomerRow(customer))
-                                  .toList(),
+                  return SizedBox(
+                    width: constraints.maxWidth,
+                    height: constraints.maxHeight,
+                    child: SingleChildScrollView(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // 상단 영역 (날짜 및 아이콘)
+                            SizedBox(
+                              width: availableWidth,
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    '${DateTime.now().year}년 ${DateTime.now().month}월 ${DateTime.now().day}일',
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColor.font1,
+                                    ),
+                                  ),
+                                  const Row(
+                                    children: [
+                                      Icon(Icons.person_outline_sharp,
+                                          color: AppColor.font2),
+                                      SizedBox(width: 16),
+                                      Icon(Icons.notifications_none_outlined,
+                                          color: AppColor.font2),
+                                      SizedBox(width: 16),
+                                    ],
+                                  ),
+                                ],
+                              ),
                             ),
-                            loading: () => const Center(
-                              child: CircularProgressIndicator(),
+                            const SizedBox(height: 56),
+                            const Text(
+                              '담당 고객정보',
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w600,
+                                color: AppColor.font1,
+                              ),
                             ),
-                            error: (error, stack) => Center(
-                              child: Text('Error: $error'),
+                            const SizedBox(height: 16),
+                            Row(
+                              children: [
+                                InkWell(
+                                  onTap: () => context.go('/main/addpage'),
+                                  child: Container(
+                                    color: AppColor.primary,
+                                    width: 95,
+                                    height: 36,
+                                    child: const Center(
+                                      child: Text(
+                                        '고객추가 +',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                InkWell(
+                                  onTap: _deleteSelectedCustomers,
+                                  child: Container(
+                                    width: 95,
+                                    height: 36,
+                                    alignment: Alignment.center,
+                                    child: const Text(
+                                      '삭제하기',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.red,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 24),
+                            // 테이블 영역
+                            SizedBox(
+                              width: availableWidth,
+                              child: ClipRRect(
+                                child: SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  child: ConstrainedBox(
+                                    constraints: BoxConstraints(
+                                      minWidth: tableWidth,
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        buildTableHeader(tableWidth),
+                                        customers.when(
+                                          data: (customerList) => Column(
+                                            children: customerList
+                                                .map((customer) =>
+                                                    buildCustomerRow(
+                                                        customer, tableWidth))
+                                                .toList(),
+                                          ),
+                                          loading: () => SizedBox(
+                                            width: tableWidth,
+                                            height: 200,
+                                            child: const Center(
+                                              child:
+                                                  CircularProgressIndicator(),
+                                            ),
+                                          ),
+                                          error: (error, stack) => SizedBox(
+                                            width: tableWidth,
+                                            height: 200,
+                                            child: Center(
+                                              child: Text('Error: $error'),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ])),
-            ],
-          ),
+                  );
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );
