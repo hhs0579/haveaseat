@@ -151,7 +151,7 @@ class _FileUploadFieldState extends State<FileUploadField> {
         Row(
           children: [
             Container(
-              width: 604,
+              width: 524,
               height: 48,
               decoration: BoxDecoration(
                 border: Border.all(color: AppColor.line1),

@@ -15,7 +15,7 @@ class signUp extends ConsumerWidget {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _selectedRole = StateProvider<String?>((ref) => null);
+  // final _selectedRole = StateProvider<String?>((ref) => null);
   final _emailValidationMessage = StateProvider<String?>((ref) => null);
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -25,10 +25,10 @@ class signUp extends ConsumerWidget {
 
     // 회원가입 상태 감시
     final signUpState = ref.watch(signUpNotifierProvider);
-    final selectedRole = ref.watch(_selectedRole);
+    // final selectedRole = ref.watch(_selectedRole);
 
-    final selectedDepartment = ref.watch(departmentProvider); // 부서 선택 상태
-    final selectedPosition = ref.watch(positionProvider); // 직급 선택 상태
+    // final selectedDepartment = ref.watch(departmentProvider); // 부서 선택 상태
+    // final selectedPosition = ref.watch(positionProvider); // 직급 선택 상태
     return Scaffold(
       body: ResponsiveLayout(
         mobile: const SingleChildScrollView(),
@@ -106,41 +106,41 @@ class signUp extends ConsumerWidget {
                           ),
 
                           // 역할 선택
-                          const SizedBox(height: 20),
-                          const Text('사원정보',
-                              style: TextStyle(
-                                color: AppColor.font1,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
-                              )),
-                          const SizedBox(
-                            height: 12,
-                          ),
-                          Container(
-                            decoration: BoxDecoration(
-                              border: Border.all(color: AppColor.line1),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: const Column(
-                              children: [
-                                DepartmentSelector(),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(
-                            height: 12,
-                          ),
-                          Container(
-                            decoration: BoxDecoration(
-                              border: Border.all(color: AppColor.line1),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: const Column(
-                              children: [
-                                PositionSelector(),
-                              ],
-                            ),
-                          ),
+                          // const SizedBox(height: 20),
+                          // const Text('사원정보',
+                          //     style: TextStyle(
+                          //       color: AppColor.font1,
+                          //       fontWeight: FontWeight.w600,
+                          //       fontSize: 14,
+                          //     )),
+                          // const SizedBox(
+                          //   height: 12,
+                          // ),
+                          // Container(
+                          //   decoration: BoxDecoration(
+                          //     border: Border.all(color: AppColor.line1),
+                          //     borderRadius: BorderRadius.circular(4),
+                          //   ),
+                          //   child: const Column(
+                          //     children: [
+                          //       DepartmentSelector(),
+                          //     ],
+                          //   ),
+                          // ),
+                          // const SizedBox(
+                          //   height: 12,
+                          // ),
+                          // Container(
+                          //   decoration: BoxDecoration(
+                          //     border: Border.all(color: AppColor.line1),
+                          //     borderRadius: BorderRadius.circular(4),
+                          //   ),
+                          //   child: const Column(
+                          //     children: [
+                          //       PositionSelector(),
+                          //     ],
+                          //   ),
+                          // ),
                           const SizedBox(
                             height: 20,
                           ),
@@ -370,24 +370,24 @@ class signUp extends ConsumerWidget {
                                       if (_formKey.currentState?.validate() ??
                                           false) {
                                         // 부서 선택 체크
-                                        if (selectedDepartment == null) {
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(
-                                            const SnackBar(
-                                                content: Text('소속부서를 선택해주세요')),
-                                          );
-                                          return;
-                                        }
+                                        // if (selectedDepartment == null) {
+                                        //   ScaffoldMessenger.of(context)
+                                        //       .showSnackBar(
+                                        //     const SnackBar(
+                                        //         content: Text('소속부서를 선택해주세요')),
+                                        //   );
+                                        //   return;
+                                        // }
 
                                         // 직급 선택 체크
-                                        if (selectedPosition == null) {
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(
-                                            const SnackBar(
-                                                content: Text('직급을 선택해주세요')),
-                                          );
-                                          return;
-                                        }
+                                        // if (selectedPosition == null) {
+                                        //   ScaffoldMessenger.of(context)
+                                        //       .showSnackBar(
+                                        //     const SnackBar(
+                                        //         content: Text('직급을 선택해주세요')),
+                                        //   );
+                                        //   return;
+                                        // }
 
                                         try {
                                           await ref
@@ -398,8 +398,8 @@ class signUp extends ConsumerWidget {
                                                 password:
                                                     _passwordController.text,
                                                 name: _nameController.text,
-                                                department: selectedDepartment,
-                                                position: selectedPosition,
+                                                // department: selectedDepartment,
+                                                // position: selectedPosition,
                                               );
 
                                           if (context.mounted) {

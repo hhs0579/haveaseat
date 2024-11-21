@@ -220,7 +220,7 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
     return _uploadedUrls;
   }
 
-Future<void> _saveCustomer() async {
+  Future<void> _saveCustomer() async {
     // 유효성 검사
     if (_nameController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -249,7 +249,7 @@ Future<void> _saveCustomer() async {
       );
       return;
     }
-    
+
     try {
       final user = ref.read(UserProvider.currentUserProvider).value;
       if (user == null) {
@@ -257,16 +257,19 @@ Future<void> _saveCustomer() async {
       }
 
       // 고객 정보 저장 및 ID 반환 받기
-      final String customerId = await ref.read(customerDataProvider.notifier).addCustomer(
-        name: _nameController.text,
-        phone: _phoneController.text,
-        email: '${_emailController.text}@${selectedDomain ?? _directDomainController.text}',
-        address: '${_addressController.text} ${_detailAddressController.text}',
-        businessLicenseUrl: _businessLicenseUrl ?? '',
-        otherDocumentUrls: _otherDocumentUrls,
-        note: _noteController.text,
-        assignedTo: user.uid,
-      );
+      final String customerId =
+          await ref.read(customerDataProvider.notifier).addCustomer(
+                name: _nameController.text,
+                phone: _phoneController.text,
+                email:
+                    '${_emailController.text}@${selectedDomain ?? _directDomainController.text}',
+                address:
+                    '${_addressController.text} ${_detailAddressController.text}',
+                businessLicenseUrl: _businessLicenseUrl ?? '',
+                otherDocumentUrls: _otherDocumentUrls,
+                note: _noteController.text,
+                assignedTo: user.uid,
+              );
 
       // 저장 성공 시 임시 저장 문서 삭제
       if (_tempSaveDocId != null) {
@@ -281,7 +284,7 @@ Future<void> _saveCustomer() async {
           const SnackBar(content: Text('고객 정보가 저장되었습니다')),
         );
         // 공간 기본정보 페이지로 이동
-        context.go('/space-basic/$customerId');
+        context.go('/main/addpage/spaceadd/$customerId');
       }
     } catch (e) {
       print('저장 중 오류: $e');
@@ -361,12 +364,6 @@ Future<void> _saveCustomer() async {
                                           fontSize: 24,
                                           fontWeight: FontWeight.w600,
                                           color: AppColor.font1),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      UserProvider.getDepartment(data),
-                                      style: const TextStyle(
-                                          fontSize: 14, color: AppColor.font4),
                                     ),
                                   ],
                                 );
@@ -526,7 +523,7 @@ Future<void> _saveCustomer() async {
                         ),
                         const SizedBox(height: 12),
                         Container(
-                          width: 720,
+                          width: 640,
                           height: 48,
                           margin:
                               const EdgeInsets.only(bottom: 24), // 에러 메시지 공간 확보
@@ -556,7 +553,7 @@ Future<void> _saveCustomer() async {
                         ),
                         const SizedBox(height: 12),
                         Container(
-                          width: 720,
+                          width: 640,
                           height: 48,
                           decoration: BoxDecoration(
                             border: Border.all(color: AppColor.line1),
@@ -587,7 +584,7 @@ Future<void> _saveCustomer() async {
                         Row(
                           children: [
                             Container(
-                              width: 341.5,
+                              width: 301.5,
                               height: 48,
                               decoration: BoxDecoration(
                                 border: Border.all(color: AppColor.line1),
@@ -615,7 +612,7 @@ Future<void> _saveCustomer() async {
                             ),
                             const SizedBox(width: 12),
                             Container(
-                                width: 341.5,
+                                width: 301.5,
                                 height: 48,
                                 decoration: BoxDecoration(
                                   border: Border.all(color: AppColor.line1),
@@ -711,7 +708,7 @@ Future<void> _saveCustomer() async {
                           height: 12,
                         ),
                         Container(
-                          width: 720,
+                          width: 640,
                           height: 180,
                           decoration: BoxDecoration(
                             border: Border.all(color: AppColor.line1),
@@ -775,7 +772,7 @@ Future<void> _saveCustomer() async {
                           },
                           child: Container(
                             height: 36,
-                            width: 720,
+                            width: 640,
                             decoration: BoxDecoration(
                               border: Border.all(color: AppColor.line1),
                             ),

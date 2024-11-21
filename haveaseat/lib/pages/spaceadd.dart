@@ -276,12 +276,6 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                                           fontWeight: FontWeight.w600,
                                           color: AppColor.font1),
                                     ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      UserProvider.getDepartment(data),
-                                      style: const TextStyle(
-                                          fontSize: 14, color: AppColor.font4),
-                                    ),
                                   ],
                                 );
                               }
@@ -328,7 +322,7 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                                       width: 17.87,
                                     ),
                                     Icon(
-                                      Icons.search_outlined,
+                                      Icons.person_outline_sharp,
                                       color: Colors.black,
                                       size: 20,
                                     ),
@@ -336,7 +330,7 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                                       width: 3.85,
                                     ),
                                     Text(
-                                      '대시보드',
+                                      '담당 고객정보',
                                       style: TextStyle(
                                           fontWeight: FontWeight.w600,
                                           color: AppColor.font1,
@@ -365,7 +359,7 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                                       width: 3.85,
                                     ),
                                     Text(
-                                      '고객 정보',
+                                      '전체 고객정보',
                                       style: TextStyle(
                                           fontWeight: FontWeight.w600,
                                           color: AppColor.font1,
@@ -436,6 +430,30 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                           detailController: _detailSiteAddressController,
                           labelText: '현장 주소',
                         ),
+                        const SizedBox(
+                          height: 24,
+                        ),
+                        const Text(
+                          '공간 오픈 일정',
+                          style: TextStyle(
+                              fontSize: 14,
+                              color: AppColor.font1,
+                              fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(
+                          height: 12,
+                        ),
+                        Container(
+                          width: 640,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            border: Border.all(color: AppColor.line1),
+                          ),
+                        ),
+                        const SizedBox(
+                          height: 48,
+                          width: 640,
+                        ),
                         const Text(
                           '수령자',
                           style: TextStyle(
@@ -445,7 +463,7 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                         ),
                         const SizedBox(height: 12),
                         Container(
-                          width: 720,
+                          width: 640,
                           height: 48,
                           margin:
                               const EdgeInsets.only(bottom: 24), // 에러 메시지 공간 확보
@@ -475,7 +493,7 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                         ),
                         const SizedBox(height: 12),
                         Container(
-                          width: 720,
+                          width: 640,
                           height: 48,
                           decoration: BoxDecoration(
                             border: Border.all(color: AppColor.line1),
@@ -495,110 +513,13 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                           ),
                         ),
                         const SizedBox(height: 24),
-                        const Text(
-                          '이메일 주소',
-                          style: TextStyle(
-                              fontSize: 14,
-                              color: AppColor.font1,
-                              fontWeight: FontWeight.w600),
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Container(
-                              width: 341.5,
-                              height: 48,
-                              decoration: BoxDecoration(
-                                border: Border.all(color: AppColor.line1),
-                              ),
-                              child: TextFormField(
-                                controller: _emailController,
-                                decoration: const InputDecoration(
-                                  isDense: true,
-                                  contentPadding: EdgeInsets.symmetric(
-                                      horizontal: 16, vertical: 14),
-                                  border: InputBorder.none,
-                                  hintText: '이메일 주소를 입력해주세요',
-                                  hintStyle: TextStyle(
-                                      color: AppColor.font2, fontSize: 14),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            const Text(
-                              '@',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: AppColor.font1,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Container(
-                                width: 341.5,
-                                height: 48,
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: AppColor.line1),
-                                ),
-                                child: isDirectInput
-                                    ? TextFormField(
-                                        controller: _directDomainController,
-                                        decoration: const InputDecoration(
-                                          isDense: true,
-                                          contentPadding: EdgeInsets.symmetric(
-                                              horizontal: 16, vertical: 14),
-                                          border: InputBorder.none,
-                                          hintText: '직접 입력',
-                                          hintStyle: TextStyle(
-                                              color: AppColor.font2,
-                                              fontSize: 14),
-                                        ),
-                                      )
-                                    : DropdownButtonHideUnderline(
-                                        child: DropdownButton<String>(
-                                          value: selectedDomain,
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 16, vertical: 14),
-                                          items: [
-                                            'gmail.com',
-                                            'naver.com',
-                                            'kakao.com',
-                                            'nate.com',
-                                            'hanmail.net',
-                                            'daum.net',
-                                            '직접 입력'
-                                          ].map((String value) {
-                                            return DropdownMenuItem<String>(
-                                              value: value,
-                                              child: Text(
-                                                value,
-                                                style: const TextStyle(
-                                                  fontSize: 14,
-                                                  color: AppColor.font1,
-                                                ),
-                                              ),
-                                            );
-                                          }).toList(),
-                                          onChanged: (String? newValue) {
-                                            setState(() {
-                                              if (newValue == '직접 입력') {
-                                                isDirectInput = true;
-                                                selectedDomain = null;
-                                              } else {
-                                                isDirectInput = false;
-                                                selectedDomain = newValue;
-                                              }
-                                            });
-                                          },
-                                        ),
-                                      )),
-                          ],
-                        ),
+
                         const SizedBox(
                           height: 24,
                         ),
                         AddressSearchField(
-                          controller: _addressController,
-                          detailController: _detailAddressController,
+                          controller: _siteAddressController,
+                          detailController: _detailSiteAddressController,
                         ),
                         const SizedBox(
                           height: 24,
@@ -618,7 +539,7 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                           height: 12,
                         ),
                         Container(
-                          width: 720,
+                          width: 640,
                           height: 180,
                           decoration: BoxDecoration(
                             border: Border.all(color: AppColor.line1),
@@ -688,7 +609,10 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                             ),
                             const SizedBox(width: 8),
                             InkWell(
-                              onTap: _saveTempCustomer,
+                              onTap: () {
+                                // 임시 저장 처리
+                                _saveTempBasicInfo();
+                              },
                               child: Container(
                                 width: 87,
                                 height: 48,
@@ -711,7 +635,7 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                             InkWell(
                               onTap: () {
                                 // 고객 추가 처리
-                                _saveCustomer();
+                                _saveSpaceBasicInfo();
                               },
                               child: Container(
                                 width: 60,

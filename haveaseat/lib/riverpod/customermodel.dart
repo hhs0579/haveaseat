@@ -261,6 +261,80 @@ class CustomerNotifier extends AsyncNotifier<List<Customer>> {
     }
   }
 
+  Future<Customer?> getCustomer(String id) async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('customers')
+          .doc(id)
+          .get();
+
+      if (doc.exists) {
+        return Customer.fromJson(doc.id, doc.data()!);
+      }
+      return null;
+    } catch (e) {
+      print('Error getting customer: $e');
+      rethrow;
+    }
+  }
+
+  // 고객 삭제
+  Future<void> deleteCustomer(String id) async {
+    try {
+      // 고객 정보 가져오기
+      final customer = await getCustomer(id);
+      if (customer == null) return;
+
+      // Storage에서 파일 삭제
+      if (customer.businessLicenseUrl.isNotEmpty) {
+        try {
+          final ref =
+              FirebaseStorage.instance.refFromURL(customer.businessLicenseUrl);
+          await ref.delete();
+        } catch (e) {
+          print('Error deleting business license: $e');
+        }
+      }
+
+      // 기타 문서 파일 삭제
+      for (final url in customer.otherDocumentUrls) {
+        try {
+          final ref = FirebaseStorage.instance.refFromURL(url);
+          await ref.delete();
+        } catch (e) {
+          print('Error deleting other document: $e');
+        }
+      }
+
+      // Firestore에서 고객 문서 삭제
+      await FirebaseFirestore.instance.collection('customers').doc(id).delete();
+
+      // 상태 업데이트
+      state = AsyncValue.data(await _fetchCustomers());
+    } catch (e) {
+      print('Error deleting customer: $e');
+      state = AsyncValue.error(e, StackTrace.current);
+      rethrow;
+    }
+  }
+
+  // 여러 고객 동시 삭제
+  Future<void> deleteMultipleCustomers(List<String> ids) async {
+    try {
+      state = const AsyncValue.loading();
+
+      await Future.wait(
+        ids.map((id) => deleteCustomer(id)),
+      );
+
+      state = AsyncValue.data(await _fetchCustomers());
+    } catch (e) {
+      print('Error deleting multiple customers: $e');
+      state = AsyncValue.error(e, StackTrace.current);
+      rethrow;
+    }
+  }
+
   // 파일 업로드 함수
   static Future<String> uploadFile(File file, String path) async {
     try {

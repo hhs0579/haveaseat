@@ -31,8 +31,8 @@ class SignUpNotifier extends StateNotifier<AsyncValue<void>> {
     required String email,
     required String password,
     required String name,
-    required String department,
-    required String position,
+    // required String department,
+    // required String position,
   }) async {
     state = const AsyncValue.loading();
     try {
@@ -51,8 +51,8 @@ class SignUpNotifier extends StateNotifier<AsyncValue<void>> {
         'uid': userCredential.user!.uid,
         'name': name,
         'email': email,
-        'department': department,
-        'position': position,
+        // 'department': department,
+        // 'position': position,
         'role': 'user', // 기본 역할 설정
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),

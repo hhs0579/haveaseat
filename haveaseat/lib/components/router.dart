@@ -6,6 +6,7 @@ import 'package:haveaseat/pages/addcustomer.dart';
 import 'package:haveaseat/pages/login.dart';
 import 'package:haveaseat/pages/mainpage.dart';
 import 'package:haveaseat/pages/signup.dart';
+import 'package:haveaseat/pages/spaceadd.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -43,10 +44,22 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/main',
         builder: (context, state) => const MainPage(),
-      ),
-      GoRoute(
-        path: '/main/addpage',
-        builder: (context, state) => const addCustomerPage(),
+        routes: [  // main의 하위 경로로 정의
+          GoRoute(
+            path: 'addpage',
+            builder: (context, state) => const addCustomerPage(),
+            routes: [  // addpage의 하위 경로로 정의
+              GoRoute(
+                path: 'spaceadd/:customerId',  // 상대 경로로 변경
+                name: 'spaceAdd',  // named route 추가
+                builder: (context, state) {
+                  final customerId = state.pathParameters['customerId']!;
+                  return SpaceAddPage(customerId: customerId);
+                },
+              ),
+            ],
+          ),
+        ],
       ),
     ],
     errorBuilder: (context, state) => const login(),

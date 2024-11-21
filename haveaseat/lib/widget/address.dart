@@ -76,7 +76,7 @@ class _AddressSearchFieldState extends State<AddressSearchField> {
           children: [
             Container(
               height: 48,
-              width: 618,
+              width: 538,
               decoration: BoxDecoration(
                 border: Border.all(color: AppColor.line1),
               ),
@@ -125,7 +125,7 @@ class _AddressSearchFieldState extends State<AddressSearchField> {
         const SizedBox(height: 12),
         Container(
           height: 48,
-          width: 720,
+          width: 640,
           decoration: BoxDecoration(
             border: Border.all(color: AppColor.line1),
           ),
