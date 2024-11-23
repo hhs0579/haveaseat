@@ -674,6 +674,14 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
                         const SizedBox(
                           height: 24,
                         ),
+                        Container(
+                          height: 2,
+                          width: 640,
+                          color: AppColor.primary,
+                        ),
+                        const SizedBox(
+                          height: 24,
+                        ),
                         AddressSearchField(
                           controller: _addressController,
                           detailController: _detailAddressController,

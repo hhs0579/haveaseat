@@ -62,6 +62,7 @@ dev_dependencies:
   flutter_riverpod:
   file_picker:
   uuid:
+  flutter_localization:
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 

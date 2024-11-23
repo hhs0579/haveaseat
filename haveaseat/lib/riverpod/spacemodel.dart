@@ -4,11 +4,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:haveaseat/riverpod/customermodel.dart';
-final spaceBasicInfoProvider = StateNotifierProvider<SpaceBasicInfoNotifier, AsyncValue<List<SpaceBasicInfo>>>((ref) {
+
+final spaceBasicInfoProvider = StateNotifierProvider<SpaceBasicInfoNotifier,
+    AsyncValue<List<SpaceBasicInfo>>>((ref) {
   return SpaceBasicInfoNotifier();
 });
 
-class SpaceBasicInfoNotifier extends StateNotifier<AsyncValue<List<SpaceBasicInfo>>> {
+class SpaceBasicInfoNotifier
+    extends StateNotifier<AsyncValue<List<SpaceBasicInfo>>> {
   SpaceBasicInfoNotifier() : super(const AsyncValue.loading()) {
     _init();
   }
@@ -45,7 +48,8 @@ class SpaceBasicInfoNotifier extends StateNotifier<AsyncValue<List<SpaceBasicInf
     required DateTime openingDate,
     required String recipient,
     required String contactNumber,
-    required String deliveryMethod,
+    required String shippingMethod, // 변경
+    required String paymentMethod, // 추가
     required String additionalNotes,
   }) async {
     try {
@@ -58,7 +62,8 @@ class SpaceBasicInfoNotifier extends StateNotifier<AsyncValue<List<SpaceBasicInf
         'openingDate': Timestamp.fromDate(openingDate),
         'recipient': recipient,
         'contactNumber': contactNumber,
-        'deliveryMethod': deliveryMethod,
+        'shippingMethod': shippingMethod,
+        'paymentMethod': paymentMethod,
         'additionalNotes': additionalNotes,
         'createdAt': now,
         'updatedAt': now,
@@ -83,7 +88,8 @@ class SpaceBasicInfoNotifier extends StateNotifier<AsyncValue<List<SpaceBasicInf
     required DateTime openingDate,
     required String recipient,
     required String contactNumber,
-    required String deliveryMethod,
+    required String shippingMethod, // 변경
+    required String paymentMethod, // 추가
     required String additionalNotes,
   }) async {
     try {
@@ -94,7 +100,8 @@ class SpaceBasicInfoNotifier extends StateNotifier<AsyncValue<List<SpaceBasicInf
         'openingDate': Timestamp.fromDate(openingDate),
         'recipient': recipient,
         'contactNumber': contactNumber,
-        'deliveryMethod': deliveryMethod,
+        'shippingMethod': shippingMethod,
+        'paymentMethod': paymentMethod,
         'additionalNotes': additionalNotes,
         'updatedAt': FieldValue.serverTimestamp(),
       };
@@ -114,11 +121,13 @@ class SpaceBasicInfoNotifier extends StateNotifier<AsyncValue<List<SpaceBasicInf
 }
 
 // Space Detail Info Provider
-final spaceDetailInfoProvider = StateNotifierProvider<SpaceDetailInfoNotifier, AsyncValue<List<SpaceDetailInfo>>>((ref) {
+final spaceDetailInfoProvider = StateNotifierProvider<SpaceDetailInfoNotifier,
+    AsyncValue<List<SpaceDetailInfo>>>((ref) {
   return SpaceDetailInfoNotifier();
 });
 
-class SpaceDetailInfoNotifier extends StateNotifier<AsyncValue<List<SpaceDetailInfo>>> {
+class SpaceDetailInfoNotifier
+    extends StateNotifier<AsyncValue<List<SpaceDetailInfo>>> {
   SpaceDetailInfoNotifier() : super(const AsyncValue.loading()) {
     _init();
   }
@@ -229,11 +238,10 @@ class SpaceDetailInfoNotifier extends StateNotifier<AsyncValue<List<SpaceDetailI
   // 설계 파일 업로드 함수
   Future<String> uploadDesignFile(File file) async {
     try {
-      final fileName = '${DateTime.now().millisecondsSinceEpoch}_${file.path.split('/').last}';
-      final ref = FirebaseStorage.instance
-          .ref()
-          .child('design_files')
-          .child(fileName);
+      final fileName =
+          '${DateTime.now().millisecondsSinceEpoch}_${file.path.split('/').last}';
+      final ref =
+          FirebaseStorage.instance.ref().child('design_files').child(fileName);
 
       final uploadTask = ref.putFile(file);
       final snapshot = await uploadTask;

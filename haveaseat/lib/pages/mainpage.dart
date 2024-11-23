@@ -281,14 +281,6 @@ class _MainPageState extends ConsumerState<MainPage> {
                                 color: AppColor.font1,
                               ),
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              UserProvider.getDepartment(data),
-                              style: const TextStyle(
-                                fontSize: 14,
-                                color: AppColor.font4,
-                              ),
-                            ),
                           ],
                         );
                       }

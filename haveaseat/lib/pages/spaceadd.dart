@@ -12,6 +12,7 @@ import 'package:haveaseat/riverpod/usermodel.dart';
 import 'package:haveaseat/widget/address.dart';
 import 'package:haveaseat/widget/fileupload.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 class SpaceAddPage extends ConsumerStatefulWidget {
   // ConsumerWidget을 ConsumerStatefulWidget으로 변경
@@ -35,6 +36,8 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
       TextEditingController();
   final TextEditingController _additionalNotesController =
       TextEditingController();
+  String? _shippingMethod; // 배송 방법
+  String? _paymentMethod; // 결제 방법
   final _formKey = GlobalKey<FormState>(); // Form Key 추가
   final int _textLength = 0;
   // 상태 변수들
@@ -128,6 +131,8 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
         'contactNumber': _contactNumberController.text,
         'deliveryMethod': _deliveryMethod,
         'additionalNotes': _additionalNotesController.text,
+        'shippingMethod': _shippingMethod, // 추가
+        'paymentMethod': _paymentMethod, // 추가
         'isTemp': true,
         'lastUpdated': FieldValue.serverTimestamp(),
       };
@@ -196,16 +201,18 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
         throw Exception('로그인이 필요합니다');
       }
 
-      await ref.read(spaceBasicInfoProvider.notifier).addSpaceBasicInfo(
-            customerId: widget.customerId,
-            siteAddress:
-                '${_siteAddressController.text} ${_detailSiteAddressController.text}',
-            openingDate: _openingDate!,
-            recipient: _recipientController.text,
-            contactNumber: _contactNumberController.text,
-            deliveryMethod: _deliveryMethod ?? '',
-            additionalNotes: _additionalNotesController.text,
-          );
+
+    await ref.read(spaceBasicInfoProvider.notifier).addSpaceBasicInfo(
+          customerId: widget.customerId,
+          siteAddress:
+              '${_siteAddressController.text} ${_detailSiteAddressController.text}',
+          openingDate: _openingDate!,
+          recipient: _recipientController.text,
+          contactNumber: _contactNumberController.text,
+          shippingMethod: _shippingMethod!,       // 추가
+          paymentMethod: _paymentMethod!,         // 추가
+          additionalNotes: _additionalNotesController.text,
+        );
 
       // 저장 성공 시 임시 저장 문서 삭제
       if (_tempSaveDocId != null) {
@@ -228,6 +235,143 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
         SnackBar(content: Text('저장 중 오류가 발생했습니다: $e')),
       );
     }
+  }
+
+// 캘린더 눌렀을 때 날짜 선택하는 함수
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _openingDate ?? DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime(2030),
+      locale: const Locale('ko', 'KR'),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Colors.transparent,
+              onPrimary: Colors.white,
+              onSurface: Colors.black,
+              surface: Colors.white,
+            ),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: AppColor.primary,
+              ),
+            ),
+            datePickerTheme: DatePickerThemeData(
+              // 원형 크기 조절
+              dayStyle: const TextStyle(fontSize: 14),
+              yearStyle: const TextStyle(fontSize: 14),
+              // 호버 효과 제거 및 크기 조절을 위한 패딩 설정
+
+              // 오늘 날짜 표시
+              todayBorder: const BorderSide(color: AppColor.primary, width: 1),
+              todayBackgroundColor:
+                  MaterialStateProperty.all(Colors.transparent),
+              todayForegroundColor: MaterialStateProperty.all(AppColor.primary),
+              // 선택된 날짜 배경색
+              dayBackgroundColor: MaterialStateProperty.resolveWith((states) {
+                if (states.contains(MaterialState.selected)) {
+                  return AppColor.primary;
+                }
+                // 호버 효과 제거
+                if (states.contains(MaterialState.hovered)) {
+                  return Colors.transparent;
+                }
+                return Colors.transparent;
+              }),
+              // 선택된 날짜 텍스트 색상
+              dayForegroundColor: MaterialStateProperty.resolveWith((states) {
+                if (states.contains(MaterialState.selected)) {
+                  return Colors.white;
+                }
+                return Colors.black;
+              }),
+              // 년도 선택 스타일
+              yearBackgroundColor: MaterialStateProperty.resolveWith((states) {
+                if (states.contains(MaterialState.selected)) {
+                  return AppColor.primary;
+                }
+                // 호버 효과 제거
+                if (states.contains(MaterialState.hovered)) {
+                  return Colors.transparent;
+                }
+                return Colors.transparent;
+              }),
+              yearForegroundColor: MaterialStateProperty.resolveWith((states) {
+                if (states.contains(MaterialState.selected)) {
+                  return Colors.white;
+                }
+                return Colors.black;
+              }),
+              headerForegroundColor: Colors.black,
+              weekdayStyle: const TextStyle(
+                color: Colors.black,
+                fontSize: 14,
+              ),
+              // 선택된 날짜 모양 크기 조절
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null && picked != _openingDate) {
+      setState(() {
+        _openingDate = picked;
+      });
+    }
+  }
+
+  Widget _buildRadioGroup({
+    required String title,
+    required List<String> options,
+    required String? groupValue,
+    required Function(String?) onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 14,
+            color: AppColor.font1,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: options.map((option) {
+            return Container(
+              margin: const EdgeInsets.only(right: 24),
+              child: Row(
+                children: [
+                  Radio<String>(
+                    value: option,
+                    groupValue: groupValue,
+                    onChanged: onChanged,
+                    activeColor: AppColor.primary,
+                  ),
+                  Text(
+                    option,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: AppColor.font1,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
   }
 
   @override
@@ -443,16 +587,48 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                         const SizedBox(
                           height: 12,
                         ),
-                        Container(
-                          width: 640,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            border: Border.all(color: AppColor.line1),
+                        InkWell(
+                          onTap: () => _selectDate(context),
+                          child: Container(
+                            width: 640,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              border: Border.all(color: AppColor.line1),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Container(
+                                  margin: const EdgeInsets.only(left: 12),
+                                  child: Text(
+                                    _openingDate != null
+                                        ? '${_openingDate!.year}년 ${_openingDate!.month}월 ${_openingDate!.day}일'
+                                        : '년, 월, 일',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: _openingDate != null
+                                          ? AppColor.font1
+                                          : AppColor.font2,
+                                    ),
+                                  ),
+                                ),
+                                Container(
+                                    margin: const EdgeInsets.only(right: 15.88),
+                                    child: const Icon(Icons.calendar_month)),
+                              ],
+                            ),
                           ),
                         ),
                         const SizedBox(
-                          height: 48,
+                          height: 24,
+                        ),
+                        Container(
+                          height: 2,
                           width: 640,
+                          color: AppColor.primary,
+                        ),
+                        const SizedBox(
+                          height: 24,
                         ),
                         const Text(
                           '수령자',
@@ -499,7 +675,7 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                             border: Border.all(color: AppColor.line1),
                           ),
                           child: TextFormField(
-                            controller: _recipientController,
+                            controller: _contactNumberController,
                             decoration: const InputDecoration(
                               isDense: true,
                               contentPadding: EdgeInsets.symmetric(
@@ -512,19 +688,48 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                             keyboardType: TextInputType.phone,
                           ),
                         ),
+                        const SizedBox(
+                          height: 24,
+                        ),
+                        Container(
+                          height: 2,
+                          width: 640,
+                          color: AppColor.primary,
+                        ),
+
+                        const SizedBox(
+                          height: 24,
+                        ),
+
+                        _buildRadioGroup(
+                          title: '배송 방법',
+                          options: const ['택배배송', '차량배송', '물류배송'],
+                          groupValue: _shippingMethod,
+                          onChanged: (value) {
+                            setState(() {
+                              _shippingMethod = value;
+                            });
+                          },
+                        ),
                         const SizedBox(height: 24),
-
+                        _buildRadioGroup(
+                          title: '결제 방법',
+                          options: const ['선불', '착불'],
+                          groupValue: _paymentMethod,
+                          onChanged: (value) {
+                            setState(() {
+                              _paymentMethod = value;
+                            });
+                          },
+                        ),
                         const SizedBox(
                           height: 24,
                         ),
-                        AddressSearchField(
-                          controller: _siteAddressController,
-                          detailController: _detailSiteAddressController,
+                        Container(
+                          height: 2,
+                          width: 640,
+                          color: AppColor.primary,
                         ),
-                        const SizedBox(
-                          height: 24,
-                        ),
-
                         const SizedBox(
                           height: 24,
                         ),

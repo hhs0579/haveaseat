@@ -10,7 +10,8 @@ class SpaceBasicInfo {
   final DateTime openingDate;
   final String recipient;
   final String contactNumber;
-  final String deliveryMethod;
+  final String shippingMethod;    // 변경: deliveryMethod -> shippingMethod
+  final String paymentMethod;     // 추가
   final String additionalNotes;
 
   SpaceBasicInfo({
@@ -18,7 +19,8 @@ class SpaceBasicInfo {
     required this.openingDate,
     required this.recipient,
     required this.contactNumber,
-    required this.deliveryMethod,
+  required this.shippingMethod,
+    required this.paymentMethod,
     required this.additionalNotes,
   });
 
@@ -29,7 +31,8 @@ class SpaceBasicInfo {
           (json['openingDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
       recipient: json['recipient'] ?? '',
       contactNumber: json['contactNumber'] ?? '',
-      deliveryMethod: json['deliveryMethod'] ?? '',
+        shippingMethod: json['shippingMethod'] ?? '',
+      paymentMethod: json['paymentMethod'] ?? '',
       additionalNotes: json['additionalNotes'] ?? '',
     );
   }
@@ -40,7 +43,8 @@ class SpaceBasicInfo {
       'openingDate': Timestamp.fromDate(openingDate),
       'recipient': recipient,
       'contactNumber': contactNumber,
-      'deliveryMethod': deliveryMethod,
+   'shippingMethod': shippingMethod,
+      'paymentMethod': paymentMethod,
       'additionalNotes': additionalNotes,
     };
   }
@@ -50,7 +54,8 @@ class SpaceBasicInfo {
     DateTime? openingDate,
     String? recipient,
     String? contactNumber,
-    String? deliveryMethod,
+    String? shippingMethod,
+    String? paymentMethod,
     String? additionalNotes,
   }) {
     return SpaceBasicInfo(
@@ -58,7 +63,8 @@ class SpaceBasicInfo {
       openingDate: openingDate ?? this.openingDate,
       recipient: recipient ?? this.recipient,
       contactNumber: contactNumber ?? this.contactNumber,
-      deliveryMethod: deliveryMethod ?? this.deliveryMethod,
+      shippingMethod: shippingMethod ?? this.shippingMethod,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
       additionalNotes: additionalNotes ?? this.additionalNotes,
     );
   }
