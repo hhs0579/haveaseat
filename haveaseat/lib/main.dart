@@ -31,7 +31,7 @@ class MyApp extends ConsumerWidget {
           Locale('en', 'US'), // 영어
         ],
         routerConfig: router,
-        title: 'My App',
+        title: 'Have A Seat',
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.black),
           useMaterial3: true,

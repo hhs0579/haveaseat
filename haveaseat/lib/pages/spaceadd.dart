@@ -45,6 +45,7 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
   String? _deliveryMethod;
   String? _tempSaveDocId;
   int _notesLength = 0;
+  bool shippImg = false;
 
   // 배송 방법 옵션
   final List<String> _deliveryMethods = ['직접 배송', '택배', '용달', '기타'];
@@ -201,18 +202,17 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
         throw Exception('로그인이 필요합니다');
       }
 
-
-    await ref.read(spaceBasicInfoProvider.notifier).addSpaceBasicInfo(
-          customerId: widget.customerId,
-          siteAddress:
-              '${_siteAddressController.text} ${_detailSiteAddressController.text}',
-          openingDate: _openingDate!,
-          recipient: _recipientController.text,
-          contactNumber: _contactNumberController.text,
-          shippingMethod: _shippingMethod!,       // 추가
-          paymentMethod: _paymentMethod!,         // 추가
-          additionalNotes: _additionalNotesController.text,
-        );
+      await ref.read(spaceBasicInfoProvider.notifier).addSpaceBasicInfo(
+            customerId: widget.customerId,
+            siteAddress:
+                '${_siteAddressController.text} ${_detailSiteAddressController.text}',
+            openingDate: _openingDate!,
+            recipient: _recipientController.text,
+            contactNumber: _contactNumberController.text,
+            shippingMethod: _shippingMethod!, // 추가
+            paymentMethod: _paymentMethod!, // 추가
+            additionalNotes: _additionalNotesController.text,
+          );
 
       // 저장 성공 시 임시 저장 문서 삭제
       if (_tempSaveDocId != null) {
@@ -708,9 +708,63 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                           onChanged: (value) {
                             setState(() {
                               _shippingMethod = value;
+                              shippImg = true;
                             });
                           },
                         ),
+                        const SizedBox(height: 16),
+                        shippImg
+                            ? Container(
+                                height: 208,
+                                width: 640,
+                                color: const Color(0xffF7F7FB),
+                                child: const Padding(
+                                  padding: EdgeInsets.symmetric(
+                                      horizontal: 20, vertical: 16),
+                                  child: Column(
+                                    children: [
+                                      Text(
+                                        '안내사항',
+                                        style: TextStyle(
+                                            fontSize: 14,
+                                            color: AppColor.font1,
+                                            fontWeight: FontWeight.w600),
+                                      ),
+                                      SizedBox(
+                                        height: 12,
+                                      ),
+                                      Text(
+                                        '서울, 경기권 혹은 지방일지라도 상품의 개수가 많고 부피가 큰 제품들이 많을 경우 차량배송으로 진행',
+                                        style: TextStyle(
+                                            color: Color(0xff757575),
+                                            fontSize: 13),
+                                      ),
+                                      SizedBox(
+                                        height: 4,
+                                      ),
+                                      Text(
+                                        '차량의 사이즈와 출발지에서 거리(km)를 계산해 배송비 책정됨. 대략적인 금액은 상차 당일 확인하여 고객에게 안내',
+                                        style: TextStyle(
+                                            color: Color(0xff757575),
+                                            fontSize: 13),
+                                      ),
+                                      SizedBox(
+                                        height: 4,
+                                      ),
+                                      Text(
+                                        '정확한 배송비, 정확한 도착시간 등을 안내하기 어려움',
+                                        style: TextStyle(
+                                            color: Color(0xff757575),
+                                            fontSize: 13),
+                                      ),
+                                      SizedBox(
+                                        height: 4,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              )
+                            : const SizedBox(),
                         const SizedBox(height: 24),
                         _buildRadioGroup(
                           title: '결제 방법',
