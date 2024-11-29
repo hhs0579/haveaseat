@@ -505,7 +505,7 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
                         ),
                         const SizedBox(height: 56),
                         const Text(
-                          '고객 추가',
+                          '고객 정보 입력',
                           style: TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.w600,
@@ -513,6 +513,24 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
                         ),
                         const SizedBox(
                           height: 32,
+                        ),
+                        const Text(
+                          '기본 정보',
+                          style: TextStyle(
+                              fontSize: 18,
+                              color: AppColor.font1,
+                              fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(
+                          height: 8,
+                        ),
+                        Container(
+                          width: 640,
+                          height: 2,
+                          color: AppColor.primary,
+                        ),
+                        const SizedBox(
+                          height: 24,
                         ),
                         const Text(
                           '고객명',
@@ -672,7 +690,17 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
                           ],
                         ),
                         const SizedBox(
-                          height: 24,
+                          height: 40,
+                        ),
+                        const Text(
+                          '배송 정보',
+                          style: TextStyle(
+                              fontSize: 18,
+                              color: AppColor.font1,
+                              fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(
+                          height: 8,
                         ),
                         Container(
                           height: 2,
@@ -685,6 +713,24 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
                         AddressSearchField(
                           controller: _addressController,
                           detailController: _detailAddressController,
+                        ),
+                        const SizedBox(
+                          height: 40,
+                        ),
+                        const Text(
+                          '사업자 정보',
+                          style: TextStyle(
+                              fontSize: 18,
+                              color: AppColor.font1,
+                              fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(
+                          height: 8,
+                        ),
+                        Container(
+                          height: 2,
+                          width: 640,
+                          color: AppColor.primary,
                         ),
                         const SizedBox(
                           height: 24,
@@ -701,6 +747,73 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
                             print('사업자등록증 업로드 후 URL: $_businessLicenseUrl');
                           },
                           onFileSelected: (_) {}, // 웹에서는 필요없음
+                        ),
+                        const SizedBox(
+                          height: 24,
+                        ),
+
+                        FileUploadField(
+                          label: '기타 서류',
+                          uploadPath: 'other_documents',
+                          isAllFileTypes: true,
+                          onFileUploaded: (String url) {
+                            print('기타 서류 업로드 전 URLs: $_otherDocumentUrls');
+                            setState(() {
+                              _otherDocumentUrls.add(url);
+                            });
+                            print('기타 서류 업로드 후 URLs: $_otherDocumentUrls');
+                          },
+                          onFileSelected: (_) {}, // 웹에서는 필요없음
+                        ),
+                        ..._additionalFiles,
+                        const SizedBox(
+                          height: 12,
+                        ),
+                        InkWell(
+                          onTap: () {
+                            print('파일 추가 버튼 클릭');
+                            _addFileUploadField();
+                          },
+                          child: Container(
+                            height: 36,
+                            width: 640,
+                            decoration: BoxDecoration(
+                              border: Border.all(color: AppColor.line1),
+                            ),
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  '파일 추가',
+                                  style: TextStyle(
+                                    color: AppColor.font1,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                SizedBox(width: 8),
+                                Icon(Icons.add, color: AppColor.font1, size: 16)
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(
+                          height: 40,
+                        ),
+                        const Text(
+                          '기타 정보',
+                          style: TextStyle(
+                              fontSize: 18,
+                              color: AppColor.font1,
+                              fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(
+                          height: 8,
+                        ),
+                        Container(
+                          height: 2,
+                          width: 640,
+                          color: AppColor.primary,
                         ),
                         const SizedBox(
                           height: 24,
@@ -753,54 +866,7 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
                             ],
                           ),
                         ),
-                        const SizedBox(
-                          height: 24,
-                        ),
-                        FileUploadField(
-                          label: '',
-                          uploadPath: 'other_documents',
-                          isAllFileTypes: true,
-                          onFileUploaded: (String url) {
-                            print('기타 서류 업로드 전 URLs: $_otherDocumentUrls');
-                            setState(() {
-                              _otherDocumentUrls.add(url);
-                            });
-                            print('기타 서류 업로드 후 URLs: $_otherDocumentUrls');
-                          },
-                          onFileSelected: (_) {}, // 웹에서는 필요없음
-                        ),
-                        ..._additionalFiles,
-                        const SizedBox(
-                          height: 12,
-                        ),
-                        InkWell(
-                          onTap: () {
-                            print('파일 추가 버튼 클릭');
-                            _addFileUploadField();
-                          },
-                          child: Container(
-                            height: 36,
-                            width: 640,
-                            decoration: BoxDecoration(
-                              border: Border.all(color: AppColor.line1),
-                            ),
-                            child: const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  '파일 추가',
-                                  style: TextStyle(
-                                    color: AppColor.font1,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                SizedBox(width: 8),
-                                Icon(Icons.add, color: AppColor.font1, size: 16)
-                              ],
-                            ),
-                          ),
-                        ),
+
                         const SizedBox(
                           height: 48,
                         ),

@@ -13,3 +13,23 @@ import 'package:haveaseat/widget/address.dart';
 import 'package:haveaseat/widget/fileupload.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+
+class SpaceDetailPage extends ConsumerStatefulWidget {
+  final String customerId;
+
+  const SpaceDetailPage({
+    super.key,
+    required this.customerId, // required로 필수 파라미터로 지정
+  }); // 중복된 생성자 제거
+
+  @override
+  ConsumerState<SpaceDetailPage> createState() =>
+      _SpaceDetailPageState(); // ConsumerState 타입으로 수정
+}
+
+class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
+  @override
+  Widget build(BuildContext context) {
+    return const Placeholder();
+  }
+}

@@ -45,7 +45,6 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
   String? _deliveryMethod;
   String? _tempSaveDocId;
   int _notesLength = 0;
-  bool shippImg = false;
 
   // 배송 방법 옵션
   final List<String> _deliveryMethods = ['직접 배송', '택배', '용달', '기타'];
@@ -211,7 +210,7 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
             contactNumber: _contactNumberController.text,
             shippingMethod: _shippingMethod!, // 추가
             paymentMethod: _paymentMethod!, // 추가
-            additionalNotes: _additionalNotesController.text,
+           
           );
 
       // 저장 성공 시 임시 저장 문서 삭제
@@ -227,7 +226,7 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
           const SnackBar(content: Text('저장되었습니다')),
         );
         // 다음 페이지로 이동
-        context.go('/customer/${widget.customerId}/space-detail');
+        context.go('/main/addpage/spaceadd/${widget.customerId}/space-detail');
       }
     } catch (e) {
       print('저장 중 오류: $e');
@@ -569,6 +568,25 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                         const SizedBox(
                           height: 32,
                         ),
+
+                        const Text(
+                          '기본 정보 입력',
+                          style: TextStyle(
+                              fontSize: 18,
+                              color: AppColor.font1,
+                              fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(
+                          height: 8,
+                        ),
+                        Container(
+                          height: 2,
+                          width: 640,
+                          color: AppColor.primary,
+                        ),
+                        const SizedBox(
+                          height: 24,
+                        ),
                         AddressSearchField(
                           controller: _siteAddressController,
                           detailController: _detailSiteAddressController,
@@ -620,7 +638,17 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                           ),
                         ),
                         const SizedBox(
-                          height: 24,
+                          height: 40,
+                        ),
+                        const Text(
+                          '수령자 정보 입력',
+                          style: TextStyle(
+                              fontSize: 18,
+                              color: AppColor.font1,
+                              fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(
+                          height: 8,
                         ),
                         Container(
                           height: 2,
@@ -689,14 +717,23 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                           ),
                         ),
                         const SizedBox(
-                          height: 24,
+                          height: 40,
+                        ),
+                        const Text(
+                          '배송 정보 입력',
+                          style: TextStyle(
+                              fontSize: 18,
+                              color: AppColor.font1,
+                              fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(
+                          height: 8,
                         ),
                         Container(
                           height: 2,
                           width: 640,
                           color: AppColor.primary,
                         ),
-
                         const SizedBox(
                           height: 24,
                         ),
@@ -708,63 +745,10 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                           onChanged: (value) {
                             setState(() {
                               _shippingMethod = value;
-                              shippImg = true;
                             });
                           },
                         ),
-                        const SizedBox(height: 16),
-                        shippImg
-                            ? Container(
-                                height: 208,
-                                width: 640,
-                                color: const Color(0xffF7F7FB),
-                                child: const Padding(
-                                  padding: EdgeInsets.symmetric(
-                                      horizontal: 20, vertical: 16),
-                                  child: Column(
-                                    children: [
-                                      Text(
-                                        '안내사항',
-                                        style: TextStyle(
-                                            fontSize: 14,
-                                            color: AppColor.font1,
-                                            fontWeight: FontWeight.w600),
-                                      ),
-                                      SizedBox(
-                                        height: 12,
-                                      ),
-                                      Text(
-                                        '서울, 경기권 혹은 지방일지라도 상품의 개수가 많고 부피가 큰 제품들이 많을 경우 차량배송으로 진행',
-                                        style: TextStyle(
-                                            color: Color(0xff757575),
-                                            fontSize: 13),
-                                      ),
-                                      SizedBox(
-                                        height: 4,
-                                      ),
-                                      Text(
-                                        '차량의 사이즈와 출발지에서 거리(km)를 계산해 배송비 책정됨. 대략적인 금액은 상차 당일 확인하여 고객에게 안내',
-                                        style: TextStyle(
-                                            color: Color(0xff757575),
-                                            fontSize: 13),
-                                      ),
-                                      SizedBox(
-                                        height: 4,
-                                      ),
-                                      Text(
-                                        '정확한 배송비, 정확한 도착시간 등을 안내하기 어려움',
-                                        style: TextStyle(
-                                            color: Color(0xff757575),
-                                            fontSize: 13),
-                                      ),
-                                      SizedBox(
-                                        height: 4,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              )
-                            : const SizedBox(),
+
                         const SizedBox(height: 24),
                         _buildRadioGroup(
                           title: '결제 방법',
@@ -775,68 +759,6 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                               _paymentMethod = value;
                             });
                           },
-                        ),
-                        const SizedBox(
-                          height: 24,
-                        ),
-                        Container(
-                          height: 2,
-                          width: 640,
-                          color: AppColor.primary,
-                        ),
-                        const SizedBox(
-                          height: 24,
-                        ),
-                        const Text(
-                          '기타 입력 사항',
-                          style: TextStyle(
-                              fontSize: 14,
-                              color: AppColor.font1,
-                              fontWeight: FontWeight.w600),
-                        ),
-                        const SizedBox(
-                          height: 12,
-                        ),
-                        Container(
-                          width: 640,
-                          height: 180,
-                          decoration: BoxDecoration(
-                            border: Border.all(color: AppColor.line1),
-                          ),
-                          child: Stack(
-                            children: [
-                              TextFormField(
-                                controller: _additionalNotesController,
-                                maxLength: 2000,
-                                maxLines: null,
-                                decoration: const InputDecoration(
-                                  isDense: true,
-                                  contentPadding: EdgeInsets.all(16),
-                                  border: InputBorder.none,
-                                  hintText: '내용을 입력해주세요',
-                                  hintStyle: TextStyle(
-                                    color: AppColor.font2,
-                                    fontSize: 14,
-                                  ),
-                                  counterText: '',
-                                ),
-                              ),
-                              Positioned(
-                                right: 16,
-                                bottom: 16,
-                                child: Text(
-                                  '$_textLength/2000자',
-                                  style: const TextStyle(
-                                    color: AppColor.font2,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(
-                          height: 24,
                         ),
 
                         const SizedBox(

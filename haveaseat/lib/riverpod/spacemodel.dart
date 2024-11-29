@@ -50,7 +50,7 @@ class SpaceBasicInfoNotifier
     required String contactNumber,
     required String shippingMethod, // 변경
     required String paymentMethod, // 추가
-    required String additionalNotes,
+    // required String additionalNotes,
   }) async {
     try {
       state = const AsyncValue.loading();
@@ -64,7 +64,7 @@ class SpaceBasicInfoNotifier
         'contactNumber': contactNumber,
         'shippingMethod': shippingMethod,
         'paymentMethod': paymentMethod,
-        'additionalNotes': additionalNotes,
+        // 'additionalNotes': additionalNotes,
         'createdAt': now,
         'updatedAt': now,
       };
@@ -90,7 +90,7 @@ class SpaceBasicInfoNotifier
     required String contactNumber,
     required String shippingMethod, // 변경
     required String paymentMethod, // 추가
-    required String additionalNotes,
+    // required String additionalNotes,
   }) async {
     try {
       state = const AsyncValue.loading();
@@ -102,7 +102,7 @@ class SpaceBasicInfoNotifier
         'contactNumber': contactNumber,
         'shippingMethod': shippingMethod,
         'paymentMethod': paymentMethod,
-        'additionalNotes': additionalNotes,
+        // 'additionalNotes': additionalNotes,
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
