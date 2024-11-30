@@ -28,8 +28,352 @@ class SpaceDetailPage extends ConsumerStatefulWidget {
 }
 
 class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
+  final _formKey = GlobalKey<FormState>(); // Form Key 추가
+  final _minBudgetController = TextEditingController();
+  final _maxBudgetController = TextEditingController();
   @override
   Widget build(BuildContext context) {
-    return const Placeholder();
+    final userData = ref.watch(UserProvider.userDataProvider);
+    return Scaffold(
+        body: ResponsiveLayout(
+            mobile: const SingleChildScrollView(),
+            desktop: SingleChildScrollView(
+                child: Form(
+              key: _formKey,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SingleChildScrollView(
+                    child: SizedBox(
+                      width: 240,
+                      child: Container(
+                        height: 1420,
+                        constraints: const BoxConstraints(maxWidth: 240),
+                        decoration: const BoxDecoration(
+                            border: Border(
+                                right: BorderSide(color: AppColor.line1))),
+                        child: Column(
+                          crossAxisAlignment:
+                              CrossAxisAlignment.center, // center로 변경
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 40),
+                            SizedBox(
+                              width: 137,
+                              height: 17,
+                              child: Image.asset('assets/images/logo.png'),
+                            ),
+                            const SizedBox(height: 56),
+                            userData.when(
+                              data: (data) {
+                                if (data != null) {
+                                  return Column(
+                                    children: [
+                                      // crossAxisAlignment 제거
+                                      Text(
+                                        UserProvider.getUserName(data),
+                                        style: const TextStyle(
+                                            fontSize: 24,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColor.font1),
+                                      ),
+                                    ],
+                                  );
+                                }
+                                return const Text('사용자 정보를 불러올 수 없습니다.');
+                              },
+                              loading: () => const CircularProgressIndicator(),
+                              error: (error, stack) => Text('오류: $error'),
+                            ),
+                            const SizedBox(
+                              height: 16,
+                            ),
+                            InkWell(
+                              onTap: () {},
+                              child: Container(
+                                width: 152,
+                                height: 48,
+                                decoration: BoxDecoration(
+                                    color: Colors.transparent,
+                                    border: Border.all(
+                                      color: AppColor.line1,
+                                    )),
+                                child: const Center(
+                                    child: Text(
+                                  '정보수정',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColor.font1,
+                                      fontSize: 16),
+                                )),
+                              ),
+                            ),
+                            const SizedBox(
+                              height: 40,
+                            ),
+                            InkWell(
+                              onTap: () {},
+                              child: Container(
+                                  width: 200,
+                                  height: 48,
+                                  color: Colors.transparent,
+                                  child: const Row(
+                                    children: [
+                                      SizedBox(
+                                        width: 17.87,
+                                      ),
+                                      Icon(
+                                        Icons.person_outline_sharp,
+                                        color: Colors.black,
+                                        size: 20,
+                                      ),
+                                      SizedBox(
+                                        width: 3.85,
+                                      ),
+                                      Text(
+                                        '담당 고객정보',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColor.font1,
+                                            fontSize: 16),
+                                      ),
+                                    ],
+                                  )),
+                            ),
+                            InkWell(
+                              onTap: () {},
+                              child: Container(
+                                  width: 200,
+                                  height: 48,
+                                  color: Colors.transparent,
+                                  child: const Row(
+                                    children: [
+                                      SizedBox(
+                                        width: 17.87,
+                                      ),
+                                      Icon(
+                                        Icons.person_outline_sharp,
+                                        color: Colors.black,
+                                        size: 20,
+                                      ),
+                                      SizedBox(
+                                        width: 3.85,
+                                      ),
+                                      Text(
+                                        '전체 고객정보',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColor.font1,
+                                            fontSize: 16),
+                                      ),
+                                    ],
+                                  )),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(
+                    width: 48,
+                  ),
+                  Expanded(
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                        const SizedBox(
+                          height: 40,
+                        ),
+                        SizedBox(
+                          // Container 추가하여 너비 제한
+                          width: MediaQuery.of(context).size.width -
+                              288, // 전체 너비 - (왼쪽 사이드바 240 + 간격 48)
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                '${DateTime.now().year}년 ${DateTime.now().month}월 ${DateTime.now().day}일',
+                                style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColor.font1),
+                              ),
+                              const Row(
+                                children: [
+                                  Icon(
+                                    Icons.person_outline_sharp,
+                                    color: AppColor.font2,
+                                  ),
+                                  SizedBox(width: 16),
+                                  Icon(
+                                    Icons.notifications_none_outlined,
+                                    color: AppColor.font2,
+                                  ),
+                                  SizedBox(width: 43), // 오른쪽 여백 추가
+                                ],
+                              )
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 56),
+                        const Text(
+                          '공간 세부 정보 입력',
+                          style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w600,
+                              color: AppColor.font1),
+                        ),
+                        const SizedBox(
+                          height: 32,
+                        ),
+                        const Text(
+                          '세부 정보 입력',
+                          style: TextStyle(
+                              fontSize: 18,
+                              color: AppColor.font1,
+                              fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(
+                          height: 8,
+                        ),
+                        Container(
+                          height: 2,
+                          width: 640,
+                          color: AppColor.primary,
+                        ),
+                        const SizedBox(
+                          height: 24,
+                        ),
+                        const Text(
+                          '예산',
+                          style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: AppColor.font1),
+                        ),
+                        const SizedBox(
+                          height: 12,
+                        ),
+                        Row(
+                          children: [
+                            Container(
+                              width: 304.5,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                border: Border.all(color: AppColor.line1),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.only(
+                                  right: 16,
+                                  left: 16,
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Text(
+                                      '최소예산',
+                                      style: TextStyle(
+                                          color: AppColor.font3, fontSize: 14),
+                                    ),
+                                    Expanded(
+                                      child: TextField(
+                                        controller: _minBudgetController,
+                                        textAlign: TextAlign.end,
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          height: 1.0, // 라인 높이를 조정하여 수직 정렬 맞춤
+                                          color: AppColor.primary,
+                                        ),
+                                        decoration: const InputDecoration(
+                                          border: InputBorder.none,
+                                          contentPadding: EdgeInsets.only(
+                                              top: 2), // 2px 위로 조정
+                                          isDense: true, // 더 조밀한 레이아웃
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    const Text(
+                                      '원',
+                                      style: TextStyle(
+                                          color: AppColor.font3, fontSize: 14),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Container(
+                              width: 7,
+                              height: 1,
+                              color: AppColor.primary,
+                            ),
+                            const SizedBox(width: 12),
+                            Container(
+                              width: 304.5,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                border: Border.all(color: AppColor.line1),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Text(
+                                      '최대예산',
+                                      style: TextStyle(color: AppColor.font3),
+                                    ),
+                                    Expanded(
+                                      child: TextField(
+                                        controller: _maxBudgetController,
+                                        textAlign: TextAlign.end,
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          height: 1.0, // 라인 높이를 조정하여 수직 정렬 맞춤
+                                          color: AppColor.primary,
+                                        ),
+                                        decoration: const InputDecoration(
+                                          border: InputBorder.none,
+                                          contentPadding: EdgeInsets.only(
+                                              top: 2), // 2px 위로 조정
+                                          isDense: true, // 더 조밀한 레이아웃
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    const Text(
+                                      '원',
+                                      style: TextStyle(color: AppColor.font3),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(
+                          height: 24,
+                        ),
+                        const Text(
+                          '공간 면적',
+                          style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: AppColor.font1),
+                        ),
+                        const SizedBox(
+                          height: 12,
+                        ),
+                        Container(
+                          width: 75,
+                          height: 48,
+                          decoration: BoxDecoration(
+                              border: Border.all(color: AppColor.line1)),
+                        )
+                      ]))
+                ],
+              ),
+            ))));
   }
 }

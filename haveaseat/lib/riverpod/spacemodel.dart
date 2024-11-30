@@ -24,6 +24,7 @@ class SpaceBasicInfoNotifier
       state = AsyncValue.error(e, stack);
     }
   }
+  
 
   Future<List<SpaceBasicInfo>> _fetchSpaceBasicInfos() async {
     try {
