@@ -31,6 +31,55 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
   final _formKey = GlobalKey<FormState>(); // Form Key 추가
   final _minBudgetController = TextEditingController();
   final _maxBudgetController = TextEditingController();
+  final _areaController = TextEditingController();
+  String selectedUnit = '평'; // 단위 선택을 위한 상태 변수 추가
+  String selectedAgeRange = '10대'; // 초기값을 '10대'로 설정
+  // 단위 변환 함수
+  double convertArea(String value, String fromUnit, String toUnit) {
+    if (value.isEmpty) return 0;
+    double numValue = double.tryParse(value) ?? 0;
+    if (fromUnit == toUnit) return numValue;
+    if (fromUnit == '평' && toUnit == '㎡') {
+      return numValue * 3.305785; // 평 to ㎡
+    } else {
+      return numValue / 3.305785; // ㎡ to 평
+    }
+  }
+
+  Widget _buildAgeRangeButton(String text) {
+    bool isSelected = selectedAgeRange == text;
+
+    return InkWell(
+      onTap: () {
+        setState(() {
+          selectedAgeRange = text; // 무조건 새로운 값으로 설정 (선택 해제 불가)
+        });
+      },
+      child: Container(
+        width: 51,
+        height: 36,
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: isSelected ? AppColor.font1 : AppColor.line1,
+            width: 1,
+          ),
+          borderRadius: BorderRadius.circular(18),
+          color: Colors.transparent, // 항상 흰색 배경
+        ),
+        child: Center(
+          child: Text(
+            text,
+            style: TextStyle(
+              color: isSelected ? AppColor.font1 : AppColor.line1,
+              fontSize: 14,
+              fontWeight: FontWeight.w400,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final userData = ref.watch(UserProvider.userDataProvider);
@@ -365,11 +414,154 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
                         const SizedBox(
                           height: 12,
                         ),
+                        Row(
+                          children: [
+                            Container(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 15),
+                              width: 75,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                border: Border.all(color: AppColor.line1),
+                              ),
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<String>(
+                                  value: selectedUnit,
+                                  icon: const Icon(Icons.arrow_drop_down),
+                                  style: const TextStyle(
+                                    color: AppColor.font1,
+                                    fontSize: 14,
+                                  ),
+                                  isExpanded: true,
+                                  alignment: AlignmentDirectional.center,
+                                  items: <String>['평', '㎡']
+                                      .map<DropdownMenuItem<String>>(
+                                          (String value) {
+                                    return DropdownMenuItem<String>(
+                                      value: value,
+                                      child: Text(value),
+                                    );
+                                  }).toList(),
+                                  onChanged: (String? newValue) {
+                                    if (newValue != null) {
+                                      setState(() {
+                                        // 현재 입력된 값을 새로운 단위로 변환
+                                        String currentValue =
+                                            _areaController.text;
+                                        if (currentValue.isNotEmpty) {
+                                          double convertedValue = convertArea(
+                                              currentValue,
+                                              selectedUnit,
+                                              newValue);
+                                          _areaController.text =
+                                              convertedValue.toStringAsFixed(2);
+                                        }
+                                        selectedUnit = newValue;
+                                      });
+                                    }
+                                  },
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Container(
+                              width: 553,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                border: Border.all(color: AppColor.line1),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.only(
+                                  right: 16,
+                                  left: 16,
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Text(
+                                      '숫자 입력',
+                                      style: TextStyle(
+                                          color: AppColor.font3, fontSize: 14),
+                                    ),
+                                    Expanded(
+                                      child: TextField(
+                                        controller: _areaController,
+                                        textAlign: TextAlign.end,
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          height: 1.0,
+                                          color: AppColor.primary,
+                                        ),
+                                        decoration: const InputDecoration(
+                                          border: InputBorder.none,
+                                          contentPadding:
+                                              EdgeInsets.only(top: 2),
+                                          isDense: true,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      selectedUnit, // 동적으로 단위 표시
+                                      style: const TextStyle(
+                                        color: AppColor.font3,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 40),
+                        const Text(
+                          '타깃 및 컨셉',
+                          style: TextStyle(
+                              fontSize: 18,
+                              color: AppColor.font1,
+                              fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(
+                          height: 8,
+                        ),
                         Container(
-                          width: 75,
+                          height: 2,
+                          width: 640,
+                          color: AppColor.primary,
+                        ),
+                        const SizedBox(
+                          height: 24,
+                        ),
+                        const Text(
+                          '소비자 타깃',
+                          style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black),
+                        ),
+                        Row(
+                          children: [
+                            _buildAgeRangeButton('10대'),
+                            const SizedBox(width: 8),
+                            _buildAgeRangeButton('20대'),
+                            const SizedBox(width: 8),
+                            _buildAgeRangeButton('30대'),
+                            const SizedBox(width: 8),
+                            _buildAgeRangeButton('40대'),
+                            const SizedBox(width: 8),
+                            _buildAgeRangeButton('50대'),
+                          ],
+                        ),
+                        const SizedBox(
+                          height: 12,
+                        ),
+                        Container(
                           height: 48,
+                          width: 640,
                           decoration: BoxDecoration(
-                              border: Border.all(color: AppColor.line1)),
+                              border: Border.all(
+                            color: AppColor.line1,
+                          )),
                         )
                       ]))
                 ],

@@ -38,6 +38,7 @@ class MyApp extends ConsumerWidget {
           fontFamily: 'Pretendard',
         ),
         scrollBehavior: MyCustomScrollBehavior());
+        
   }
 }
 
