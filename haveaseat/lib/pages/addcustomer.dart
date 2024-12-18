@@ -83,17 +83,6 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
                     onFileSelected: (_) {}, // 웹에서는 필요 없음
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.delete_outline, color: AppColor.font2),
-                  onPressed: () {
-                    setState(() {
-                      _additionalFiles.removeAt(currentIndex);
-                      if (_otherDocumentUrls.length > currentIndex) {
-                        _otherDocumentUrls.removeAt(currentIndex);
-                      }
-                    });
-                  },
-                ),
               ],
             ),
           ],

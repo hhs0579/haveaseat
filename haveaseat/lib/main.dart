@@ -33,12 +33,14 @@ class MyApp extends ConsumerWidget {
         routerConfig: router,
         title: 'Have A Seat',
         theme: ThemeData(
+          splashColor: Colors.transparent,
+          highlightColor: Colors.transparent,
+          hoverColor: Colors.transparent,
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.black),
           useMaterial3: true,
           fontFamily: 'Pretendard',
         ),
         scrollBehavior: MyCustomScrollBehavior());
-        
   }
 }
 

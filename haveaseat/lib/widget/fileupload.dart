@@ -145,6 +145,9 @@ class _FileUploadFieldState extends State<FileUploadField> {
             fontWeight: FontWeight.w600,
           ),
         ),
+        const SizedBox(
+          height: 12,
+        ),
         SizedBox(
           height: widget.isAllFileTypes ? 0.0 : 12.0,
         ),

@@ -31,10 +31,75 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
   final _formKey = GlobalKey<FormState>(); // Form Key 추가
   final _minBudgetController = TextEditingController();
   final _maxBudgetController = TextEditingController();
+  final TextEditingController _noteController = TextEditingController();
   final _areaController = TextEditingController();
+  final _customerExtraController = TextEditingController();
   String selectedUnit = '평'; // 단위 선택을 위한 상태 변수 추가
   String selectedAgeRange = '10대'; // 초기값을 '10대'로 설정
   // 단위 변환 함수
+  String? selectedBusinessType; // 선택된 업종을 저장할 변수
+  final List<Widget> _additionalFiles = [];
+  List<File?> otherDocumentFiles = []; // 추가
+  final List<String> _otherDocumentUrls = []; // URL 저장용 리스트 추가
+  int _fileFieldCounter = 0;
+  final int _textLength = 0;
+  // 업종 목록
+  final List<Map<String, String>> businessTypes = [
+    {'value': 'korean', 'label': '한식'},
+    {'value': 'japanese', 'label': '일식'},
+    {'value': 'chinese', 'label': '중식'},
+    {'value': 'western', 'label': '양식'},
+    {'value': 'cafe', 'label': '카페'},
+    {'value': 'bakery', 'label': '베이커리'},
+    {'value': 'bar', 'label': '주점'},
+    {'value': 'fastfood', 'label': '패스트푸드'},
+    {'value': 'other', 'label': '기타'},
+  ];
+  String selectedConcept = '모던'; // 초기 선택값 설정
+
+  Widget _buildConceptButton(String text) {
+    bool isSelected = selectedConcept == text;
+
+    // 텍스트 길이에 따라 버튼 너비 조정
+    double buttonWidth = text.length * 14.0 + 24.0; // 글자당 14픽셀 + 좌우 패딩
+
+    return InkWell(
+      onTap: () {
+        setState(() {
+          selectedConcept = text;
+        });
+      },
+      child: Container(
+        width: buttonWidth,
+        height: 36,
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: isSelected ? AppColor.font1 : AppColor.line1,
+            width: 1,
+          ),
+          borderRadius: BorderRadius.circular(18),
+          color: Colors.transparent,
+        ),
+        child: Center(
+          child: Text(
+            text,
+            style: TextStyle(
+              color: isSelected ? AppColor.font1 : AppColor.line1,
+              fontSize: 14,
+              fontWeight: FontWeight.w400,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    selectedBusinessType = null; // 초기값을 null로 설정
+  }
+
   double convertArea(String value, String fromUnit, String toUnit) {
     if (value.isEmpty) return 0;
     double numValue = double.tryParse(value) ?? 0;
@@ -78,6 +143,55 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
         ),
       ),
     );
+  }
+
+  void _addFileUploadField() {
+    final int currentIndex = _fileFieldCounter++;
+
+    setState(() {
+      _additionalFiles.add(
+        Column(
+          children: [
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: FileUploadField(
+                    label: '',
+                    uploadPath: 'other_documents',
+                    isAllFileTypes: true,
+                    onFileUploaded: (String url) {
+                      print('추가 파일 업로드 전 URLs: $_otherDocumentUrls');
+                      setState(() {
+                        if (_otherDocumentUrls.length > currentIndex) {
+                          _otherDocumentUrls[currentIndex] = url;
+                        } else {
+                          _otherDocumentUrls.add(url);
+                        }
+                      });
+                      print('추가 파일 업로드 후 URLs: $_otherDocumentUrls');
+                    },
+                    onFileSelected: (_) {}, // 웹에서는 필요 없음
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline, color: AppColor.font2),
+                  onPressed: () {
+                    setState(() {
+                      _additionalFiles.removeAt(currentIndex);
+                      if (_otherDocumentUrls.length > currentIndex) {
+                        _otherDocumentUrls.removeAt(currentIndex);
+                      }
+                    });
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    });
+    print('파일 필드 추가됨. 현재 개수: ${_additionalFiles.length}');
   }
 
   @override
@@ -539,6 +653,9 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
                               fontWeight: FontWeight.w600,
                               color: Colors.black),
                         ),
+                        const SizedBox(
+                          height: 12,
+                        ),
                         Row(
                           children: [
                             _buildAgeRangeButton('10대'),
@@ -559,11 +676,211 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
                           height: 48,
                           width: 640,
                           decoration: BoxDecoration(
-                              border: Border.all(
-                            color: AppColor.line1,
-                          )),
-                        )
-                      ]))
+                            border: Border.all(color: AppColor.line1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: selectedBusinessType,
+                              isExpanded: true,
+                              icon: const Icon(Icons.expand_more,
+                                  color: AppColor.font1),
+                              hint: const Text(
+                                '선택',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: AppColor.font3,
+                                ),
+                              ),
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: AppColor.font1,
+                              ),
+                              items: businessTypes
+                                  .map<DropdownMenuItem<String>>(
+                                      (Map<String, String> item) {
+                                return DropdownMenuItem<String>(
+                                  value: item['value'],
+                                  child: Text(
+                                    item['label']!,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: AppColor.font1,
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                              onChanged: (String? newValue) {
+                                if (newValue != null) {
+                                  setState(() {
+                                    selectedBusinessType = newValue;
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                        ),
+                        const SizedBox(
+                          height: 24,
+                        ),
+                        const Text(
+                          '공간 컨셉',
+                          style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black),
+                        ),
+                        const SizedBox(
+                          height: 12,
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Wrap(
+                              spacing: 8, // 가로 간격
+                              runSpacing: 12, // 세로 간격
+                              children: [
+                                _buildConceptButton('모던'),
+                                _buildConceptButton('미니멀&심플'),
+                                _buildConceptButton('내추럴'),
+                                _buildConceptButton('북유럽'),
+                                _buildConceptButton('빈티지&레트로'),
+                                _buildConceptButton('클래식&엔틱'),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 12,
+                              children: [
+                                _buildConceptButton('프렌치&프로방스'),
+                                _buildConceptButton('러블리&로맨틱'),
+                                _buildConceptButton('인더스트리얼'),
+                                _buildConceptButton('한국&전통적인'),
+                                _buildConceptButton('유니크'),
+                              ],
+                            ),
+                          ],
+                        ),
+                        const SizedBox(
+                          height: 24,
+                        ),
+                        FileUploadField(
+                          label: '공간 도면 및 설계 파일',
+                          uploadPath: 'other_documents',
+                          isAllFileTypes: true,
+                          onFileUploaded: (String url) {
+                            print('파일 업로드 전 URLs: $_otherDocumentUrls');
+                            setState(() {
+                              _otherDocumentUrls.add(url);
+                            });
+                            print('파일 업로드 후 URLs: $_otherDocumentUrls');
+                          },
+                          onFileSelected: (_) {}, // 웹에서는 필요없음
+                        ),
+                        ..._additionalFiles,
+                        const SizedBox(
+                          height: 12,
+                        ),
+                        InkWell(
+                          onTap: () {
+                            print('파일 추가 버튼 클릭');
+                            _addFileUploadField();
+                          },
+                          child: Container(
+                            height: 36,
+                            width: 640,
+                            decoration: BoxDecoration(
+                              border: Border.all(color: AppColor.line1),
+                            ),
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  '파일 추가',
+                                  style: TextStyle(
+                                    color: AppColor.font1,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                SizedBox(width: 8),
+                                Icon(Icons.add, color: AppColor.font1, size: 16)
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(
+                          height: 40,
+                        ),
+                        const Text(
+                          '기타 정보 입력',
+                          style: TextStyle(
+                              fontSize: 18,
+                              color: AppColor.font1,
+                              fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(
+                          height: 8,
+                        ),
+                        Container(
+                          height: 2,
+                          width: 640,
+                          color: AppColor.primary,
+                        ),
+                        const SizedBox(
+                          height: 24,
+                        ),
+                        const Text(
+                          '기타 입력 사항',
+                          style: TextStyle(
+                              fontSize: 14,
+                              color: AppColor.font1,
+                              fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(
+                          height: 12,
+                        ),
+                        Container(
+                          width: 640,
+                          height: 180,
+                          decoration: BoxDecoration(
+                            border: Border.all(color: AppColor.line1),
+                          ),
+                          child: Stack(
+                            children: [
+                              TextFormField(
+                                controller: _noteController,
+                                maxLength: 2000,
+                                maxLines: null,
+                                decoration: const InputDecoration(
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.all(16),
+                                  border: InputBorder.none,
+                                  hintText: '내용을 입력해주세요',
+                                  hintStyle: TextStyle(
+                                    color: AppColor.font2,
+                                    fontSize: 14,
+                                  ),
+                                  counterText: '',
+                                ),
+                              ),
+                              Positioned(
+                                right: 16,
+                                bottom: 16,
+                                child: Text(
+                                  '$_textLength/2000자',
+                                  style: const TextStyle(
+                                    color: AppColor.font2,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ])),
                 ],
               ),
             ))));
