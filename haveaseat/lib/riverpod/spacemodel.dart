@@ -161,7 +161,8 @@ class SpaceDetailInfoNotifier
 
   Future<void> addSpaceDetailInfo({
     required String customerId,
-    required double budget,
+    required double minBudget,  // 변경
+    required double maxBudget,  // 추가
     required double spaceArea,
     required List<String> targetAgeGroups,
     required String businessType,
@@ -175,7 +176,8 @@ class SpaceDetailInfoNotifier
 
       final spaceData = {
         'customerId': customerId,
-        'budget': budget,
+        'minBudget': minBudget,  // 변경
+        'maxBudget': maxBudget,  // 추가
         'spaceArea': spaceArea,
         'targetAgeGroups': targetAgeGroups,
         'businessType': businessType,
@@ -199,9 +201,11 @@ class SpaceDetailInfoNotifier
     }
   }
 
+ 
   Future<void> updateSpaceDetailInfo({
     required String id,
-    required double budget,
+    required double minBudget,  // 변경
+    required double maxBudget,  // 추가
     required double spaceArea,
     required List<String> targetAgeGroups,
     required String businessType,
@@ -213,7 +217,8 @@ class SpaceDetailInfoNotifier
       state = const AsyncValue.loading();
 
       final updateData = {
-        'budget': budget,
+        'minBudget': minBudget,  // 변경
+        'maxBudget': maxBudget,  // 추가
         'spaceArea': spaceArea,
         'targetAgeGroups': targetAgeGroups,
         'businessType': businessType,
@@ -235,7 +240,6 @@ class SpaceDetailInfoNotifier
       rethrow;
     }
   }
-
   // 설계 파일 업로드 함수
   Future<String> uploadDesignFile(File file) async {
     try {
@@ -254,9 +258,10 @@ class SpaceDetailInfoNotifier
   }
 
   // 임시 저장 기능
-  Future<void> saveTempSpaceDetailInfo({
+ Future<void> saveTempSpaceDetailInfo({
     required String customerId,
-    double? budget,
+    double? minBudget,  // 변경
+    double? maxBudget,  // 추가
     double? spaceArea,
     List<String>? targetAgeGroups,
     String? businessType,
@@ -267,7 +272,8 @@ class SpaceDetailInfoNotifier
     try {
       final tempData = {
         'customerId': customerId,
-        'budget': budget,
+        'minBudget': minBudget,  // 변경
+        'maxBudget': maxBudget,  // 추가
         'spaceArea': spaceArea,
         'targetAgeGroups': targetAgeGroups,
         'businessType': businessType,

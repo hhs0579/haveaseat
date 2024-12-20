@@ -72,7 +72,8 @@ class SpaceBasicInfo {
 
 // 공간 세부 정보 모델
 class SpaceDetailInfo {
-  final double budget;
+  final double minBudget;  // budget을 minBudget으로 변경
+  final double maxBudget;  // maxBudget 추가
   final double spaceArea;
   final List<String> targetAgeGroups;
   final String businessType;
@@ -81,7 +82,8 @@ class SpaceDetailInfo {
   final List<String> designFileUrls;
 
   SpaceDetailInfo({
-    required this.budget,
+    required this.minBudget,  // 변경
+    required this.maxBudget,  // 추가
     required this.spaceArea,
     required this.targetAgeGroups,
     required this.businessType,
@@ -92,7 +94,8 @@ class SpaceDetailInfo {
 
   factory SpaceDetailInfo.fromJson(Map<String, dynamic> json) {
     return SpaceDetailInfo(
-      budget: (json['budget'] ?? 0).toDouble(),
+      minBudget: (json['minBudget'] ?? 0).toDouble(),  // 변경
+      maxBudget: (json['maxBudget'] ?? 0).toDouble(),  // 추가
       spaceArea: (json['spaceArea'] ?? 0).toDouble(),
       targetAgeGroups: List<String>.from(json['targetAgeGroups'] ?? []),
       businessType: json['businessType'] ?? '',
@@ -104,7 +107,8 @@ class SpaceDetailInfo {
 
   Map<String, dynamic> toJson() {
     return {
-      'budget': budget,
+      'minBudget': minBudget,  // 변경
+      'maxBudget': maxBudget,  // 추가
       'spaceArea': spaceArea,
       'targetAgeGroups': targetAgeGroups,
       'businessType': businessType,
@@ -115,7 +119,8 @@ class SpaceDetailInfo {
   }
 
   SpaceDetailInfo copyWith({
-    double? budget,
+    double? minBudget,  // 변경
+    double? maxBudget,  // 추가
     double? spaceArea,
     List<String>? targetAgeGroups,
     String? businessType,
@@ -124,7 +129,8 @@ class SpaceDetailInfo {
     List<String>? designFileUrls,
   }) {
     return SpaceDetailInfo(
-      budget: budget ?? this.budget,
+      minBudget: minBudget ?? this.minBudget,  // 변경
+      maxBudget: maxBudget ?? this.maxBudget,  // 추가
       spaceArea: spaceArea ?? this.spaceArea,
       targetAgeGroups: targetAgeGroups ?? this.targetAgeGroups,
       businessType: businessType ?? this.businessType,
@@ -134,7 +140,6 @@ class SpaceDetailInfo {
     );
   }
 }
-
 // 고객 정보 모델
 class Customer {
   final String id;

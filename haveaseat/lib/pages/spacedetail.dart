@@ -193,6 +193,129 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
     });
     print('파일 필드 추가됨. 현재 개수: ${_additionalFiles.length}');
   }
+  // SpaceDetailPage 클래스 내에 추가할 함수들
+
+  Future<void> _saveTempDetailInfo() async {
+    try {
+      // 예산 처리
+      double? minBudget = double.tryParse(_minBudgetController.text);
+      double? maxBudget = double.tryParse(_maxBudgetController.text);
+
+      // 면적 처리
+      double? spaceArea;
+      if (_areaController.text.isNotEmpty) {
+        spaceArea = double.tryParse(_areaController.text);
+        if (selectedUnit == '평') {
+          spaceArea = spaceArea! * 3.305785; // 평을 제곱미터로 변환
+        }
+      }
+
+      // 업종 가져오기
+      String? businessTypeLabel;
+      if (selectedBusinessType != null) {
+        businessTypeLabel = businessTypes.firstWhere(
+            (type) => type['value'] == selectedBusinessType)['label'];
+      }
+
+      final spaceDetailNotifier = ref.read(spaceDetailInfoProvider.notifier);
+      await spaceDetailNotifier.saveTempSpaceDetailInfo(
+        customerId: widget.customerId,
+        minBudget: minBudget,
+        maxBudget: maxBudget,
+        spaceArea: spaceArea,
+        targetAgeGroups: [selectedAgeRange],
+        businessType: businessTypeLabel,
+        concept: selectedConcept,
+        additionalNotes: _noteController.text,
+        designFileUrls: _otherDocumentUrls,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('임시 저장되었습니다.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('임시 저장 중 오류가 발생했습니다: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _saveSpaceDetailInfo() async {
+    if (_formKey.currentState?.validate() ?? false) {
+      try {
+        // 필수 필드 검증
+        if (_minBudgetController.text.isEmpty ||
+            _maxBudgetController.text.isEmpty ||
+            _areaController.text.isEmpty ||
+            selectedBusinessType == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('모든 필수 항목을 입력해주세요.')),
+          );
+          return;
+        }
+
+        // 예산 처리
+        double minBudget = double.parse(_minBudgetController.text);
+        double maxBudget = double.parse(_maxBudgetController.text);
+
+        // 예산 범위 검증
+        if (minBudget > maxBudget) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('최소 예산이 최대 예산보다 클 수 없습니다.')),
+          );
+          return;
+        }
+
+        // 면적 처리
+        double spaceArea = double.parse(_areaController.text);
+        if (selectedUnit == '평') {
+          spaceArea *= 3.305785; // 평을 제곱미터로 변환
+        }
+
+        // 업종 가져오기
+        String businessTypeLabel = businessTypes.firstWhere(
+            (type) => type['value'] == selectedBusinessType)['label']!;
+
+        // 파일 업로드 URL 확인
+        if (_otherDocumentUrls.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('최소 1개 이상의 파일을 업로드해주세요.')),
+          );
+          return;
+        }
+
+        final spaceDetailNotifier = ref.read(spaceDetailInfoProvider.notifier);
+        await spaceDetailNotifier.addSpaceDetailInfo(
+          customerId: widget.customerId,
+          minBudget: minBudget,
+          maxBudget: maxBudget,
+          spaceArea: spaceArea,
+          targetAgeGroups: [selectedAgeRange],
+          businessType: businessTypeLabel,
+          concept: selectedConcept,
+          additionalNotes: _noteController.text,
+          designFileUrls: _otherDocumentUrls,
+        );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('저장되었습니다.')),
+          );
+          GoRouter.of(context).go('/space-basic/${widget.customerId}');
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('저장 중 오류가 발생했습니다: $e')),
+          );
+        }
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -280,16 +403,15 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
                                   width: 200,
                                   height: 48,
                                   color: Colors.transparent,
-                                  child: const Row(
+                                  child: Row(
                                     children: [
                                       SizedBox(
                                         width: 17.87,
                                       ),
-                                      Icon(
-                                        Icons.person_outline_sharp,
-                                        color: Colors.black,
-                                        size: 20,
-                                      ),
+                                   Container(
+                                    width: 16.25,
+                                    height: 16.25,
+                                    child: Image.asset('assets/images/user.png')),
                                       SizedBox(
                                         width: 3.85,
                                       ),
@@ -309,16 +431,15 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
                                   width: 200,
                                   height: 48,
                                   color: Colors.transparent,
-                                  child: const Row(
+                                  child:  Row(
                                     children: [
                                       SizedBox(
                                         width: 17.87,
                                       ),
-                                      Icon(
-                                        Icons.person_outline_sharp,
-                                        color: Colors.black,
-                                        size: 20,
-                                      ),
+                                          Container(
+                                    width: 16.25,
+                                    height: 16.25,
+                                    child: Image.asset('assets/images/group.png')),
                                       SizedBox(
                                         width: 3.85,
                                       ),
@@ -332,6 +453,93 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
                                     ],
                                   )),
                             ),
+                            InkWell(
+                              onTap: () {},
+                              child: Container(
+                                  width: 200,
+                                  height: 48,
+                                  color: Colors.transparent,
+                                  child:  Row(
+                                    children: [
+                                      SizedBox(
+                                        width: 17.87,
+                                      ),
+                                          Container(
+                                    width: 16.25,
+                                    height: 16.25,
+                                    child: Image.asset('assets/images/corp.png')),
+                                      SizedBox(
+                                        width: 3.85,
+                                      ),
+                                      Text(
+                                        '업체 정보',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColor.font1,
+                                            fontSize: 16),
+                                      ),
+                                    ],
+                                  )),
+                            ),
+                            SizedBox(height: 48,),
+                            InkWell(
+                              onTap: () {},
+                              child: Container(
+                                  width: 200,
+                                  height: 48,
+                                  color: Colors.transparent,
+                                  child:  Row(
+                                    children: [
+                                      SizedBox(
+                                        width: 17.87,
+                                      ),
+                                          Container(
+                                    width: 16.25,
+                                    height: 16.25,
+                                    child: Image.asset('assets/images/as.png')),
+                                      SizedBox(
+                                        width: 3.85,
+                                      ),
+                                      Text(
+                                        '교환',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColor.font1,
+                                            fontSize: 16),
+                                      ),
+                                    ],
+                                  )),
+                            ),
+                            InkWell(
+                              onTap: () {},
+                              child: Container(
+                                  width: 200,
+                                  height: 48,
+                                  color: Colors.transparent,
+                                  child:  Row(
+                                    children: [
+                                      SizedBox(
+                                        width: 17.87,
+                                      ),
+                                          Container(
+                                    width: 16.25,
+                                    height: 16.25,
+                                    child: Image.asset('assets/images/draft.png')),
+                                      SizedBox(
+                                        width: 3.85,
+                                      ),
+                                      Text(
+                                        '임시저장',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColor.font1,
+                                            fontSize: 16),
+                                      ),
+                                    ],
+                                  )),
+                            ),
+                            SizedBox(height: 48,),
+
                           ],
                         ),
                       ),
@@ -879,6 +1087,83 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
                               ),
                             ],
                           ),
+                        ),
+                        const SizedBox(
+                          height: 48,
+                        ),
+                        Row(
+                          children: [
+                            InkWell(
+                              onTap: () {
+                                GoRouter.of(context).go('/main');
+                              },
+                              child: Container(
+                                width: 60,
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  color: Colors.transparent,
+                                  border: Border.all(color: AppColor.line1),
+                                ),
+                                child: const Center(
+                                  child: Text(
+                                    '취소',
+                                    style: TextStyle(
+                                        color: AppColor.primary,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            InkWell(
+                              onTap: () {
+                                // 임시 저장 처리
+                                _saveTempDetailInfo();
+                              },
+                              child: Container(
+                                width: 87,
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  color: Colors.transparent,
+                                  border: Border.all(color: AppColor.line1),
+                                ),
+                                child: const Center(
+                                  child: Text(
+                                    '임시 저장',
+                                    style: TextStyle(
+                                        color: AppColor.primary,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            InkWell(
+                              onTap: () {
+                                // 고객 추가 처리
+                                _saveSpaceDetailInfo();
+                              },
+                              child: Container(
+                                width: 60,
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  color: AppColor.primary,
+                                  border: Border.all(color: AppColor.line1),
+                                ),
+                                child: const Center(
+                                  child: Text(
+                                    '다음',
+                                    style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ])),
                 ],
