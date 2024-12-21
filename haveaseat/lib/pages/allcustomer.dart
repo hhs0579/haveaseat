@@ -8,16 +8,15 @@ import 'package:haveaseat/riverpod/usermodel.dart';
 import 'dart:html' as html;
 import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:math' show max;
-import 'package:firebase_auth/firebase_auth.dart';
 
-class MainPage extends ConsumerStatefulWidget {
-  const MainPage({super.key});
+class AllCustomerPage extends ConsumerStatefulWidget {
+  const AllCustomerPage({super.key});
 
   @override
-  ConsumerState<MainPage> createState() => _MainPageState();
+  ConsumerState<AllCustomerPage> createState() => _AllCustomerPageState();
 }
 
-class _MainPageState extends ConsumerState<MainPage> {
+class _AllCustomerPageState extends ConsumerState<AllCustomerPage> {
   final Set<String> _selectedCustomers = {};
   bool _allCheck = false;
 
@@ -219,22 +218,13 @@ class _MainPageState extends ConsumerState<MainPage> {
 
   // 검색 필터 함수
   List<Customer> _filterCustomers(List<Customer> customers) {
-    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-
-    // 먼저 담당 고객만 필터링 (managerId 대신 assignedTo 사용)
-    final myCustomers = customers
-        .where((customer) => customer.assignedTo == currentUserId)
-        .toList();
-
-    // 검색어나 날짜 필터가 없으면 담당 고객 전체 반환
     if (_searchController.text.isEmpty &&
         _startDate == null &&
         _endDate == null) {
-      return myCustomers;
+      return customers;
     }
 
-    // 추가 필터 적용
-    return myCustomers.where((customer) {
+    return customers.where((customer) {
       // 검색어 필터링
       if (_searchController.text.isNotEmpty) {
         String searchTerm = _searchController.text.toLowerCase();
@@ -427,7 +417,7 @@ class _MainPageState extends ConsumerState<MainPage> {
                   const SizedBox(height: 40),
                   // 메뉴 버튼들
                   InkWell(
-                    onTap: ()  => context.go('/main'), 
+                    onTap: () => context.go('/main'),
                     child: Container(
                         width: 200,
                         height: 48,
@@ -653,7 +643,7 @@ class _MainPageState extends ConsumerState<MainPage> {
                             ),
                             const SizedBox(height: 56),
                             const Text(
-                              '담당 고객정보',
+                              '전체 고객정보',
                               style: TextStyle(
                                 fontSize: 24,
                                 fontWeight: FontWeight.w600,

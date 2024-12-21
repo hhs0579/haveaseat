@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:haveaseat/components/router.dart';
 import 'package:haveaseat/firebase_options.dart';
-import 'package:haveaseat/pages/login.dart';
+
 import 'package:haveaseat/riverpod/mainmodel.dart';
 import 'package:haveaseat/components/behavior.dart';
 

@@ -3,9 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:haveaseat/pages/addcustomer.dart';
-import 'package:haveaseat/pages/login.dart';
+import 'package:haveaseat/pages/allcustomer.dart';
+import 'package:haveaseat/pages/customer.dart';
+import 'package:haveaseat/pages/login/login.dart';
+
 import 'package:haveaseat/pages/mainpage.dart';
-import 'package:haveaseat/pages/signup.dart';
+import 'package:haveaseat/pages/login/signup.dart';
 import 'package:haveaseat/pages/spaceadd.dart';
 import 'package:haveaseat/pages/spacedetail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -46,33 +49,71 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/main',
         builder: (context, state) => const MainPage(),
         routes: [
-          // main의 하위 경로로 정의
           GoRoute(
             path: 'addpage',
             builder: (context, state) => const addCustomerPage(),
             routes: [
-              // addpage의 하위 경로로 정의
               GoRoute(
-                path: 'spaceadd/:customerId', // 상대 경로로 변경
-                name: 'spaceAdd', // named route 추가
+                path: 'spaceadd/:customerId',
+                name: 'mainSpaceAdd', // 이름 변경
                 builder: (context, state) {
                   final customerId = state.pathParameters['customerId']!;
                   return SpaceAddPage(customerId: customerId);
                 },
                 routes: [
-                  // SpaceAddPage의 하위 경로로 추가
                   GoRoute(
-                    path: 'space-detail', // 상대 경로로 정의
-                    name: 'spaceDetail',
+                    path: 'space-detail',
+                    name: 'mainSpaceDetail', // 이름 변경
                     builder: (context, state) {
                       final customerId = state.pathParameters['customerId']!;
-                      return SpaceDetailPage(
-                          customerId: customerId); // SpaceDetailPage 위젯 필요
+                      return SpaceDetailPage(customerId: customerId);
                     },
                   ),
                 ],
               ),
             ],
+          ),
+          GoRoute(
+            path: 'customer/:id',
+            builder: (context, state) => CustomerDetailPage(
+              customerId: state.pathParameters['id']!,
+            ),
+          ),
+        ],
+      ),
+      GoRoute(
+        path: '/all-customers',
+        builder: (context, state) => const AllCustomerPage(),
+        routes: [
+          GoRoute(
+            path: 'addpage',
+            builder: (context, state) => const addCustomerPage(),
+            routes: [
+              GoRoute(
+                path: 'spaceadd/:customerId',
+                name: 'allCustomersSpaceAdd', // 이름 변경
+                builder: (context, state) {
+                  final customerId = state.pathParameters['customerId']!;
+                  return SpaceAddPage(customerId: customerId);
+                },
+                routes: [
+                  GoRoute(
+                    path: 'space-detail',
+                    name: 'allCustomersSpaceDetail', // 이름 변경
+                    builder: (context, state) {
+                      final customerId = state.pathParameters['customerId']!;
+                      return SpaceDetailPage(customerId: customerId);
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+          GoRoute(
+            path: 'customer/:id',
+            builder: (context, state) => CustomerDetailPage(
+              customerId: state.pathParameters['id']!,
+            ),
           ),
         ],
       ),
