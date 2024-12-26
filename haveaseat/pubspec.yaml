@@ -63,6 +63,7 @@ dev_dependencies:
   file_picker:
   uuid:
   flutter_localization:
+  excel:
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 

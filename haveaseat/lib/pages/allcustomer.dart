@@ -8,6 +8,7 @@ import 'package:haveaseat/riverpod/usermodel.dart';
 import 'dart:html' as html;
 import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:math' show max;
+import 'package:firebase_auth/firebase_auth.dart';
 
 class AllCustomerPage extends ConsumerStatefulWidget {
   const AllCustomerPage({super.key});
@@ -217,23 +218,25 @@ class _AllCustomerPageState extends ConsumerState<AllCustomerPage> {
   bool _showEndDatePicker = false;
 
   // 검색 필터 함수
+// _filterCustomers 메소드 수정
+// _filterCustomers 메소드 수정
   List<Customer> _filterCustomers(List<Customer> customers) {
+    // 검색어나 날짜 필터가 없으면 전체 고객 반환
     if (_searchController.text.isEmpty &&
         _startDate == null &&
         _endDate == null) {
-      return customers;
+      return customers; // 담당자 필터링 제거
     }
 
+    // 추가 필터 적용
     return customers.where((customer) {
+      // 담당자 필터링 제거
       // 검색어 필터링
       if (_searchController.text.isNotEmpty) {
         String searchTerm = _searchController.text.toLowerCase();
         bool matchesSearch = customer.name.toLowerCase().contains(searchTerm) ||
             customer.address.toLowerCase().contains(searchTerm) ||
-            (customer.spaceDetailInfo?.concept
-                    .toLowerCase()
-                    .contains(searchTerm) ??
-                false);
+            customer.note.toLowerCase().contains(searchTerm);
 
         if (!matchesSearch) return false;
       }
@@ -338,8 +341,7 @@ class _AllCustomerPageState extends ConsumerState<AllCustomerPage> {
                     ),
                   ),
           ),
-          buildDataCell('₩${customer.spaceDetailInfo?.minBudget ?? 0}',
-              totalWidth * BUDGET_RATIO),
+          buildDataCell('₩${customer.note ?? '0'}', totalWidth * BUDGET_RATIO),
           buildDataCell(customer.note, totalWidth * NOTE_RATIO),
         ],
       ),
@@ -449,7 +451,7 @@ class _AllCustomerPageState extends ConsumerState<AllCustomerPage> {
                     child: Container(
                         width: 200,
                         height: 48,
-                        color: Colors.transparent,
+                        color: Colors.black,
                         child: Row(
                           children: [
                             const SizedBox(
@@ -458,7 +460,10 @@ class _AllCustomerPageState extends ConsumerState<AllCustomerPage> {
                             SizedBox(
                                 width: 16.25,
                                 height: 16.25,
-                                child: Image.asset('assets/images/group.png')),
+                                child: Image.asset(
+                                  'assets/images/group.png',
+                                  color: Colors.white,
+                                )),
                             const SizedBox(
                               width: 3.85,
                             ),
@@ -466,7 +471,7 @@ class _AllCustomerPageState extends ConsumerState<AllCustomerPage> {
                               '전체 고객정보',
                               style: TextStyle(
                                   fontWeight: FontWeight.w600,
-                                  color: AppColor.font1,
+                                  color: Colors.white,
                                   fontSize: 16),
                             ),
                           ],

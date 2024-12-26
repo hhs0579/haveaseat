@@ -2,15 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:haveaseat/pages/addcustomer.dart';
+import 'package:haveaseat/pages/info/%20furniture.dart';
+import 'package:haveaseat/pages/info/addcustomer.dart';
 import 'package:haveaseat/pages/allcustomer.dart';
 import 'package:haveaseat/pages/customer.dart';
 import 'package:haveaseat/pages/login/login.dart';
 
 import 'package:haveaseat/pages/mainpage.dart';
 import 'package:haveaseat/pages/login/signup.dart';
-import 'package:haveaseat/pages/spaceadd.dart';
-import 'package:haveaseat/pages/spacedetail.dart';
+import 'package:haveaseat/pages/info/spaceadd.dart';
+import 'package:haveaseat/pages/info/spacedetail.dart';
+import 'package:haveaseat/pages/tempsave.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -68,6 +70,17 @@ final routerProvider = Provider<GoRouter>((ref) {
                       final customerId = state.pathParameters['customerId']!;
                       return SpaceDetailPage(customerId: customerId);
                     },
+                    routes: [
+                      GoRoute(
+                        path: 'furniture',
+                        name: 'furniture', // 이름 변경
+                        builder: (context, state) {
+                          final customerId =
+                              state.pathParameters['customerId']!;
+                          return furniturePage(customerId: customerId);
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -104,6 +117,17 @@ final routerProvider = Provider<GoRouter>((ref) {
                       final customerId = state.pathParameters['customerId']!;
                       return SpaceDetailPage(customerId: customerId);
                     },
+                    routes: [
+                      GoRoute(
+                        path: 'furniture',
+                        name: 'allCustomerfurniture', // 이름 변경
+                        builder: (context, state) {
+                          final customerId =
+                              state.pathParameters['customerId']!;
+                          return furniturePage(customerId: customerId);
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -116,6 +140,10 @@ final routerProvider = Provider<GoRouter>((ref) {
             ),
           ),
         ],
+      ),
+      GoRoute(
+        path: '/temp',
+        builder: (context, state) => const TempSavePage(),
       ),
     ],
     errorBuilder: (context, state) => const login(),

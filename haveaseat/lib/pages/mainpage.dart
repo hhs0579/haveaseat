@@ -218,6 +218,7 @@ class _MainPageState extends ConsumerState<MainPage> {
   bool _showEndDatePicker = false;
 
   // 검색 필터 함수
+// _filterCustomers 메소드 수정
   List<Customer> _filterCustomers(List<Customer> customers) {
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
 
@@ -240,10 +241,9 @@ class _MainPageState extends ConsumerState<MainPage> {
         String searchTerm = _searchController.text.toLowerCase();
         bool matchesSearch = customer.name.toLowerCase().contains(searchTerm) ||
             customer.address.toLowerCase().contains(searchTerm) ||
-            (customer.spaceDetailInfo?.concept
-                    .toLowerCase()
-                    .contains(searchTerm) ??
-                false);
+            customer.note
+                .toLowerCase()
+                .contains(searchTerm); // spaceDetailInfo 대신 note 사용
 
         if (!matchesSearch) return false;
       }
@@ -348,8 +348,7 @@ class _MainPageState extends ConsumerState<MainPage> {
                     ),
                   ),
           ),
-          buildDataCell('₩${customer.spaceDetailInfo?.minBudget ?? 0}',
-              totalWidth * BUDGET_RATIO),
+          buildDataCell('₩${customer.note ?? '0'}', totalWidth * BUDGET_RATIO),
           buildDataCell(customer.note, totalWidth * NOTE_RATIO),
         ],
       ),
@@ -378,10 +377,13 @@ class _MainPageState extends ConsumerState<MainPage> {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   const SizedBox(height: 40),
-                  SizedBox(
-                    width: 137,
-                    height: 17,
-                    child: Image.asset('assets/images/logo.png'),
+                  InkWell(
+                    onTap: () => context.go('/main'),
+                    child: SizedBox(
+                      width: 137,
+                      height: 17,
+                      child: Image.asset('assets/images/logo.png'),
+                    ),
                   ),
                   const SizedBox(height: 56),
                   userData.when(
@@ -427,11 +429,11 @@ class _MainPageState extends ConsumerState<MainPage> {
                   const SizedBox(height: 40),
                   // 메뉴 버튼들
                   InkWell(
-                    onTap: ()  => context.go('/main'), 
+                    onTap: () => context.go('/main'),
                     child: Container(
                         width: 200,
                         height: 48,
-                        color: Colors.transparent,
+                        color: Colors.black,
                         child: Row(
                           children: [
                             const SizedBox(
@@ -440,7 +442,10 @@ class _MainPageState extends ConsumerState<MainPage> {
                             SizedBox(
                                 width: 16.25,
                                 height: 16.25,
-                                child: Image.asset('assets/images/user.png')),
+                                child: Image.asset(
+                                  'assets/images/user.png',
+                                  color: Colors.white,
+                                )),
                             const SizedBox(
                               width: 3.85,
                             ),
@@ -448,7 +453,7 @@ class _MainPageState extends ConsumerState<MainPage> {
                               '담당 고객정보',
                               style: TextStyle(
                                   fontWeight: FontWeight.w600,
-                                  color: AppColor.font1,
+                                  color: Colors.white,
                                   fontSize: 16),
                             ),
                           ],
@@ -573,7 +578,7 @@ class _MainPageState extends ConsumerState<MainPage> {
                     height: 48,
                   ),
                   InkWell(
-                    onTap: () {},
+                    onTap: () => context.go('/temp'),
                     child: Container(
                         width: 200,
                         height: 48,

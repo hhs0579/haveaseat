@@ -281,12 +281,6 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
             (type) => type['value'] == selectedBusinessType)['label']!;
 
         // 파일 업로드 URL 확인
-        if (_otherDocumentUrls.isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('최소 1개 이상의 파일을 업로드해주세요.')),
-          );
-          return;
-        }
 
         final spaceDetailNotifier = ref.read(spaceDetailInfoProvider.notifier);
         await spaceDetailNotifier.addSpaceDetailInfo(
@@ -305,7 +299,8 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('저장되었습니다.')),
           );
-          GoRouter.of(context).go('/space-basic/${widget.customerId}');
+          context.go(
+              '/main/addpage/spaceadd/${widget.customerId}/space-detail/furniture');
         }
       } catch (e) {
         if (mounted) {
@@ -405,17 +400,18 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
                                   color: Colors.transparent,
                                   child: Row(
                                     children: [
-                                      SizedBox(
+                                      const SizedBox(
                                         width: 17.87,
                                       ),
-                                   Container(
-                                    width: 16.25,
-                                    height: 16.25,
-                                    child: Image.asset('assets/images/user.png')),
                                       SizedBox(
+                                          width: 16.25,
+                                          height: 16.25,
+                                          child: Image.asset(
+                                              'assets/images/user.png')),
+                                      const SizedBox(
                                         width: 3.85,
                                       ),
-                                      Text(
+                                      const Text(
                                         '담당 고객정보',
                                         style: TextStyle(
                                             fontWeight: FontWeight.w600,
@@ -431,19 +427,20 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
                                   width: 200,
                                   height: 48,
                                   color: Colors.transparent,
-                                  child:  Row(
+                                  child: Row(
                                     children: [
-                                      SizedBox(
+                                      const SizedBox(
                                         width: 17.87,
                                       ),
-                                          Container(
-                                    width: 16.25,
-                                    height: 16.25,
-                                    child: Image.asset('assets/images/group.png')),
                                       SizedBox(
+                                          width: 16.25,
+                                          height: 16.25,
+                                          child: Image.asset(
+                                              'assets/images/group.png')),
+                                      const SizedBox(
                                         width: 3.85,
                                       ),
-                                      Text(
+                                      const Text(
                                         '전체 고객정보',
                                         style: TextStyle(
                                             fontWeight: FontWeight.w600,
@@ -459,19 +456,20 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
                                   width: 200,
                                   height: 48,
                                   color: Colors.transparent,
-                                  child:  Row(
+                                  child: Row(
                                     children: [
-                                      SizedBox(
+                                      const SizedBox(
                                         width: 17.87,
                                       ),
-                                          Container(
-                                    width: 16.25,
-                                    height: 16.25,
-                                    child: Image.asset('assets/images/corp.png')),
                                       SizedBox(
+                                          width: 16.25,
+                                          height: 16.25,
+                                          child: Image.asset(
+                                              'assets/images/corp.png')),
+                                      const SizedBox(
                                         width: 3.85,
                                       ),
-                                      Text(
+                                      const Text(
                                         '업체 정보',
                                         style: TextStyle(
                                             fontWeight: FontWeight.w600,
@@ -481,26 +479,29 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
                                     ],
                                   )),
                             ),
-                            SizedBox(height: 48,),
+                            const SizedBox(
+                              height: 48,
+                            ),
                             InkWell(
                               onTap: () {},
                               child: Container(
                                   width: 200,
                                   height: 48,
                                   color: Colors.transparent,
-                                  child:  Row(
+                                  child: Row(
                                     children: [
-                                      SizedBox(
+                                      const SizedBox(
                                         width: 17.87,
                                       ),
-                                          Container(
-                                    width: 16.25,
-                                    height: 16.25,
-                                    child: Image.asset('assets/images/as.png')),
                                       SizedBox(
+                                          width: 16.25,
+                                          height: 16.25,
+                                          child: Image.asset(
+                                              'assets/images/as.png')),
+                                      const SizedBox(
                                         width: 3.85,
                                       ),
-                                      Text(
+                                      const Text(
                                         '교환',
                                         style: TextStyle(
                                             fontWeight: FontWeight.w600,
@@ -516,19 +517,20 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
                                   width: 200,
                                   height: 48,
                                   color: Colors.transparent,
-                                  child:  Row(
+                                  child: Row(
                                     children: [
-                                      SizedBox(
+                                      const SizedBox(
                                         width: 17.87,
                                       ),
-                                          Container(
-                                    width: 16.25,
-                                    height: 16.25,
-                                    child: Image.asset('assets/images/draft.png')),
                                       SizedBox(
+                                          width: 16.25,
+                                          height: 16.25,
+                                          child: Image.asset(
+                                              'assets/images/draft.png')),
+                                      const SizedBox(
                                         width: 3.85,
                                       ),
-                                      Text(
+                                      const Text(
                                         '임시저장',
                                         style: TextStyle(
                                             fontWeight: FontWeight.w600,
@@ -538,8 +540,9 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
                                     ],
                                   )),
                             ),
-                            SizedBox(height: 48,),
-
+                            const SizedBox(
+                              height: 48,
+                            ),
                           ],
                         ),
                       ),
