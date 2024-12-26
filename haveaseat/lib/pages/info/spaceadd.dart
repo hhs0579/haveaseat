@@ -44,21 +44,10 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
   DateTime? _openingDate;
   String? _deliveryMethod;
   String? _tempSaveDocId;
-  int _notesLength = 0;
+  final int _notesLength = 0;
 
   // 배송 방법 옵션
   final List<String> _deliveryMethods = ['직접 배송', '택배', '용달', '기타'];
-
-  @override
-  void initState() {
-    super.initState();
-    _additionalNotesController.addListener(() {
-      setState(() {
-        _notesLength = _additionalNotesController.text.length;
-      });
-    });
-    _loadTempSavedData();
-  }
 
   @override
   void dispose() {
@@ -70,24 +59,28 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
     super.dispose();
   }
 
-  // 임시 저장 데이터 불러오기
-  Future<void> _loadTempSavedData() async {
-    try {
-      final user = ref.read(UserProvider.currentUserProvider).value;
-      if (user == null) return;
+  @override
+  void initState() {
+    super.initState();
+    _loadTempEstimate();
+  }
 
-      final tempDoc = await FirebaseFirestore.instance
-          .collection('temp_space_basic_infos')
-          .where('assignedTo', isEqualTo: user.uid)
-          .where('customerId', isEqualTo: widget.customerId)
-          .where('isTemp', isEqualTo: true)
+  Future<void> _loadTempEstimate() async {
+    try {
+      final customer = await ref
+          .read(customerDataProvider.notifier)
+          .getCustomer(widget.customerId);
+      if (customer == null || customer.estimateIds.isEmpty) return;
+
+      final estimateId = customer.estimateIds[0];
+      final docSnapshot = await FirebaseFirestore.instance
+          .collection('temp_estimates')
+          .doc(estimateId)
           .get();
 
-      if (tempDoc.docs.isNotEmpty) {
-        final data = tempDoc.docs.first.data();
+      if (docSnapshot.exists) {
+        final data = docSnapshot.data()!;
         setState(() {
-          _tempSaveDocId = tempDoc.docs.first.id;
-
           // 주소 처리
           if (data['siteAddress'] != null) {
             final addressParts = data['siteAddress'].split(' ');
@@ -103,8 +96,9 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
 
           _recipientController.text = data['recipient'] ?? '';
           _contactNumberController.text = data['contactNumber'] ?? '';
-          _deliveryMethod = data['deliveryMethod'];
-          _additionalNotesController.text = data['additionalNotes'] ?? '';
+          _shippingMethod = data['shippingMethod'];
+          _paymentMethod = data['paymentMethod'];
+          _additionalNotesController.text = data['basicNotes'] ?? '';
         });
       }
     } catch (e) {
@@ -112,7 +106,7 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
     }
   }
 
-  // 임시 저장
+// 임시 저장
   Future<void> _saveTempBasicInfo() async {
     try {
       final user = ref.read(UserProvider.currentUserProvider).value;
@@ -120,43 +114,50 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
         throw Exception('로그인이 필요합니다');
       }
 
+      // Firestore에서 해당 고객의 견적 정보 가져오기
+      final customerDoc = await FirebaseFirestore.instance
+          .collection('customers')
+          .doc(widget.customerId)
+          .get();
+
+      if (!customerDoc.exists) throw Exception('고객 정보를 찾을 수 없습니다');
+
+      final customer = Customer.fromJson(customerDoc.id, customerDoc.data()!);
+      final estimateId = customer.estimateIds[0]; // 첫 번째 견적 ID 사용
+
+      // 임시 저장 데이터 생성
       final tempData = {
         'customerId': widget.customerId,
-        'assignedTo': user.uid,
+        'estimateId': estimateId,
+        'status': EstimateStatus.IN_PROGRESS.toString(),
+        'lastUpdated': FieldValue.serverTimestamp(),
+        'isTemp': true,
+        // 공간 기본 정보
         'siteAddress':
             '${_siteAddressController.text} ${_detailSiteAddressController.text}',
         'openingDate':
             _openingDate != null ? Timestamp.fromDate(_openingDate!) : null,
         'recipient': _recipientController.text,
         'contactNumber': _contactNumberController.text,
-        'deliveryMethod': _deliveryMethod,
-        'additionalNotes': _additionalNotesController.text,
-        'shippingMethod': _shippingMethod, // 추가
-        'paymentMethod': _paymentMethod, // 추가
-        'isTemp': true,
-        'lastUpdated': FieldValue.serverTimestamp(),
+        'shippingMethod': _shippingMethod,
+        'paymentMethod': _paymentMethod,
+        'basicNotes': _additionalNotesController.text,
       };
 
-      if (_tempSaveDocId != null) {
-        await FirebaseFirestore.instance
-            .collection('temp_space_basic_infos')
-            .doc(_tempSaveDocId)
-            .update(tempData);
-      } else {
-        final docRef = await FirebaseFirestore.instance
-            .collection('temp_space_basic_infos')
-            .add(tempData);
-        _tempSaveDocId = docRef.id;
-      }
+      // temp_estimates 컬렉션에 저장
+      await FirebaseFirestore.instance
+          .collection('temp_estimates')
+          .doc(estimateId)
+          .set(tempData, SetOptions(merge: true));
 
-      if (context.mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('임시 저장되었습니다')),
         );
       }
     } catch (e) {
       print('임시 저장 중 오류: $e');
-      if (context.mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('임시 저장 중 오류가 발생했습니다: $e')),
         );
@@ -164,76 +165,90 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
     }
   }
 
-  // 최종 저장
+// 최종 저장
   Future<void> _saveSpaceBasicInfo() async {
-    // 유효성 검사
+    if (!_validateInputs()) return;
+
+    try {
+      final user = ref.read(UserProvider.currentUserProvider).value;
+      if (user == null) throw Exception('로그인이 필요합니다');
+
+      // 고객 정보에서 견적 ID 가져오기
+      final customer = await ref
+          .read(customerDataProvider.notifier)
+          .getCustomer(widget.customerId);
+      if (customer == null || customer.estimateIds.isEmpty) {
+        throw Exception('고객 정보를 찾을 수 없습니다');
+      }
+
+      final estimateId = customer.estimateIds[0]; // 첫 번째 견적 ID 사용
+
+      // 공간 기본 정보 업데이트
+      await ref.read(estimatesProvider.notifier).updateSpaceBasicInfo(
+            estimateId: estimateId,
+            siteAddress:
+                '${_siteAddressController.text} ${_detailSiteAddressController.text}',
+            openingDate: _openingDate!,
+            recipient: _recipientController.text,
+            contactNumber: _contactNumberController.text,
+            shippingMethod: _shippingMethod ?? '',
+            paymentMethod: _paymentMethod ?? '',
+            basicNotes: _additionalNotesController.text,
+          );
+
+      // 임시 저장 데이터 삭제
+      await FirebaseFirestore.instance
+          .collection('temp_estimates')
+          .doc(estimateId)
+          .delete();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('저장되었습니다')),
+        );
+        context.go('/main/addpage/spaceadd/${widget.customerId}/space-detail');
+      }
+    } catch (e) {
+      print('저장 중 오류: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('저장 중 오류가 발생했습니다: $e')),
+        );
+      }
+    }
+  }
+
+// 입력값 검증
+  bool _validateInputs() {
     if (_siteAddressController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('현장 주소를 입력해주세요')),
       );
-      return;
+      return false;
     }
 
     if (_openingDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('공간 오픈 일정을 선택해주세요')),
       );
-      return;
+      return false;
     }
 
     if (_recipientController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('수령자를 입력해주세요')),
       );
-      return;
+      return false;
     }
 
     if (_contactNumberController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('연락처를 입력해주세요')),
       );
-      return;
+      return false;
     }
 
-    try {
-      final user = ref.read(UserProvider.currentUserProvider).value;
-      if (user == null) {
-        throw Exception('로그인이 필요합니다');
-      }
-
-      await ref.read(spaceBasicInfoProvider.notifier).addSpaceBasicInfo(
-            customerId: widget.customerId,
-            siteAddress:
-                '${_siteAddressController.text} ${_detailSiteAddressController.text}',
-            openingDate: _openingDate!,
-            recipient: _recipientController.text,
-            contactNumber: _contactNumberController.text,
-            shippingMethod: _shippingMethod!, // 추가
-            paymentMethod: _paymentMethod!, // 추가
-           
-          );
-
-      // 저장 성공 시 임시 저장 문서 삭제
-      if (_tempSaveDocId != null) {
-        await FirebaseFirestore.instance
-            .collection('temp_space_basic_infos')
-            .doc(_tempSaveDocId)
-            .delete();
-      }
-
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('저장되었습니다')),
-        );
-        // 다음 페이지로 이동
-        context.go('/main/addpage/spaceadd/${widget.customerId}/space-detail');
-      }
-    } catch (e) {
-      print('저장 중 오류: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('저장 중 오류가 발생했습니다: $e')),
-      );
-    }
+    return true;
   }
 
 // 캘린더 눌렀을 때 날짜 선택하는 함수
@@ -375,7 +390,6 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
 
   @override
   Widget build(BuildContext context) {
-    final spaceBasicInfo = ref.watch(spaceBasicInfoProvider);
     final userData = ref.watch(UserProvider.userDataProvider);
     return Scaffold(
         body: ResponsiveLayout(

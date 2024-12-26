@@ -12,12 +12,6 @@ enum EstimateStatus {
   CANCELED // 취소됨
 }
 
-// 가구 종류를 구분하는 enum
-enum FurnitureType {
-  EXISTING, // 기존 가구
-  CUSTOM // 제작 가구
-}
-
 // 고객 정보 모델
 class Customer {
   final String id;
@@ -89,11 +83,25 @@ class Estimate {
   final DateTime createdAt;
   final DateTime updatedAt;
   final EstimateStatus status;
-  final SpaceBasicInfo? spaceBasicInfo;
-  final SpaceDetailInfo? spaceDetailInfo;
-  final FurnitureType? furnitureType;
-  final List<ExistingFurniture>? existingFurniture;
-  final List<CustomFurniture>? customFurniture;
+  // 공간 기본 정보
+  final String siteAddress;
+  final DateTime openingDate;
+  final String recipient;
+  final String contactNumber;
+  final String shippingMethod;
+  final String paymentMethod;
+  final String basicNotes;
+  // 공간 상세 정보
+  final double minBudget;
+  final double maxBudget;
+  final double spaceArea;
+  final List<String> targetAgeGroups;
+  final String businessType;
+  final String concept;
+  final String detailNotes;
+  final List<String> designFileUrls;
+  // 가구 정보
+  final List<ExistingFurniture> furnitureList;
 
   Estimate({
     required this.id,
@@ -101,22 +109,25 @@ class Estimate {
     required this.createdAt,
     required this.updatedAt,
     required this.status,
-    this.spaceBasicInfo,
-    this.spaceDetailInfo,
-    this.furnitureType,
-    this.existingFurniture,
-    this.customFurniture,
+    required this.siteAddress,
+    required this.openingDate,
+    required this.recipient,
+    required this.contactNumber,
+    required this.shippingMethod,
+    required this.paymentMethod,
+    required this.basicNotes,
+    required this.minBudget,
+    required this.maxBudget,
+    required this.spaceArea,
+    required this.targetAgeGroups,
+    required this.businessType,
+    required this.concept,
+    required this.detailNotes,
+    required this.designFileUrls,
+    required this.furnitureList,
   });
 
   factory Estimate.fromJson(String id, Map<String, dynamic> json) {
-    final typeStr = json['furnitureType'] as String?;
-    final type = typeStr != null
-        ? FurnitureType.values.firstWhere(
-            (e) => e.toString() == typeStr,
-            orElse: () => FurnitureType.EXISTING,
-          )
-        : null;
-
     return Estimate(
       id: id,
       customerId: json['customerId'] ?? '',
@@ -126,23 +137,27 @@ class Estimate {
         (e) => e.toString() == json['status'],
         orElse: () => EstimateStatus.IN_PROGRESS,
       ),
-      spaceBasicInfo: json['spaceBasicInfo'] != null
-          ? SpaceBasicInfo.fromJson(json['spaceBasicInfo'])
-          : null,
-      spaceDetailInfo: json['spaceDetailInfo'] != null
-          ? SpaceDetailInfo.fromJson(json['spaceDetailInfo'])
-          : null,
-      furnitureType: type,
-      existingFurniture: type == FurnitureType.EXISTING
-          ? (json['furniture'] as List<dynamic>?)
-              ?.map((e) => ExistingFurniture.fromJson(e))
-              .toList()
-          : null,
-      customFurniture: type == FurnitureType.CUSTOM
-          ? (json['furniture'] as List<dynamic>?)
-              ?.map((e) => CustomFurniture.fromJson(e))
-              .toList()
-          : null,
+      // 공간 기본 정보
+      siteAddress: json['siteAddress'] ?? '',
+      openingDate: (json['openingDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      recipient: json['recipient'] ?? '',
+      contactNumber: json['contactNumber'] ?? '',
+      shippingMethod: json['shippingMethod'] ?? '',
+      paymentMethod: json['paymentMethod'] ?? '',
+      basicNotes: json['basicNotes'] ?? '',
+      // 공간 상세 정보
+      minBudget: (json['minBudget'] ?? 0).toDouble(),
+      maxBudget: (json['maxBudget'] ?? 0).toDouble(),
+      spaceArea: (json['spaceArea'] ?? 0).toDouble(),
+      targetAgeGroups: List<String>.from(json['targetAgeGroups'] ?? []),
+      businessType: json['businessType'] ?? '',
+      concept: json['concept'] ?? '',
+      detailNotes: json['detailNotes'] ?? '',
+      designFileUrls: List<String>.from(json['designFileUrls'] ?? []),
+      // 가구 정보
+      furnitureList: (json['furnitureList'] as List<dynamic>?)
+          ?.map((e) => ExistingFurniture.fromJson(e))
+          .toList() ?? [],
     );
   }
 
@@ -152,108 +167,109 @@ class Estimate {
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
       'status': status.toString(),
-      'spaceBasicInfo': spaceBasicInfo?.toJson(),
-      'spaceDetailInfo': spaceDetailInfo?.toJson(),
-      'furnitureType': furnitureType?.toString(),
-      'furniture': furnitureType == FurnitureType.EXISTING
-          ? existingFurniture?.map((e) => e.toJson()).toList()
-          : customFurniture?.map((e) => e.toJson()).toList(),
-    };
-  }
-}
-
-// 공간 기본 정보 모델
-class SpaceBasicInfo {
-  final String siteAddress;
-  final DateTime openingDate;
-  final String recipient;
-  final String contactNumber;
-  final String shippingMethod;
-  final String paymentMethod;
-  final String additionalNotes;
-
-  SpaceBasicInfo({
-    required this.siteAddress,
-    required this.openingDate,
-    required this.recipient,
-    required this.contactNumber,
-    required this.shippingMethod,
-    required this.paymentMethod,
-    required this.additionalNotes,
-  });
-
-  factory SpaceBasicInfo.fromJson(Map<String, dynamic> json) {
-    return SpaceBasicInfo(
-      siteAddress: json['siteAddress'] ?? '',
-      openingDate:
-          (json['openingDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      recipient: json['recipient'] ?? '',
-      contactNumber: json['contactNumber'] ?? '',
-      shippingMethod: json['shippingMethod'] ?? '',
-      paymentMethod: json['paymentMethod'] ?? '',
-      additionalNotes: json['additionalNotes'] ?? '',
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
+      // 공간 기본 정보
       'siteAddress': siteAddress,
       'openingDate': Timestamp.fromDate(openingDate),
       'recipient': recipient,
       'contactNumber': contactNumber,
       'shippingMethod': shippingMethod,
       'paymentMethod': paymentMethod,
-      'additionalNotes': additionalNotes,
-    };
-  }
-}
-
-// 공간 세부 정보 모델
-class SpaceDetailInfo {
-  final double minBudget;
-  final double maxBudget;
-  final double spaceArea;
-  final List<String> targetAgeGroups;
-  final String businessType;
-  final String concept;
-  final String additionalNotes;
-  final List<String> designFileUrls;
-
-  SpaceDetailInfo({
-    required this.minBudget,
-    required this.maxBudget,
-    required this.spaceArea,
-    required this.targetAgeGroups,
-    required this.businessType,
-    required this.concept,
-    required this.additionalNotes,
-    required this.designFileUrls,
-  });
-
-  factory SpaceDetailInfo.fromJson(Map<String, dynamic> json) {
-    return SpaceDetailInfo(
-      minBudget: (json['minBudget'] ?? 0).toDouble(),
-      maxBudget: (json['maxBudget'] ?? 0).toDouble(),
-      spaceArea: (json['spaceArea'] ?? 0).toDouble(),
-      targetAgeGroups: List<String>.from(json['targetAgeGroups'] ?? []),
-      businessType: json['businessType'] ?? '',
-      concept: json['concept'] ?? '',
-      additionalNotes: json['additionalNotes'] ?? '',
-      designFileUrls: List<String>.from(json['designFileUrls'] ?? []),
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
+      'basicNotes': basicNotes,
+      // 공간 상세 정보
       'minBudget': minBudget,
       'maxBudget': maxBudget,
       'spaceArea': spaceArea,
       'targetAgeGroups': targetAgeGroups,
       'businessType': businessType,
       'concept': concept,
-      'additionalNotes': additionalNotes,
+      'detailNotes': detailNotes,
       'designFileUrls': designFileUrls,
+      // 가구 정보
+      'furnitureList': furnitureList.map((e) => e.toJson()).toList(),
     };
+  }
+
+  // 빈 견적 생성을 위한 팩토리 메서드
+  factory Estimate.empty(String customerId) {
+    return Estimate(
+      id: '',
+      customerId: customerId,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      status: EstimateStatus.IN_PROGRESS,
+      // 공간 기본 정보
+      siteAddress: '',
+      openingDate: DateTime.now(),
+      recipient: '',
+      contactNumber: '',
+      shippingMethod: '',
+      paymentMethod: '',
+      basicNotes: '',
+      // 공간 상세 정보
+      minBudget: 0,
+      maxBudget: 0,
+      spaceArea: 0,
+      targetAgeGroups: [],
+      businessType: '',
+      concept: '',
+      detailNotes: '',
+      designFileUrls: [],
+      // 가구 정보
+      furnitureList: [],
+    );
+  }
+
+  Estimate copyWith({
+    String? id,
+    String? customerId,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    EstimateStatus? status,
+    String? siteAddress,
+    DateTime? openingDate,
+    String? recipient,
+    String? contactNumber,
+    String? shippingMethod,
+    String? paymentMethod,
+    String? basicNotes,
+    double? minBudget,
+    double? maxBudget,
+    double? spaceArea,
+    List<String>? targetAgeGroups,
+    String? businessType,
+    String? concept,
+    String? detailNotes,
+    List<String>? designFileUrls,
+    List<ExistingFurniture>? furnitureList,
+  }) {
+    return Estimate(
+      id: id ?? this.id,
+      customerId: customerId ?? this.customerId,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      status: status ?? this.status,
+      siteAddress: siteAddress ?? this.siteAddress,
+      openingDate: openingDate ?? this.openingDate,
+      recipient: recipient ?? this.recipient,
+      contactNumber: contactNumber ?? this.contactNumber,
+      shippingMethod: shippingMethod ?? this.shippingMethod,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
+      basicNotes: basicNotes ?? this.basicNotes,
+      minBudget: minBudget ?? this.minBudget,
+      maxBudget: maxBudget ?? this.maxBudget,
+      spaceArea: spaceArea ?? this.spaceArea,
+      targetAgeGroups: targetAgeGroups ?? this.targetAgeGroups,
+      businessType: businessType ?? this.businessType,
+      concept: concept ?? this.concept,
+      detailNotes: detailNotes ?? this.detailNotes,
+      designFileUrls: designFileUrls ?? this.designFileUrls,
+      furnitureList: furnitureList ?? this.furnitureList,
+    );
+  }
+
+  // 전체 견적 금액 계산
+  double get totalAmount {
+    return furnitureList.fold(0, (sum, furniture) => sum + (furniture.price * furniture.quantity));
   }
 }
 
@@ -290,132 +306,196 @@ class ExistingFurniture {
   }
 }
 
-// 제작 가구 모델
-class CustomFurniture {
-  final String id;
-  final String category;
-  final int quantity;
-  final TopBoard topBoard;
-  final BottomBoard bottomBoard;
-  final double price;
+// Estimate Provider
+final estimatesProvider = StateNotifierProvider<EstimatesNotifier, List<Estimate>>((ref) {
+  return EstimatesNotifier();
+});
 
-  CustomFurniture({
-    required this.id,
-    required this.category,
-    required this.quantity,
-    required this.topBoard,
-    required this.bottomBoard,
-    required this.price,
-  });
+// Estimate Notifier
+class EstimatesNotifier extends StateNotifier<List<Estimate>> {
+  EstimatesNotifier() : super([]);
 
-  factory CustomFurniture.fromJson(Map<String, dynamic> json) {
-    return CustomFurniture(
-      id: json['id'] ?? '',
-      category: json['category'] ?? '',
-      quantity: json['quantity'] ?? 0,
-      topBoard: TopBoard.fromJson(json['topBoard'] ?? {}),
-      bottomBoard: BottomBoard.fromJson(json['bottomBoard'] ?? {}),
-      price: (json['price'] ?? 0).toDouble(),
-    );
+  // 고객의 모든 견적 로드
+  Future<void> loadCustomerEstimates(String customerId) async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('estimates')
+          .where('customerId', isEqualTo: customerId)
+          .get();
+
+      final estimates = snapshot.docs
+          .map((doc) => Estimate.fromJson(doc.id, doc.data()))
+          .toList();
+
+      state = estimates;
+    } catch (e) {
+      print('Error loading estimates: $e');
+      rethrow;
+    }
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'category': category,
-      'quantity': quantity,
-      'topBoard': topBoard.toJson(),
-      'bottomBoard': bottomBoard.toJson(),
-      'price': price,
-    };
+  // 새 견적 추가
+  Future<String> addEstimate(String customerId) async {
+    try {
+      final now = DateTime.now();
+      final estimateRef = FirebaseFirestore.instance.collection('estimates').doc();
+      final newEstimate = Estimate.empty(customerId);
+      
+      final estimateData = {
+        ...newEstimate.toJson(),
+        'id': estimateRef.id,
+        'createdAt': now,
+        'updatedAt': now,
+      };
+
+      // Firestore에 견적 저장
+      await estimateRef.set(estimateData);
+
+      // 고객 문서에 견적 ID 추가
+      await FirebaseFirestore.instance.collection('customers').doc(customerId).update({
+        'estimateIds': FieldValue.arrayUnion([estimateRef.id]),
+        'updatedAt': now,
+      });
+
+      state = [...state, Estimate.fromJson(estimateRef.id, estimateData)];
+      return estimateRef.id;
+    } catch (e) {
+      print('Error adding estimate: $e');
+      rethrow;
+    }
+  }
+
+  // 견적 공간 기본 정보 업데이트
+  Future<void> updateSpaceBasicInfo({
+    required String estimateId,
+    required String siteAddress,
+    required DateTime openingDate,
+    required String recipient,
+    required String contactNumber,
+    required String shippingMethod,
+    required String paymentMethod,
+    required String basicNotes,
+  }) async {
+    try {
+      final index = state.indexWhere((e) => e.id == estimateId);
+      if (index == -1) return;
+
+      final updated = state[index].copyWith(
+        siteAddress: siteAddress,
+        openingDate: openingDate,
+        recipient: recipient,
+        contactNumber: contactNumber,
+        shippingMethod: shippingMethod,
+        paymentMethod: paymentMethod,
+        basicNotes: basicNotes,
+        updatedAt: DateTime.now(),
+      );
+
+      await _updateEstimateInFirestore(updated);
+      state = [...state.sublist(0, index), updated, ...state.sublist(index + 1)];
+    } catch (e) {
+      print('Error updating space basic info: $e');
+      rethrow;
+    }
+  }
+
+  // 견적 공간 상세 정보 업데이트
+  Future<void> updateSpaceDetailInfo({
+    required String estimateId,
+    required double minBudget,
+    required double maxBudget,
+    required double spaceArea,
+    required List<String> targetAgeGroups,
+    required String businessType,
+    required String concept,
+    required String detailNotes,
+    required List<String> designFileUrls,
+  }) async {
+    try {
+      final index = state.indexWhere((e) => e.id == estimateId);
+      if (index == -1) return;
+
+      final updated = state[index].copyWith(
+        minBudget: minBudget,
+        maxBudget: maxBudget,
+        spaceArea: spaceArea,
+        targetAgeGroups: targetAgeGroups,
+        businessType: businessType,
+        concept: concept,
+        detailNotes: detailNotes,
+        designFileUrls: designFileUrls,
+        updatedAt: DateTime.now(),
+      );
+
+      await _updateEstimateInFirestore(updated);
+      state = [...state.sublist(0, index), updated, ...state.sublist(index + 1)];
+    } catch (e) {
+      print('Error updating space detail info: $e');
+      rethrow;
+    }
+  }
+
+  // 견적 가구 정보 업데이트
+  Future<void> updateFurnitureList({
+    required String estimateId,
+    required List<ExistingFurniture> furnitureList,
+  }) async {
+    try {
+      final index = state.indexWhere((e) => e.id == estimateId);
+      if (index == -1) return;
+
+      final updated = state[index].copyWith(
+        furnitureList: furnitureList,
+        updatedAt: DateTime.now(),
+      );
+
+      await _updateEstimateInFirestore(updated);
+      state = [...state.sublist(0, index), updated, ...state.sublist(index + 1)];
+    } catch (e) {
+      print('Error updating furniture list: $e');
+      rethrow;
+    }
+  }
+
+  // 견적 상태 업데이트
+  Future<void> updateEstimateStatus(String estimateId, EstimateStatus status) async {
+    try {
+      final index = state.indexWhere((e) => e.id == estimateId);
+      if (index == -1) return;
+
+      final updated = state[index].copyWith(
+        status: status,
+        updatedAt: DateTime.now(),
+      );
+
+      await _updateEstimateInFirestore(updated);
+      state = [...state.sublist(0, index), updated, ...state.sublist(index + 1)];
+    } catch (e) {
+      print('Error updating estimate status: $e');
+      rethrow;
+    }
+  }
+
+  // Firestore 업데이트 유틸리티 메서드
+  Future<void> _updateEstimateInFirestore(Estimate estimate) async {
+    await FirebaseFirestore.instance
+        .collection('estimates')
+        .doc(estimate.id)
+        .update(estimate.toJson());
   }
 }
 
-// 상판 정보
-class TopBoard {
-  final String type;
-  final String material;
-  final Size size;
-
-  TopBoard({
-    required this.type,
-    required this.material,
-    required this.size,
-  });
-
-  factory TopBoard.fromJson(Map<String, dynamic> json) {
-    return TopBoard(
-      type: json['type'] ?? '',
-      material: json['material'] ?? '',
-      size: Size.fromJson(json['size'] ?? {}),
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'type': type,
-      'material': material,
-      'size': size.toJson(),
-    };
-  }
-}
-
-// 하판 정보
-class BottomBoard {
-  final String color;
-
-  BottomBoard({
-    required this.color,
-  });
-
-  factory BottomBoard.fromJson(Map<String, dynamic> json) {
-    return BottomBoard(
-      color: json['color'] ?? '',
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'color': color,
-    };
-  }
-}
-
-// 사이즈 정보
-class Size {
-  final double width;
-  final double height;
-  final double depth;
-
-  Size({
-    required this.width,
-    required this.height,
-    required this.depth,
-  });
-
-  factory Size.fromJson(Map<String, dynamic> json) {
-    return Size(
-      width: (json['width'] ?? 0).toDouble(),
-      height: (json['height'] ?? 0).toDouble(),
-      depth: (json['depth'] ?? 0).toDouble(),
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'width': width,
-      'height': height,
-      'depth': depth,
-    };
-  }
-}
-
-// Provider 설정
-final customerDataProvider =
-    AsyncNotifierProvider<CustomerNotifier, List<Customer>>(() {
+// Customer Provider
+final customerDataProvider = AsyncNotifierProvider<CustomerNotifier, List<Customer>>(() {
   return CustomerNotifier();
 });
 
+// 필터된 고객 Provider
+final filteredCustomersProvider = AsyncNotifierProvider.family<FilteredCustomersNotifier, List<Customer>, FilterParams>(() {
+  return FilteredCustomersNotifier();
+});
+
+// 나머지 코드는 동일하게 유지...
 // Customer Notifier
 class CustomerNotifier extends AsyncNotifier<List<Customer>> {
   @override
@@ -452,26 +532,18 @@ class CustomerNotifier extends AsyncNotifier<List<Customer>> {
   }) async {
     try {
       state = const AsyncValue.loading();
-      final now = Timestamp.now();
+      final now = DateTime.now();
 
-      // 1. 먼저 고객 문서 생성
-      final customerRef =
-          FirebaseFirestore.instance.collection('customers').doc();
+      // 1. 고객 문서 생성
+      final customerRef = FirebaseFirestore.instance.collection('customers').doc();
       // 2. 기본 견적 문서 생성
-      final estimateRef =
-          FirebaseFirestore.instance.collection('estimates').doc();
-      final estimateData = {
-        'customerId': customerRef.id,
-        'createdAt': now,
-        'updatedAt': now,
-        'status': EstimateStatus.IN_PROGRESS.toString(),
-        'spaceBasicInfo': null,
-        'spaceDetailInfo': null,
-        'furnitureType': null, // 아직 선택되지 않음
-        'furniture': null,
-      };
+      final estimateRef = FirebaseFirestore.instance.collection('estimates').doc();
+      
+      final estimateData = Estimate.empty(customerRef.id)
+          .copyWith(id: estimateRef.id)
+          .toJson();
 
-      // 3. 고객 데이터에 견적 ID 포함
+      // 3. 고객 데이터
       final customerData = {
         'name': name,
         'phone': phone,
@@ -483,7 +555,7 @@ class CustomerNotifier extends AsyncNotifier<List<Customer>> {
         'assignedTo': assignedTo,
         'createdAt': now,
         'updatedAt': now,
-        'estimateIds': [estimateRef.id], // 첫 견적 ID 추가
+        'estimateIds': [estimateRef.id],
       };
 
       // 4. 트랜잭션으로 두 문서 동시 생성
@@ -548,22 +620,19 @@ class CustomerNotifier extends AsyncNotifier<List<Customer>> {
   // 고객 삭제
   Future<void> deleteCustomer(String id) async {
     try {
-      // 고객 정보 가져오기
       final customer = await getCustomer(id);
       if (customer == null) return;
 
       // Storage에서 파일 삭제
       if (customer.businessLicenseUrl.isNotEmpty) {
         try {
-          final ref =
-              FirebaseStorage.instance.refFromURL(customer.businessLicenseUrl);
+          final ref = FirebaseStorage.instance.refFromURL(customer.businessLicenseUrl);
           await ref.delete();
         } catch (e) {
           print('Error deleting business license: $e');
         }
       }
 
-      // 기타 문서 파일 삭제
       for (final url in customer.otherDocumentUrls) {
         try {
           final ref = FirebaseStorage.instance.refFromURL(url);
@@ -573,7 +642,7 @@ class CustomerNotifier extends AsyncNotifier<List<Customer>> {
         }
       }
 
-      // 고객의 모든 견적 삭제
+      // 견적 삭제
       for (final estimateId in customer.estimateIds) {
         try {
           await FirebaseFirestore.instance
@@ -585,9 +654,7 @@ class CustomerNotifier extends AsyncNotifier<List<Customer>> {
         }
       }
 
-      // Firestore에서 고객 문서 삭제
       await FirebaseFirestore.instance.collection('customers').doc(id).delete();
-
       state = AsyncValue.data(await _fetchCustomers());
     } catch (e) {
       print('Error in deleteCustomer: $e');
@@ -614,84 +681,6 @@ class CustomerNotifier extends AsyncNotifier<List<Customer>> {
     }
   }
 
-  // 고객에 새로운 견적 추가
-  Future<String> addEstimate(String customerId) async {
-    try {
-      final now = Timestamp.now();
-
-      // 1. 새 견적 문서 생성
-      final estimateRef =
-          FirebaseFirestore.instance.collection('estimates').doc();
-      final estimateData = {
-        'customerId': customerId,
-        'createdAt': now,
-        'updatedAt': now,
-        'status': EstimateStatus.IN_PROGRESS.toString(),
-        'spaceBasicInfo': null,
-        'spaceDetailInfo': null,
-        'furnitureType': null,
-        'furniture': null,
-      };
-
-      // 2. 고객 문서의 estimateIds 배열에 새 견적 ID 추가
-      await FirebaseFirestore.instance.runTransaction((transaction) async {
-        final customerDoc = await transaction.get(
-            FirebaseFirestore.instance.collection('customers').doc(customerId));
-
-        final currentEstimateIds =
-            List<String>.from(customerDoc.data()?['estimateIds'] ?? []);
-        currentEstimateIds.add(estimateRef.id);
-
-        transaction.update(
-            FirebaseFirestore.instance.collection('customers').doc(customerId),
-            {
-              'estimateIds': currentEstimateIds,
-              'updatedAt': now,
-            });
-        transaction.set(estimateRef, estimateData);
-      });
-
-      state = AsyncValue.data(await _fetchCustomers());
-      return estimateRef.id;
-    } catch (e) {
-      print('Error in addEstimate: $e');
-      rethrow;
-    }
-  }
-
-  // 견적 조회
-  Future<Estimate?> getEstimate(String id) async {
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection('estimates')
-          .doc(id)
-          .get();
-
-      if (doc.exists) {
-        return Estimate.fromJson(doc.id, doc.data()!);
-      }
-      return null;
-    } catch (e) {
-      print('Error getting estimate: $e');
-      rethrow;
-    }
-  }
-
-  // 견적 업데이트
-  Future<void> updateEstimate(String id, Map<String, dynamic> data) async {
-    try {
-      await FirebaseFirestore.instance.collection('estimates').doc(id).update({
-        ...data,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
-      state = AsyncValue.data(await _fetchCustomers());
-    } catch (e) {
-      print('Error updating estimate: $e');
-      rethrow;
-    }
-  }
-
   // 파일 업로드 유틸리티 함수
   static Future<String> uploadFile(File file, String path) async {
     try {
@@ -709,7 +698,7 @@ class CustomerNotifier extends AsyncNotifier<List<Customer>> {
   }
 }
 
-// 필터 파라미터를 위한 클래스
+// 필터 파라미터 클래스
 class FilterParams {
   final String? searchTerm;
   final DateTime? startDate;
@@ -741,55 +730,42 @@ class FilterParams {
       assignedToId.hashCode;
 }
 
-// 필터된 고객 Provider
-final filteredCustomersProvider = AsyncNotifierProvider.family<
-    FilteredCustomersNotifier, List<Customer>, FilterParams>(() {
-  return FilteredCustomersNotifier();
-});
-
 // 필터된 고객 Notifier
-class FilteredCustomersNotifier
-    extends FamilyAsyncNotifier<List<Customer>, FilterParams> {
+class FilteredCustomersNotifier extends FamilyAsyncNotifier<List<Customer>, FilterParams> {
   @override
   Future<List<Customer>> build(FilterParams params) async {
     try {
-      Query<Map<String, dynamic>> query =
-          FirebaseFirestore.instance.collection('customers');
+      Query<Map<String, dynamic>> query = FirebaseFirestore.instance.collection('customers');
 
-      // 담당자 필터링
       if (params.assignedToId != null) {
         query = query.where('assignedTo', isEqualTo: params.assignedToId);
       }
 
-      // 날짜 필터링
       if (params.startDate != null) {
         query = query.where('createdAt',
             isGreaterThanOrEqualTo: Timestamp.fromDate(params.startDate!));
       }
+
       if (params.endDate != null) {
         query = query.where('createdAt',
             isLessThan: Timestamp.fromDate(
                 params.endDate!.add(const Duration(days: 1))));
       }
 
-      // 생성일 기준으로 정렬
       query = query.orderBy('createdAt', descending: true);
-
       final snapshot = await query.get();
       final customers = snapshot.docs
           .map((doc) => Customer.fromJson(doc.id, doc.data()))
           .toList();
 
-      // 검색어 필터링
       if (params.searchTerm?.isNotEmpty == true) {
         final term = params.searchTerm!.toLowerCase();
-        return customers
-            .where((customer) =>
-                customer.name.toLowerCase().contains(term) ||
-                customer.address.toLowerCase().contains(term) ||
-                customer.email.toLowerCase().contains(term) ||
-                customer.note.toLowerCase().contains(term))
-            .toList();
+        return customers.where((customer) =>
+          customer.name.toLowerCase().contains(term) ||
+          customer.address.toLowerCase().contains(term) ||
+          customer.email.toLowerCase().contains(term) ||
+          customer.note.toLowerCase().contains(term)
+        ).toList();
       }
 
       return customers;
@@ -799,7 +775,7 @@ class FilteredCustomersNotifier
     }
   }
 
-  // 필터 업데이트 메서드
+  // 필터 업데이트
   Future<void> updateFilter(FilterParams newParams) async {
     state = const AsyncValue.loading();
     try {
@@ -809,7 +785,7 @@ class FilteredCustomersNotifier
     }
   }
 
-  // 담당 고객 수 가져오기
+  // 담당 고객 수 조회
   Future<int?> getAssignedCustomerCount(String userId) async {
     try {
       final snapshot = await FirebaseFirestore.instance
@@ -825,7 +801,7 @@ class FilteredCustomersNotifier
     }
   }
 
-  // 견적 수 가져오기
+  // 견적 수 조회
   Future<int> getEstimatesCount(String userId) async {
     try {
       final customerSnapshot = await FirebaseFirestore.instance
@@ -846,7 +822,7 @@ class FilteredCustomersNotifier
     }
   }
 
-  // 계약 수 가져오기
+  // 계약 수 조회
   Future<int?> getContractsCount(String userId) async {
     try {
       final estimatesSnapshot = await FirebaseFirestore.instance
@@ -874,5 +850,3 @@ class FilteredCustomersNotifier
     }
   }
 }
-
-// Product 모델 추가

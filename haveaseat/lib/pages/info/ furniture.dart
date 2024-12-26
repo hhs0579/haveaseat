@@ -10,13 +10,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:haveaseat/riverpod/customermodel.dart';
 import 'package:haveaseat/riverpod/usermodel.dart';
-import 'package:haveaseat/widget/address.dart';
-import 'package:haveaseat/widget/fileupload.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:haveaseat/components/colors.dart';
+import 'package:flutter/gestures.dart';
+import 'package:intl/intl.dart';
 
 class furniturePage extends ConsumerStatefulWidget {
   final String customerId;
@@ -28,20 +23,22 @@ class furniturePage extends ConsumerStatefulWidget {
 }
 
 class _furniturePageState extends ConsumerState<furniturePage> {
+  final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _quantityController = TextEditingController();
+  
   Widget buildSearchField() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
           height: 48,
-          width: 568,
+          width: 640,
           decoration: BoxDecoration(
             border: Border.all(color: AppColor.line1),
           ),
           child: TextField(
             controller: _searchController,
             onChanged: (value) {
-              // 검색어가 변경될 때마다 상품 필터링
               final products =
                   ref.read(productProvider.notifier).searchProducts(value);
               setState(() {
@@ -57,43 +54,81 @@ class _furniturePageState extends ConsumerState<furniturePage> {
         ),
         if (_searchController.text.isNotEmpty && _filteredProducts.isNotEmpty)
           Container(
-            width: 568,
-            constraints: const BoxConstraints(maxHeight: 300),
+            width: 640,
+            constraints: const BoxConstraints(maxHeight: 530),
             decoration: BoxDecoration(
               border: Border.all(color: AppColor.line1),
-              color: Colors.white,
+              color: Colors.transparent,
             ),
-            child: ListView.builder(
-              shrinkWrap: true,
-              itemCount: _filteredProducts.length,
-              itemBuilder: (context, index) {
-                final product = _filteredProducts[index];
-                return Container(
-                  decoration: const BoxDecoration(
-                    border: Border(
-                      bottom: BorderSide(color: AppColor.line1, width: 1),
-                    ),
+            child: ScrollConfiguration(
+              behavior: ScrollConfiguration.of(context).copyWith(
+                scrollbars: true,
+                dragDevices: {
+                  PointerDeviceKind.touch,
+                  PointerDeviceKind.mouse,
+                },
+              ),
+              child: Theme(
+                data: Theme.of(context).copyWith(
+                  scrollbarTheme: ScrollbarThemeData(
+                    thumbColor: MaterialStateProperty.all(Colors.black),
                   ),
-                  child: ListTile(
-                    title: Text(product.name),
-                    subtitle: Text('₩${product.price.toString()}'),
-                    onTap: () {
-                      _searchController.text = product.name;
-                      // 선택된 상품에 대한 추가 처리를 여기에 구현
-                      setState(() {
-                        _filteredProducts = [];
-                      });
-                    },
-                  ),
-                );
-              },
+                ),
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _filteredProducts.length,
+                  itemBuilder: (context, index) {
+                    final product = _filteredProducts[index];
+                    final formattedPrice =
+                        NumberFormat("#,###").format(product.price);
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      decoration: const BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(color: AppColor.line1, width: 1),
+                        ),
+                      ),
+                      child: InkWell(
+                        onTap: () {
+                          _searchController.text = product.name;
+                          setState(() {
+                            _filteredProducts = [];
+                          });
+                        },
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                product.name,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: AppColor.font1,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              '$formattedPrice원',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: AppColor.font1,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
             ),
           ),
       ],
     );
   }
 
-  final TextEditingController _searchController = TextEditingController();
   @override
   List<dynamic> _filteredProducts = []; // 이 부분을 추가하세요
 
@@ -112,6 +147,7 @@ class _furniturePageState extends ConsumerState<furniturePage> {
   @override
   void dispose() {
     _searchController.dispose();
+    _quantityController.dispose(); // 추가
     super.dispose();
   }
 
@@ -449,19 +485,170 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                                       fontWeight: FontWeight.w600,
                                       color: Colors.black),
                                 ),
-                                const Row(
+
+                                const SizedBox(
+                                  height: 8,
+                                ),
+                                buildSearchField(),
+                                const SizedBox(
+                                  height: 24,
+                                ),
+                                const Text(
+                                  '수량',
+                                  style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.black),
+                                ),
+                                const SizedBox(
+                                  height: 8,
+                                ),
+                                Container(
+                                  height: 48,
+                                  width: 640,
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: AppColor.line1),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Expanded(
+                                        child: Stack(
+                                          children: [
+                                            // 힌트 텍스트를 커스터마이징하여 왼쪽 고정
+                                            Align(
+                                              alignment: Alignment.centerLeft,
+                                              child: Padding(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 16),
+                                                child: Text(
+                                                  _quantityController
+                                                          .text.isEmpty
+                                                      ? '숫자입력'
+                                                      : '',
+                                                  style: const TextStyle(
+                                                    color: AppColor.font2,
+                                                    fontSize: 14,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                            // 입력 필드
+                                            TextField(
+                                              controller: _quantityController,
+                                              keyboardType:
+                                                  TextInputType.number,
+                                              textAlign: TextAlign
+                                                  .right, // 입력 텍스트는 오른쪽 정렬
+                                              style: const TextStyle(
+                                                fontSize: 14,
+                                                color: AppColor.font1,
+                                              ),
+                                              decoration: const InputDecoration(
+                                                border: InputBorder.none,
+                                                contentPadding:
+                                                    EdgeInsets.symmetric(
+                                                        horizontal: 16),
+                                                hintText: '', // 힌트 텍스트를 비워둠
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const Padding(
+                                        padding: EdgeInsets.symmetric(
+                                            horizontal: 16),
+                                        child: Text(
+                                          '개',
+                                          style: TextStyle(
+                                            color: AppColor.font2,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(
+                                  height: 48,
+                                ),
+                                Row(
                                   children: [
-                                    SizedBox(
-                                      height: 48,
-                                      width: 568,
-                                      child: TextField(),
+                                    InkWell(
+                                      onTap: () {
+                                        GoRouter.of(context).go('/main');
+                                      },
+                                      child: Container(
+                                        width: 60,
+                                        height: 48,
+                                        decoration: BoxDecoration(
+                                          color: Colors.transparent,
+                                          border:
+                                              Border.all(color: AppColor.line1),
+                                        ),
+                                        child: const Center(
+                                          child: Text(
+                                            '취소',
+                                            style: TextStyle(
+                                                color: AppColor.primary,
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w600),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    InkWell(
+                                      onTap: () {
+                                        // 임시 저장 처리
+                                      },
+                                      child: Container(
+                                        width: 87,
+                                        height: 48,
+                                        decoration: BoxDecoration(
+                                          color: Colors.transparent,
+                                          border:
+                                              Border.all(color: AppColor.line1),
+                                        ),
+                                        child: const Center(
+                                          child: Text(
+                                            '임시 저장',
+                                            style: TextStyle(
+                                                color: AppColor.primary,
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w600),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    InkWell(
+                                      onTap: () {
+                                        // 고객 추가 처리
+                                      },
+                                      child: Container(
+                                        width: 60,
+                                        height: 48,
+                                        decoration: BoxDecoration(
+                                          color: AppColor.primary,
+                                          border:
+                                              Border.all(color: AppColor.line1),
+                                        ),
+                                        child: const Center(
+                                          child: Text(
+                                            '다음',
+                                            style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w600),
+                                          ),
+                                        ),
+                                      ),
                                     ),
                                   ],
                                 ),
-                                const SizedBox(
-                                  width: 8,
-                                ),
-                                buildSearchField()
                               ]))));
             }))
           ],

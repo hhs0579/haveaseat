@@ -40,7 +40,7 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
   String? selectedBusinessType; // 선택된 업종을 저장할 변수
   final List<Widget> _additionalFiles = [];
   List<File?> otherDocumentFiles = []; // 추가
-  final List<String> _otherDocumentUrls = []; // URL 저장용 리스트 추가
+  List<String> _otherDocumentUrls = []; // URL 저장용 리스트 추가
   int _fileFieldCounter = 0;
   final int _textLength = 0;
   // 업종 목록
@@ -97,7 +97,8 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
   @override
   void initState() {
     super.initState();
-    selectedBusinessType = null; // 초기값을 null로 설정
+    selectedBusinessType = null;
+    _loadTempEstimate();
   }
 
   double convertArea(String value, String fromUnit, String toUnit) {
@@ -193,11 +194,56 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
     });
     print('파일 필드 추가됨. 현재 개수: ${_additionalFiles.length}');
   }
-  // SpaceDetailPage 클래스 내에 추가할 함수들
 
+  // 입력값 검증 메서드
+  bool _validateInputs() {
+    if (_minBudgetController.text.isEmpty ||
+        _maxBudgetController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('예산을 입력해주세요')),
+      );
+      return false;
+    }
+
+    final minBudget = double.tryParse(_minBudgetController.text);
+    final maxBudget = double.tryParse(_maxBudgetController.text);
+
+    if (minBudget == null || maxBudget == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('올바른 예산 금액을 입력해주세요')),
+      );
+      return false;
+    }
+
+    if (minBudget > maxBudget) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('최소 예산이 최대 예산보다 클 수 없습니다')),
+      );
+      return false;
+    }
+
+    if (_areaController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('공간 면적을 입력해주세요')),
+      );
+      return false;
+    }
+
+    if (selectedBusinessType == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('업종을 선택해주세요')),
+      );
+      return false;
+    }
+
+    return true;
+  }
+
+  // SpaceDetailPage 클래스 내에 추가할 함수들
+// 임시 저장
   Future<void> _saveTempDetailInfo() async {
     try {
-      // 예산 처리
+      // 입력값 유효성 검사는 유지
       double? minBudget = double.tryParse(_minBudgetController.text);
       double? maxBudget = double.tryParse(_maxBudgetController.text);
 
@@ -206,7 +252,7 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
       if (_areaController.text.isNotEmpty) {
         spaceArea = double.tryParse(_areaController.text);
         if (selectedUnit == '평') {
-          spaceArea = spaceArea! * 3.305785; // 평을 제곱미터로 변환
+          spaceArea = spaceArea! * 3.305785;
         }
       }
 
@@ -217,25 +263,48 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
             (type) => type['value'] == selectedBusinessType)['label'];
       }
 
-      final spaceDetailNotifier = ref.read(spaceDetailInfoProvider.notifier);
-      await spaceDetailNotifier.saveTempSpaceDetailInfo(
-        customerId: widget.customerId,
-        minBudget: minBudget,
-        maxBudget: maxBudget,
-        spaceArea: spaceArea,
-        targetAgeGroups: [selectedAgeRange],
-        businessType: businessTypeLabel,
-        concept: selectedConcept,
-        additionalNotes: _noteController.text,
-        designFileUrls: _otherDocumentUrls,
-      );
+      // 고객 정보 가져오기
+      final customer = await ref
+          .read(customerDataProvider.notifier)
+          .getCustomer(widget.customerId);
+      if (customer == null || customer.estimateIds.isEmpty) {
+        throw Exception('고객 정보를 찾을 수 없습니다');
+      }
+
+      final estimateId = customer.estimateIds[0];
+
+      // 임시 저장 데이터
+      final tempData = {
+        'customerId': widget.customerId,
+        'estimateId': estimateId,
+        'status': EstimateStatus.IN_PROGRESS.toString(),
+        'lastUpdated': FieldValue.serverTimestamp(),
+        'isTemp': true,
+        'spaceDetailInfo': {
+          'minBudget': minBudget,
+          'maxBudget': maxBudget,
+          'spaceArea': spaceArea,
+          'targetAgeGroups': [selectedAgeRange],
+          'businessType': businessTypeLabel,
+          'concept': selectedConcept,
+          'detailNotes': _noteController.text,
+          'designFileUrls': _otherDocumentUrls,
+        }
+      };
+
+      // temp_estimates 컬렉션에 저장
+      await FirebaseFirestore.instance
+          .collection('temp_estimates')
+          .doc(estimateId)
+          .set(tempData, SetOptions(merge: true));
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('임시 저장되었습니다.')),
+          const SnackBar(content: Text('임시 저장되었습니다')),
         );
       }
     } catch (e) {
+      print('Error saving temp data: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('임시 저장 중 오류가 발생했습니다: $e')),
@@ -244,70 +313,107 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
     }
   }
 
+// 임시 저장 데이터 로드
+  Future<void> _loadTempEstimate() async {
+    try {
+      final customer = await ref
+          .read(customerDataProvider.notifier)
+          .getCustomer(widget.customerId);
+      if (customer == null || customer.estimateIds.isEmpty) return;
+
+      final estimateId = customer.estimateIds[0];
+      final docSnapshot = await FirebaseFirestore.instance
+          .collection('temp_estimates')
+          .doc(estimateId)
+          .get();
+
+      if (docSnapshot.exists) {
+        final data = docSnapshot.data()!;
+        final spaceDetailInfo = data['spaceDetailInfo'];
+
+        if (spaceDetailInfo != null) {
+          setState(() {
+            _minBudgetController.text =
+                spaceDetailInfo['minBudget']?.toString() ?? '';
+            _maxBudgetController.text =
+                spaceDetailInfo['maxBudget']?.toString() ?? '';
+
+            // 면적 변환
+            final area = spaceDetailInfo['spaceArea'];
+            if (area != null) {
+              if (selectedUnit == '평') {
+                _areaController.text = (area / 3.305785).toStringAsFixed(2);
+              } else {
+                _areaController.text = area.toString();
+              }
+            }
+
+            selectedAgeRange = spaceDetailInfo['targetAgeGroups']?[0] ?? '10대';
+            final businessType = spaceDetailInfo['businessType'];
+            if (businessType != null) {
+              selectedBusinessType = businessTypes
+                  .firstWhere((type) => type['label'] == businessType)['value'];
+            }
+            selectedConcept = spaceDetailInfo['concept'] ?? '모던';
+            _noteController.text = spaceDetailInfo['detailNotes'] ?? '';
+            _otherDocumentUrls =
+                List<String>.from(spaceDetailInfo['designFileUrls'] ?? []);
+          });
+        }
+      }
+    } catch (e) {
+      print('Error loading temp data: $e');
+    }
+  }
+
+// 최종 저장
   Future<void> _saveSpaceDetailInfo() async {
-    if (_formKey.currentState?.validate() ?? false) {
-      try {
-        // 필수 필드 검증
-        if (_minBudgetController.text.isEmpty ||
-            _maxBudgetController.text.isEmpty ||
-            _areaController.text.isEmpty ||
-            selectedBusinessType == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('모든 필수 항목을 입력해주세요.')),
+    if (!_validateInputs()) return;
+
+    try {
+      final customer = await ref
+          .read(customerDataProvider.notifier)
+          .getCustomer(widget.customerId);
+      if (customer == null || customer.estimateIds.isEmpty) {
+        throw Exception('고객 정보를 찾을 수 없습니다');
+      }
+
+      final estimateId = customer.estimateIds[0];
+
+      // 견적 업데이트
+      await ref.read(estimatesProvider.notifier).updateSpaceDetailInfo(
+            estimateId: estimateId,
+            minBudget: double.parse(_minBudgetController.text),
+            maxBudget: double.parse(_maxBudgetController.text),
+            spaceArea: selectedUnit == '평'
+                ? double.parse(_areaController.text) * 3.305785
+                : double.parse(_areaController.text),
+            targetAgeGroups: [selectedAgeRange],
+            businessType: businessTypes.firstWhere(
+                (type) => type['value'] == selectedBusinessType)['label']!,
+            concept: selectedConcept,
+            detailNotes: _noteController.text,
+            designFileUrls: _otherDocumentUrls,
           );
-          return;
-        }
 
-        // 예산 처리
-        double minBudget = double.parse(_minBudgetController.text);
-        double maxBudget = double.parse(_maxBudgetController.text);
+      // 임시 저장 데이터 삭제
+      await FirebaseFirestore.instance
+          .collection('temp_estimates')
+          .doc(estimateId)
+          .delete();
 
-        // 예산 범위 검증
-        if (minBudget > maxBudget) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('최소 예산이 최대 예산보다 클 수 없습니다.')),
-          );
-          return;
-        }
-
-        // 면적 처리
-        double spaceArea = double.parse(_areaController.text);
-        if (selectedUnit == '평') {
-          spaceArea *= 3.305785; // 평을 제곱미터로 변환
-        }
-
-        // 업종 가져오기
-        String businessTypeLabel = businessTypes.firstWhere(
-            (type) => type['value'] == selectedBusinessType)['label']!;
-
-        // 파일 업로드 URL 확인
-
-        final spaceDetailNotifier = ref.read(spaceDetailInfoProvider.notifier);
-        await spaceDetailNotifier.addSpaceDetailInfo(
-          customerId: widget.customerId,
-          minBudget: minBudget,
-          maxBudget: maxBudget,
-          spaceArea: spaceArea,
-          targetAgeGroups: [selectedAgeRange],
-          businessType: businessTypeLabel,
-          concept: selectedConcept,
-          additionalNotes: _noteController.text,
-          designFileUrls: _otherDocumentUrls,
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('저장되었습니다')),
         );
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('저장되었습니다.')),
-          );
-          context.go(
-              '/main/addpage/spaceadd/${widget.customerId}/space-detail/furniture');
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('저장 중 오류가 발생했습니다: $e')),
-          );
-        }
+        context.go('/main/addpage/spaceadd/${widget.customerId}/furniture');
+      }
+    } catch (e) {
+      print('Error saving data: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('저장 중 오류가 발생했습니다: $e')),
+        );
       }
     }
   }

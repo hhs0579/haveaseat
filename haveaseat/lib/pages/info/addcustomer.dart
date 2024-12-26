@@ -92,197 +92,199 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
     print('파일 필드 추가됨. 현재 개수: ${_additionalFiles.length}');
   }
 
-  Future<void> _loadTempSavedData() async {
-    try {
-      final user = ref.read(UserProvider.currentUserProvider).value;
-      if (user == null) return;
-
-      final tempDoc = await FirebaseFirestore.instance
-          .collection('temp_customers')
-          .where('assignedTo', isEqualTo: user.uid)
-          .where('isTemp', isEqualTo: true)
-          .get();
-
-      if (tempDoc.docs.isNotEmpty) {
-        final data = tempDoc.docs.first.data();
-        setState(() {
-          _tempSaveDocId = tempDoc.docs.first.id;
-          _nameController.text = data['name'] ?? '';
-          _phoneController.text = data['phone'] ?? '';
-
-          // 이메일 처리
-          if (data['email'] != null) {
-            final emailParts = data['email'].split('@');
-            if (emailParts.length == 2) {
-              _emailController.text = emailParts[0];
-              final domain = emailParts[1];
-              if ([
-                'gmail.com',
-                'naver.com',
-                'kakao.com',
-                'nate.com',
-                'hanmail.net',
-                'daum.net'
-              ].contains(domain)) {
-                selectedDomain = domain;
-                isDirectInput = false;
-              } else {
-                _directDomainController.text = domain;
-                selectedDomain = null;
-                isDirectInput = true;
-              }
-            }
-          }
-
-          // 주소 처리
-          if (data['address'] != null) {
-            final addressParts = data['address'].split(' ');
-            _addressController.text =
-                addressParts.take(addressParts.length - 1).join(' ');
-            _detailAddressController.text = addressParts.last;
-          }
-
-          _noteController.text = data['note'] ?? '';
-          _businessLicenseUrl = data['businessLicenseUrl'];
-          _otherDocumentUrls =
-              List<String>.from(data['otherDocumentUrls'] ?? []);
-        });
-      }
-    } catch (e) {
-      print('임시 저장 데이터 로드 중 오류: $e');
-    }
-  }
-
   // 임시 저장 함수
-  Future<void> _saveTempCustomer() async {
-    try {
-      final user = ref.read(UserProvider.currentUserProvider).value;
-      if (user == null) {
-        throw Exception('로그인이 필요합니다');
-      }
-
-      final tempCustomerData = {
-        'name': _nameController.text,
-        'phone': _phoneController.text,
-        'email':
-            '${_emailController.text}@${selectedDomain ?? _directDomainController.text}',
-        'address':
-            '${_addressController.text} ${_detailAddressController.text}',
-        'businessLicenseUrl': _businessLicenseUrl,
-        'otherDocumentUrls': _otherDocumentUrls,
-        'note': _noteController.text,
-        'assignedTo': user.uid,
-        'isTemp': true,
-        'lastUpdated': FieldValue.serverTimestamp(),
-      };
-
-      if (_tempSaveDocId != null) {
-        // 기존 임시 저장 문서 업데이트
-        await FirebaseFirestore.instance
-            .collection('temp_customers')
-            .doc(_tempSaveDocId)
-            .update(tempCustomerData);
-      } else {
-        // 새로운 임시 저장 문서 생성
-        final docRef = await FirebaseFirestore.instance
-            .collection('temp_customers')
-            .add(tempCustomerData);
-        _tempSaveDocId = docRef.id;
-      }
-
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('임시 저장되었습니다')),
-        );
-      }
-    } catch (e) {
-      print('임시 저장 중 오류: $e');
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('임시 저장 중 오류가 발생했습니다: $e')),
-        );
-      }
-    }
-  }
+  
+  
 
   List<String> getAllUploadedUrls() {
     return _uploadedUrls;
   }
 
-  Future<void> _saveCustomer() async {
-    // 유효성 검사
-    if (_nameController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('고객명을 입력해주세요')),
-      );
-      return;
+ // 임시 저장 함수
+Future<void> _saveTempCustomer() async {
+  try {
+    final user = ref.read(UserProvider.currentUserProvider).value;
+    if (user == null) {
+      throw Exception('로그인이 필요합니다');
     }
 
-    if (_phoneController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('연락처를 입력해주세요')),
-      );
-      return;
-    }
+    // 새로운 견적 ID 생성
+    final estimateRef = FirebaseFirestore.instance.collection('estimates').doc();
 
-    if (_emailController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('이메일을 입력해주세요')),
-      );
-      return;
-    }
-
-    if (_addressController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('주소를 입력해주세요')),
-      );
-      return;
-    }
-
-    try {
-      final user = ref.read(UserProvider.currentUserProvider).value;
-      if (user == null) {
-        throw Exception('로그인이 필요합니다');
+    // 임시 저장 데이터 생성
+    final tempData = {
+      'estimateId': estimateRef.id,
+      'status': EstimateStatus.IN_PROGRESS.toString(),
+      'lastUpdated': FieldValue.serverTimestamp(),
+      'isTemp': true,
+      // 고객 정보
+      'customerInfo': {
+        'name': _nameController.text,
+        'phone': _phoneController.text,
+        'email': '${_emailController.text}@${selectedDomain ?? _directDomainController.text}',
+        'address': '${_addressController.text} ${_detailAddressController.text}',
+        'businessLicenseUrl': _businessLicenseUrl,
+        'otherDocumentUrls': _otherDocumentUrls,
+        'note': _noteController.text,
+        'assignedTo': user.uid,
       }
+    };
 
-      // 고객 정보 저장 및 ID 반환 받기
-      final String customerId =
-          await ref.read(customerDataProvider.notifier).addCustomer(
-                name: _nameController.text,
-                phone: _phoneController.text,
-                email:
-                    '${_emailController.text}@${selectedDomain ?? _directDomainController.text}',
-                address:
-                    '${_addressController.text} ${_detailAddressController.text}',
-                businessLicenseUrl: _businessLicenseUrl ?? '',
-                otherDocumentUrls: _otherDocumentUrls,
-                note: _noteController.text,
-                assignedTo: user.uid,
-              );
+    // temp_estimates 컬렉션에 저장
+    await FirebaseFirestore.instance
+        .collection('temp_estimates')
+        .doc(estimateRef.id)
+        .set(tempData, SetOptions(merge: true));
 
-      // 저장 성공 시 임시 저장 문서 삭제
-      if (_tempSaveDocId != null) {
-        await FirebaseFirestore.instance
-            .collection('temp_customers')
-            .doc(_tempSaveDocId)
-            .delete();
-      }
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('임시 저장되었습니다')),
+      );
+    }
+  } catch (e) {
+    print('임시 저장 중 오류: $e');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('임시 저장 중 오류가 발생했습니다: $e')),
+      );
+    }
+  }
+}
 
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('고객 정보가 저장되었습니다')),
-        );
-        // 공간 기본정보 페이지로 이동
-        context.go('/main/addpage/spaceadd/$customerId');
-      }
-    } catch (e) {
-      print('저장 중 오류: $e');
+// 임시 저장 데이터 불러오기
+Future<void> _loadTempSavedData() async {
+  try {
+    final user = ref.read(UserProvider.currentUserProvider).value;
+    if (user == null) return;
+
+    final tempDoc = await FirebaseFirestore.instance
+        .collection('temp_estimates')
+        .where('customerInfo.assignedTo', isEqualTo: user.uid)
+        .where('isTemp', isEqualTo: true)
+        .get();
+
+    if (tempDoc.docs.isNotEmpty) {
+      final data = tempDoc.docs.first.data();
+      final customerInfo = data['customerInfo'] as Map<String, dynamic>;
+      
+      setState(() {
+        _nameController.text = customerInfo['name'] ?? '';
+        _phoneController.text = customerInfo['phone'] ?? '';
+
+        // 이메일 처리
+        if (customerInfo['email'] != null) {
+          final emailParts = customerInfo['email'].split('@');
+          if (emailParts.length == 2) {
+            _emailController.text = emailParts[0];
+            final domain = emailParts[1];
+            if (['gmail.com', 'naver.com', 'kakao.com', 'nate.com', 'hanmail.net', 'daum.net']
+                .contains(domain)) {
+              selectedDomain = domain;
+              isDirectInput = false;
+            } else {
+              _directDomainController.text = domain;
+              selectedDomain = null;
+              isDirectInput = true;
+            }
+          }
+        }
+
+        // 주소 처리
+        if (customerInfo['address'] != null) {
+          final addressParts = customerInfo['address'].split(' ');
+          _addressController.text = addressParts.take(addressParts.length - 1).join(' ');
+          _detailAddressController.text = addressParts.last;
+        }
+
+        _noteController.text = customerInfo['note'] ?? '';
+        _businessLicenseUrl = customerInfo['businessLicenseUrl'];
+        _otherDocumentUrls = List<String>.from(customerInfo['otherDocumentUrls'] ?? []);
+      });
+    }
+  } catch (e) {
+    print('임시 저장 데이터 로드 중 오류: $e');
+  }
+}
+
+// 고객 정보 최종 저장
+Future<void> _saveCustomer() async {
+  if (!_validateInputs()) return;
+
+  try {
+    final user = ref.read(UserProvider.currentUserProvider).value;
+    if (user == null) {
+      throw Exception('로그인이 필요합니다');
+    }
+
+    // 고객 정보 저장 및 ID 반환 받기
+    final customerId = await ref.read(customerDataProvider.notifier).addCustomer(
+      name: _nameController.text,
+      phone: _phoneController.text,
+      email: '${_emailController.text}@${selectedDomain ?? _directDomainController.text}',
+      address: '${_addressController.text} ${_detailAddressController.text}',
+      businessLicenseUrl: _businessLicenseUrl ?? '',
+      otherDocumentUrls: _otherDocumentUrls,
+      note: _noteController.text,
+      assignedTo: user.uid,
+    );
+
+    // 임시 저장 데이터 삭제
+    if (_tempSaveDocId != null) {
+      await FirebaseFirestore.instance
+          .collection('temp_estimates')
+          .doc(_tempSaveDocId)
+          .delete();
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('고객 정보가 저장되었습니다')),
+      );
+      // 공간 기본정보 페이지로 이동
+      context.go('/main/addpage/spaceadd/$customerId');
+    }
+  } catch (e) {
+    print('저장 중 오류: $e');
+    if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('저장 중 오류가 발생했습니다: $e')),
       );
     }
   }
+}
 
+// 입력값 검증
+bool _validateInputs() {
+  if (_nameController.text.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('고객명을 입력해주세요')),
+    );
+    return false;
+  }
+
+  if (_phoneController.text.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('연락처를 입력해주세요')),
+    );
+    return false;
+  }
+
+  if (_emailController.text.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('이메일을 입력해주세요')),
+    );
+    return false;
+  }
+
+  if (_addressController.text.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('주소를 입력해주세요')),
+    );
+    return false;
+  }
+
+  return true;
+}
   @override
   void initState() {
     super.initState();
