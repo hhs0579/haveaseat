@@ -13,6 +13,8 @@ import 'package:haveaseat/riverpod/usermodel.dart';
 import 'package:flutter/gestures.dart';
 import 'package:intl/intl.dart';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class furniturePage extends ConsumerStatefulWidget {
   final String customerId;
 
@@ -25,7 +27,143 @@ class furniturePage extends ConsumerStatefulWidget {
 class _furniturePageState extends ConsumerState<furniturePage> {
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _quantityController = TextEditingController();
-  
+  // furniturePage에 다음 함수들을 추가
+// 임시 저장
+  Future<void> _saveTempFurniture() async {
+    try {
+      // 선택된 제품 찾기
+      final product = ref
+          .read(productProvider.notifier)
+          .searchProducts(_searchController.text)
+          .firstWhere(
+            (p) => p.name == _searchController.text,
+            orElse: () => throw Exception('선택된 제품을 찾을 수 없습니다'),
+          );
+
+      // 수량 검증
+      final quantity = int.tryParse(_quantityController.text);
+      if (quantity == null) throw Exception('올바른 수량을 입력해주세요');
+
+      // 고객 정보 가져오기
+      final customer = await ref
+          .read(customerDataProvider.notifier)
+          .getCustomer(widget.customerId);
+      if (customer == null || customer.estimateIds.isEmpty) {
+        throw Exception('고객 정보를 찾을 수 없습니다');
+      }
+
+      final estimateId = customer.estimateIds[0];
+
+      // 임시 저장 데이터
+      final tempData = {
+        'customerId': widget.customerId,
+        'estimateId': estimateId,
+        'status': EstimateStatus.IN_PROGRESS.toString(),
+        'lastUpdated': FieldValue.serverTimestamp(),
+        'isTemp': true,
+        'furnitureList': [
+          {
+            'name': product.name,
+            'quantity': quantity,
+            'price': product.price,
+          }
+        ]
+      };
+
+      // temp_estimates 컬렉션에 저장
+      await FirebaseFirestore.instance
+          .collection('temp_estimates')
+          .doc(estimateId)
+          .set(tempData, SetOptions(merge: true));
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('임시 저장되었습니다')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('임시 저장 중 오류가 발생했습니다: $e')),
+        );
+      }
+    }
+  }
+
+// 최종 저장
+  Future<void> _saveFurniture() async {
+    try {
+      // 제품 검증
+      final product = ref
+          .read(productProvider.notifier)
+          .searchProducts(_searchController.text)
+          .firstWhere(
+            (p) => p.name == _searchController.text,
+            orElse: () => throw Exception('선택된 제품을 찾을 수 없습니다'),
+          );
+
+      // 수량 검증
+      final quantity = int.tryParse(_quantityController.text);
+      if (quantity == null) throw Exception('올바른 수량을 입력해주세요');
+
+      // 고객 정보 가져오기
+      final customer = await ref
+          .read(customerDataProvider.notifier)
+          .getCustomer(widget.customerId);
+      if (customer == null || customer.estimateIds.isEmpty) {
+        throw Exception('고객 정보를 찾을 수 없습니다');
+      }
+
+      final estimateId = customer.estimateIds[0];
+
+      // 가구 데이터
+      final furnitureData = {
+        'name': product.name,
+        'quantity': quantity,
+        'price': product.price,
+      };
+
+      // 기존 데이터 가져오기
+      final estimateDoc = await FirebaseFirestore.instance
+          .collection('estimates')
+          .doc(estimateId)
+          .get();
+
+      if (!estimateDoc.exists) {
+        throw Exception('견적서를 찾을 수 없습니다');
+      }
+
+      // estimate 컬렉션에 저장
+      await FirebaseFirestore.instance
+          .collection('estimates')
+          .doc(estimateId)
+          .set({
+        'furnitureList': FieldValue.arrayUnion([furnitureData]),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      // 임시 저장 데이터 삭제
+      await FirebaseFirestore.instance
+          .collection('temp_estimates')
+          .doc(estimateId)
+          .delete();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('저장되었습니다')),
+        );
+        context.go(
+            '/main/addpage/spaceadd/${widget.customerId}/final'); // 최종 화면으로 이동
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('저장 중 오류가 발생했습니다: $e')),
+        );
+      }
+    }
+  }
+
   Widget buildSearchField() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -627,6 +765,7 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                                     InkWell(
                                       onTap: () {
                                         // 고객 추가 처리
+                                        _saveFurniture();
                                       },
                                       child: Container(
                                         width: 60,

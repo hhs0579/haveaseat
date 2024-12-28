@@ -367,6 +367,7 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
   }
 
 // 최종 저장
+  // SpaceDetailPage 클래스 내의 _saveSpaceDetailInfo 함수 수정
   Future<void> _saveSpaceDetailInfo() async {
     if (!_validateInputs()) return;
 
@@ -380,7 +381,30 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
 
       final estimateId = customer.estimateIds[0];
 
-      // 견적 업데이트
+      // 1. estimates 컬렉션에 직접 저장
+      final estimateData = {
+        'minBudget': double.parse(_minBudgetController.text),
+        'maxBudget': double.parse(_maxBudgetController.text),
+        'spaceArea': selectedUnit == '평'
+            ? double.parse(_areaController.text) * 3.305785
+            : double.parse(_areaController.text),
+        'targetAgeGroups': [selectedAgeRange],
+        'businessType': businessTypes.firstWhere(
+            (type) => type['value'] == selectedBusinessType)['label'],
+        'concept': selectedConcept,
+        'detailNotes': _noteController.text,
+        'designFileUrls': _otherDocumentUrls,
+        'status': EstimateStatus.IN_PROGRESS.toString(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      // Firestore에 직접 저장
+      await FirebaseFirestore.instance
+          .collection('estimates')
+          .doc(estimateId)
+          .set(estimateData, SetOptions(merge: true));
+
+      // 2. Provider를 통해 상태 업데이트
       await ref.read(estimatesProvider.notifier).updateSpaceDetailInfo(
             estimateId: estimateId,
             minBudget: double.parse(_minBudgetController.text),
@@ -396,7 +420,7 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
             designFileUrls: _otherDocumentUrls,
           );
 
-      // 임시 저장 데이터 삭제
+      // 3. 임시 저장 데이터 삭제
       await FirebaseFirestore.instance
           .collection('temp_estimates')
           .doc(estimateId)
@@ -406,7 +430,9 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('저장되었습니다')),
         );
-        context.go('/main/addpage/spaceadd/${widget.customerId}/furniture');
+        // furniture 페이지로 이동
+        context.go(
+            '/main/addpage/spaceadd/${widget.customerId}/space-detail/furniture');
       }
     } catch (e) {
       print('Error saving data: $e');

@@ -139,7 +139,8 @@ class Estimate {
       ),
       // 공간 기본 정보
       siteAddress: json['siteAddress'] ?? '',
-      openingDate: (json['openingDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      openingDate:
+          (json['openingDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
       recipient: json['recipient'] ?? '',
       contactNumber: json['contactNumber'] ?? '',
       shippingMethod: json['shippingMethod'] ?? '',
@@ -156,8 +157,9 @@ class Estimate {
       designFileUrls: List<String>.from(json['designFileUrls'] ?? []),
       // 가구 정보
       furnitureList: (json['furnitureList'] as List<dynamic>?)
-          ?.map((e) => ExistingFurniture.fromJson(e))
-          .toList() ?? [],
+              ?.map((e) => ExistingFurniture.fromJson(e))
+              .toList() ??
+          [],
     );
   }
 
@@ -269,7 +271,8 @@ class Estimate {
 
   // 전체 견적 금액 계산
   double get totalAmount {
-    return furnitureList.fold(0, (sum, furniture) => sum + (furniture.price * furniture.quantity));
+    return furnitureList.fold(
+        0, (sum, furniture) => sum + (furniture.price * furniture.quantity));
   }
 }
 
@@ -307,7 +310,8 @@ class ExistingFurniture {
 }
 
 // Estimate Provider
-final estimatesProvider = StateNotifierProvider<EstimatesNotifier, List<Estimate>>((ref) {
+final estimatesProvider =
+    StateNotifierProvider<EstimatesNotifier, List<Estimate>>((ref) {
   return EstimatesNotifier();
 });
 
@@ -338,9 +342,10 @@ class EstimatesNotifier extends StateNotifier<List<Estimate>> {
   Future<String> addEstimate(String customerId) async {
     try {
       final now = DateTime.now();
-      final estimateRef = FirebaseFirestore.instance.collection('estimates').doc();
+      final estimateRef =
+          FirebaseFirestore.instance.collection('estimates').doc();
       final newEstimate = Estimate.empty(customerId);
-      
+
       final estimateData = {
         ...newEstimate.toJson(),
         'id': estimateRef.id,
@@ -352,7 +357,10 @@ class EstimatesNotifier extends StateNotifier<List<Estimate>> {
       await estimateRef.set(estimateData);
 
       // 고객 문서에 견적 ID 추가
-      await FirebaseFirestore.instance.collection('customers').doc(customerId).update({
+      await FirebaseFirestore.instance
+          .collection('customers')
+          .doc(customerId)
+          .update({
         'estimateIds': FieldValue.arrayUnion([estimateRef.id]),
         'updatedAt': now,
       });
@@ -392,14 +400,18 @@ class EstimatesNotifier extends StateNotifier<List<Estimate>> {
       );
 
       await _updateEstimateInFirestore(updated);
-      state = [...state.sublist(0, index), updated, ...state.sublist(index + 1)];
+      state = [
+        ...state.sublist(0, index),
+        updated,
+        ...state.sublist(index + 1)
+      ];
     } catch (e) {
       print('Error updating space basic info: $e');
       rethrow;
     }
   }
+// spacemodel.dart의 EstimatesNotifier 클래스에서 updateSpaceDetailInfo 수정
 
-  // 견적 공간 상세 정보 업데이트
   Future<void> updateSpaceDetailInfo({
     required String estimateId,
     required double minBudget,
@@ -412,23 +424,55 @@ class EstimatesNotifier extends StateNotifier<List<Estimate>> {
     required List<String> designFileUrls,
   }) async {
     try {
+      // 기존 데이터 가져오기
+      final estimateDoc = await FirebaseFirestore.instance
+          .collection('estimates')
+          .doc(estimateId)
+          .get();
+
+      if (!estimateDoc.exists) {
+        throw Exception('견적서를 찾을 수 없습니다');
+      }
+
+      // 업데이트할 데이터 준비
+      final updateData = {
+        'minBudget': minBudget,
+        'maxBudget': maxBudget,
+        'spaceArea': spaceArea,
+        'targetAgeGroups': targetAgeGroups,
+        'businessType': businessType,
+        'concept': concept,
+        'detailNotes': detailNotes,
+        'designFileUrls': designFileUrls,
+        'status': EstimateStatus.IN_PROGRESS.toString(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      // estimates 컬렉션에 저장 (merge: true로 설정하여 기존 데이터 유지)
+      await FirebaseFirestore.instance
+          .collection('estimates')
+          .doc(estimateId)
+          .set(updateData, SetOptions(merge: true));
+
+      // 로컬 상태 업데이트
       final index = state.indexWhere((e) => e.id == estimateId);
-      if (index == -1) return;
-
-      final updated = state[index].copyWith(
-        minBudget: minBudget,
-        maxBudget: maxBudget,
-        spaceArea: spaceArea,
-        targetAgeGroups: targetAgeGroups,
-        businessType: businessType,
-        concept: concept,
-        detailNotes: detailNotes,
-        designFileUrls: designFileUrls,
-        updatedAt: DateTime.now(),
-      );
-
-      await _updateEstimateInFirestore(updated);
-      state = [...state.sublist(0, index), updated, ...state.sublist(index + 1)];
+      if (index != -1) {
+        final updated = state[index].copyWith(
+          minBudget: minBudget,
+          maxBudget: maxBudget,
+          spaceArea: spaceArea,
+          targetAgeGroups: targetAgeGroups,
+          businessType: businessType,
+          concept: concept,
+          detailNotes: detailNotes,
+          designFileUrls: designFileUrls,
+        );
+        state = [
+          ...state.sublist(0, index),
+          updated,
+          ...state.sublist(index + 1)
+        ];
+      }
     } catch (e) {
       print('Error updating space detail info: $e');
       rethrow;
@@ -450,7 +494,11 @@ class EstimatesNotifier extends StateNotifier<List<Estimate>> {
       );
 
       await _updateEstimateInFirestore(updated);
-      state = [...state.sublist(0, index), updated, ...state.sublist(index + 1)];
+      state = [
+        ...state.sublist(0, index),
+        updated,
+        ...state.sublist(index + 1)
+      ];
     } catch (e) {
       print('Error updating furniture list: $e');
       rethrow;
@@ -458,7 +506,8 @@ class EstimatesNotifier extends StateNotifier<List<Estimate>> {
   }
 
   // 견적 상태 업데이트
-  Future<void> updateEstimateStatus(String estimateId, EstimateStatus status) async {
+  Future<void> updateEstimateStatus(
+      String estimateId, EstimateStatus status) async {
     try {
       final index = state.indexWhere((e) => e.id == estimateId);
       if (index == -1) return;
@@ -469,7 +518,11 @@ class EstimatesNotifier extends StateNotifier<List<Estimate>> {
       );
 
       await _updateEstimateInFirestore(updated);
-      state = [...state.sublist(0, index), updated, ...state.sublist(index + 1)];
+      state = [
+        ...state.sublist(0, index),
+        updated,
+        ...state.sublist(index + 1)
+      ];
     } catch (e) {
       print('Error updating estimate status: $e');
       rethrow;
@@ -486,12 +539,14 @@ class EstimatesNotifier extends StateNotifier<List<Estimate>> {
 }
 
 // Customer Provider
-final customerDataProvider = AsyncNotifierProvider<CustomerNotifier, List<Customer>>(() {
+final customerDataProvider =
+    AsyncNotifierProvider<CustomerNotifier, List<Customer>>(() {
   return CustomerNotifier();
 });
 
 // 필터된 고객 Provider
-final filteredCustomersProvider = AsyncNotifierProvider.family<FilteredCustomersNotifier, List<Customer>, FilterParams>(() {
+final filteredCustomersProvider = AsyncNotifierProvider.family<
+    FilteredCustomersNotifier, List<Customer>, FilterParams>(() {
   return FilteredCustomersNotifier();
 });
 
@@ -535,13 +590,14 @@ class CustomerNotifier extends AsyncNotifier<List<Customer>> {
       final now = DateTime.now();
 
       // 1. 고객 문서 생성
-      final customerRef = FirebaseFirestore.instance.collection('customers').doc();
+      final customerRef =
+          FirebaseFirestore.instance.collection('customers').doc();
       // 2. 기본 견적 문서 생성
-      final estimateRef = FirebaseFirestore.instance.collection('estimates').doc();
-      
-      final estimateData = Estimate.empty(customerRef.id)
-          .copyWith(id: estimateRef.id)
-          .toJson();
+      final estimateRef =
+          FirebaseFirestore.instance.collection('estimates').doc();
+
+      final estimateData =
+          Estimate.empty(customerRef.id).copyWith(id: estimateRef.id).toJson();
 
       // 3. 고객 데이터
       final customerData = {
@@ -626,7 +682,8 @@ class CustomerNotifier extends AsyncNotifier<List<Customer>> {
       // Storage에서 파일 삭제
       if (customer.businessLicenseUrl.isNotEmpty) {
         try {
-          final ref = FirebaseStorage.instance.refFromURL(customer.businessLicenseUrl);
+          final ref =
+              FirebaseStorage.instance.refFromURL(customer.businessLicenseUrl);
           await ref.delete();
         } catch (e) {
           print('Error deleting business license: $e');
@@ -731,11 +788,13 @@ class FilterParams {
 }
 
 // 필터된 고객 Notifier
-class FilteredCustomersNotifier extends FamilyAsyncNotifier<List<Customer>, FilterParams> {
+class FilteredCustomersNotifier
+    extends FamilyAsyncNotifier<List<Customer>, FilterParams> {
   @override
   Future<List<Customer>> build(FilterParams params) async {
     try {
-      Query<Map<String, dynamic>> query = FirebaseFirestore.instance.collection('customers');
+      Query<Map<String, dynamic>> query =
+          FirebaseFirestore.instance.collection('customers');
 
       if (params.assignedToId != null) {
         query = query.where('assignedTo', isEqualTo: params.assignedToId);
@@ -760,12 +819,13 @@ class FilteredCustomersNotifier extends FamilyAsyncNotifier<List<Customer>, Filt
 
       if (params.searchTerm?.isNotEmpty == true) {
         final term = params.searchTerm!.toLowerCase();
-        return customers.where((customer) =>
-          customer.name.toLowerCase().contains(term) ||
-          customer.address.toLowerCase().contains(term) ||
-          customer.email.toLowerCase().contains(term) ||
-          customer.note.toLowerCase().contains(term)
-        ).toList();
+        return customers
+            .where((customer) =>
+                customer.name.toLowerCase().contains(term) ||
+                customer.address.toLowerCase().contains(term) ||
+                customer.email.toLowerCase().contains(term) ||
+                customer.note.toLowerCase().contains(term))
+            .toList();
       }
 
       return customers;

@@ -165,7 +165,7 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
     }
   }
 
-// 최종 저장
+// spacemodel.dart의 EstimatesNotifier 클래스 내에서 updateSpaceBasicInfo 수정
   Future<void> _saveSpaceBasicInfo() async {
     if (!_validateInputs()) return;
 
@@ -181,9 +181,29 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
         throw Exception('고객 정보를 찾을 수 없습니다');
       }
 
-      final estimateId = customer.estimateIds[0]; // 첫 번째 견적 ID 사용
+      final estimateId = customer.estimateIds[0];
 
-      // 공간 기본 정보 업데이트
+      // 1. estimates 컬렉션에 직접 저장
+      final estimateData = {
+        'siteAddress':
+            '${_siteAddressController.text} ${_detailSiteAddressController.text}',
+        'openingDate': Timestamp.fromDate(_openingDate!),
+        'recipient': _recipientController.text,
+        'contactNumber': _contactNumberController.text,
+        'shippingMethod': _shippingMethod ?? '',
+        'paymentMethod': _paymentMethod ?? '',
+        'basicNotes': _additionalNotesController.text,
+        'status': EstimateStatus.IN_PROGRESS.toString(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      // Firestore에 직접 저장
+      await FirebaseFirestore.instance
+          .collection('estimates')
+          .doc(estimateId)
+          .set(estimateData, SetOptions(merge: true));
+
+      // 2. Provider를 통해 상태 업데이트
       await ref.read(estimatesProvider.notifier).updateSpaceBasicInfo(
             estimateId: estimateId,
             siteAddress:
@@ -196,7 +216,7 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
             basicNotes: _additionalNotesController.text,
           );
 
-      // 임시 저장 데이터 삭제
+      // 3. 임시 저장 데이터 삭제
       await FirebaseFirestore.instance
           .collection('temp_estimates')
           .doc(estimateId)
