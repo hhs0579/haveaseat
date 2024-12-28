@@ -32,7 +32,6 @@ class EstimatePage extends ConsumerStatefulWidget {
 class _EstimatePageState extends ConsumerState<EstimatePage> {
   // EstimatePage의 _EstimatePageState 클래스 내부에 추가할 코드
 
-// 데이터 로드
   Future<Map<String, dynamic>> _loadEstimateData() async {
     try {
       // 고객 정보 가져오기
@@ -49,9 +48,16 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
 
       if (!estimateDoc.exists) throw Exception('견적 정보를 찾을 수 없습니다');
 
+      // 담당자 정보 가져오기 (assignedTo 필드 사용)
+      final managerDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(customer.assignedTo)
+          .get();
+
       return {
         'customer': customer,
         'estimate': estimateDoc.data(),
+        'userData': managerDoc.data(), // 담당자 정보 추가
       };
     } catch (e) {
       print('Error loading estimate data: $e');
