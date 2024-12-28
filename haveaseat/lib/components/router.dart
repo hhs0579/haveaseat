@@ -6,6 +6,7 @@ import 'package:haveaseat/pages/info/%20furniture.dart';
 import 'package:haveaseat/pages/info/addcustomer.dart';
 import 'package:haveaseat/pages/allcustomer.dart';
 import 'package:haveaseat/pages/customer.dart';
+import 'package:haveaseat/pages/info/estimate.dart';
 import 'package:haveaseat/pages/login/login.dart';
 
 import 'package:haveaseat/pages/mainpage.dart';
@@ -79,6 +80,17 @@ final routerProvider = Provider<GoRouter>((ref) {
                               state.pathParameters['customerId']!;
                           return furniturePage(customerId: customerId);
                         },
+                        routes: [
+                          GoRoute(
+                            path: 'estimate',
+                            name: 'estimate', // 이름 변경
+                            builder: (context, state) {
+                              final customerId =
+                                  state.pathParameters['customerId']!;
+                              return EstimatePage(customerId: customerId);
+                            },
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -126,6 +138,17 @@ final routerProvider = Provider<GoRouter>((ref) {
                               state.pathParameters['customerId']!;
                           return furniturePage(customerId: customerId);
                         },
+                        routes: [
+                          GoRoute(
+                            path: 'estimate',
+                            name: 'allCustomerestimate', // 이름 변경
+                            builder: (context, state) {
+                              final customerId =
+                                  state.pathParameters['customerId']!;
+                              return EstimatePage(customerId: customerId);
+                            },
+                          ),
+                        ],
                       ),
                     ],
                   ),

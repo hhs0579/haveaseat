@@ -153,7 +153,7 @@ class _furniturePageState extends ConsumerState<furniturePage> {
           const SnackBar(content: Text('저장되었습니다')),
         );
         context.go(
-            '/main/addpage/spaceadd/${widget.customerId}/final'); // 최종 화면으로 이동
+            '/main/addpage/spaceadd/${widget.customerId}/space-detail/furniture/estimate'); // 최종 화면으로 이동
       }
     } catch (e) {
       if (mounted) {
@@ -741,6 +741,7 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                                     InkWell(
                                       onTap: () {
                                         // 임시 저장 처리
+                                        _saveTempFurniture();
                                       },
                                       child: Container(
                                         width: 87,
