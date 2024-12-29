@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:excel/excel.dart';
+
 import 'package:flutter/services.dart' show ByteData, Uint8List, rootBundle;
 
 // 견적서 상태를 관리하기 위한 enum
@@ -97,7 +97,8 @@ class Estimate {
   final double spaceArea;
   final List<String> targetAgeGroups;
   final String businessType;
-  final String concept;
+  final List<String> concept; // String에서 List<String>으로 변경
+  final String spaceUnit; // 면적 단위 추가
   final String detailNotes;
   final List<String> designFileUrls;
   // 가구 정보
@@ -122,6 +123,8 @@ class Estimate {
     required this.targetAgeGroups,
     required this.businessType,
     required this.concept,
+    required this.spaceUnit, // 단위 파라미터 추가
+
     required this.detailNotes,
     required this.designFileUrls,
     required this.furnitureList,
@@ -152,7 +155,8 @@ class Estimate {
       spaceArea: (json['spaceArea'] ?? 0).toDouble(),
       targetAgeGroups: List<String>.from(json['targetAgeGroups'] ?? []),
       businessType: json['businessType'] ?? '',
-      concept: json['concept'] ?? '',
+      concept: List<String>.from(json['concept'] ?? []), // List로 변환
+      spaceUnit: json['spaceUnit'] ?? '평',
       detailNotes: json['detailNotes'] ?? '',
       designFileUrls: List<String>.from(json['designFileUrls'] ?? []),
       // 가구 정보
@@ -183,7 +187,8 @@ class Estimate {
       'spaceArea': spaceArea,
       'targetAgeGroups': targetAgeGroups,
       'businessType': businessType,
-      'concept': concept,
+      'concept': concept, // List 그대로 저장
+      'spaceUnit': spaceUnit, // 단위 저장
       'detailNotes': detailNotes,
       'designFileUrls': designFileUrls,
       // 가구 정보
@@ -213,7 +218,8 @@ class Estimate {
       spaceArea: 0,
       targetAgeGroups: [],
       businessType: '',
-      concept: '',
+      concept: [],
+      spaceUnit: '',
       detailNotes: '',
       designFileUrls: [],
       // 가구 정보
@@ -239,7 +245,8 @@ class Estimate {
     double? spaceArea,
     List<String>? targetAgeGroups,
     String? businessType,
-    String? concept,
+    List<String>? concept, // String에서 List<String>으로 변경
+    String? spaceUnit, // 면적 단위 추가
     String? detailNotes,
     List<String>? designFileUrls,
     List<ExistingFurniture>? furnitureList,
@@ -263,6 +270,7 @@ class Estimate {
       targetAgeGroups: targetAgeGroups ?? this.targetAgeGroups,
       businessType: businessType ?? this.businessType,
       concept: concept ?? this.concept,
+      spaceUnit: spaceUnit ?? this.spaceUnit,
       detailNotes: detailNotes ?? this.detailNotes,
       designFileUrls: designFileUrls ?? this.designFileUrls,
       furnitureList: furnitureList ?? this.furnitureList,
@@ -417,9 +425,10 @@ class EstimatesNotifier extends StateNotifier<List<Estimate>> {
     required double minBudget,
     required double maxBudget,
     required double spaceArea,
+    required String spaceUnit, // 단위 추가
     required List<String> targetAgeGroups,
     required String businessType,
-    required String concept,
+    required List<String> concept, // List<String>으로 변경
     required String detailNotes,
     required List<String> designFileUrls,
   }) async {
@@ -439,6 +448,7 @@ class EstimatesNotifier extends StateNotifier<List<Estimate>> {
         'minBudget': minBudget,
         'maxBudget': maxBudget,
         'spaceArea': spaceArea,
+        'spaceUnit': spaceUnit, // 단위 저장
         'targetAgeGroups': targetAgeGroups,
         'businessType': businessType,
         'concept': concept,
@@ -461,6 +471,7 @@ class EstimatesNotifier extends StateNotifier<List<Estimate>> {
           minBudget: minBudget,
           maxBudget: maxBudget,
           spaceArea: spaceArea,
+          spaceUnit: spaceUnit, // 단위 저장
           targetAgeGroups: targetAgeGroups,
           businessType: businessType,
           concept: concept,

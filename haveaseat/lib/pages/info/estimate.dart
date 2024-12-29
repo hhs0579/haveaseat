@@ -1,5 +1,7 @@
 import 'dart:io';
 import 'dart:math';
+import 'dart:typed_data';
+import 'package:flutter/services.dart';
 import 'package:haveaseat/pages/login/signup.dart';
 import 'package:haveaseat/riverpod/signupmodel.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -19,6 +21,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:haveaseat/components/colors.dart';
 import 'dart:html' as html;
+import 'package:screenshot/screenshot.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 class EstimatePage extends ConsumerStatefulWidget {
   final String customerId;
@@ -337,7 +343,8 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                     ),
                     SizedBox(
                       width: cellWidth,
-                      child: _buildInfoCell('공간컨셉', estimate['concept'] ?? ''),
+                      child: _buildInfoCell(
+                          '공간컨셉', estimate['concept']?.join(', ') ?? ''),
                     ),
                   ],
                 ),
@@ -566,6 +573,247 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
       return '${dt.year}년 ${dt.month}월 ${dt.day}일';
     }
     return '';
+  }
+
+  final screenshotController = ScreenshotController();
+
+  Future<void> generatePDF(Map<String, dynamic> data) async {
+    try {
+      final regularFont = await rootBundle.load(
+          'assets/fonts/notosans/Noto_Sans_KR/static/NotoSansKR-Regular.ttf');
+      final boldFont = await rootBundle.load(
+          'assets/fonts/notosans/Noto_Sans_KR/static/NotoSansKR-Bold.ttf');
+
+      final ttf = pw.Font.ttf(regularFont);
+      final ttfBold = pw.Font.ttf(boldFont);
+
+      final pdf = pw.Document();
+
+      // A4 크기의 페이지 생성
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(40),
+          theme: pw.ThemeData.withFont(
+            base: ttf,
+            bold: ttfBold,
+          ),
+          build: (pw.Context context) => [
+            // 날짜
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text(
+                  '${DateTime.now().year}년 ${DateTime.now().month}월 ${DateTime.now().day}일',
+                  style: pw.TextStyle(
+                      fontSize: 16, fontWeight: pw.FontWeight.bold),
+                ),
+              ],
+            ),
+            pw.SizedBox(height: 20),
+
+            // 제목
+            pw.Text(
+              '견적서',
+              style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
+            ),
+            pw.SizedBox(height: 40),
+
+            // 고객 정보 섹션
+            _buildPDFSection(
+              '고객 정보',
+              data['customer'] as Customer,
+              isCustomerSection: true,
+            ),
+            pw.SizedBox(height: 20),
+
+            // 공간 정보 섹션
+            _buildPDFSection(
+              '공간 정보',
+              data['estimate'] as Map<String, dynamic>,
+              isSpaceSection: true,
+            ),
+            pw.SizedBox(height: 20),
+
+            // 견적 정보 섹션
+            _buildPDFEstimateSection(
+              data['estimate'] as Map<String, dynamic>,
+            ),
+            pw.SizedBox(height: 20),
+
+            // 담당자 정보 섹션
+            _buildPDFSection(
+              '담당자 정보',
+              data['userData'] as Map<String, dynamic>?,
+              isManagerSection: true,
+            ),
+          ],
+        ),
+      );
+
+      // PDF 다운로드
+      final bytes = await pdf.save();
+      final blob = html.Blob([bytes], 'application/pdf');
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      final anchor = html.AnchorElement()
+        ..href = url
+        ..style.display = 'none'
+        ..download = 'estimate.pdf';
+      html.document.body?.children.add(anchor);
+      anchor.click();
+      html.document.body?.children.remove(anchor);
+      html.Url.revokeObjectUrl(url);
+    } catch (e) {
+      print('Error generating PDF: $e');
+    }
+  }
+
+  // PDF 섹션 생성 헬퍼 함수
+  pw.Widget _buildPDFSection(
+    String title,
+    dynamic data, {
+    bool isCustomerSection = false,
+    bool isSpaceSection = false,
+    bool isManagerSection = false,
+  }) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(title,
+            style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
+        pw.Divider(thickness: 2),
+        if (isCustomerSection) ...[
+          _buildPDFCustomerInfo(data as Customer),
+        ] else if (isSpaceSection) ...[
+          _buildPDFSpaceInfo(data as Map<String, dynamic>),
+        ] else if (isManagerSection) ...[
+          _buildPDFManagerInfo(data as Map<String, dynamic>?),
+        ],
+      ],
+    );
+  }
+
+  // 견적 정보 섹션 생성
+  pw.Widget _buildPDFEstimateSection(Map<String, dynamic> estimate) {
+    final furnitureList = (estimate['furnitureList'] as List<dynamic>?) ?? [];
+
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text('견적 정보',
+            style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
+        pw.Divider(thickness: 2),
+        pw.Table(
+          border: pw.TableBorder.all(),
+          children: [
+            // 테이블 헤더
+            pw.TableRow(
+              children: [
+                _buildPDFTableCell('견적종류', header: true),
+                _buildPDFTableCell('가구명', header: true),
+                _buildPDFTableCell('수량', header: true),
+                _buildPDFTableCell('견적일자', header: true),
+                _buildPDFTableCell('가격', header: true),
+              ],
+            ),
+            // 가구 목록
+            ...furnitureList
+                .map((furniture) => pw.TableRow(
+                      children: [
+                        _buildPDFTableCell('기존가구'),
+                        _buildPDFTableCell(furniture['name'] ?? ''),
+                        _buildPDFTableCell(
+                            furniture['quantity']?.toString() ?? ''),
+                        _buildPDFTableCell(_formatDate(estimate['updatedAt'])),
+                        _buildPDFTableCell(
+                            '${_formatNumber(furniture['price'])}원'),
+                      ],
+                    ))
+                .toList(),
+            // 총 합계
+            pw.TableRow(
+              children: [
+                _buildPDFTableCell(''),
+                _buildPDFTableCell(''),
+                _buildPDFTableCell(''),
+                _buildPDFTableCell('총 합계', header: true),
+                _buildPDFTableCell(
+                  '${_formatNumber(_calculateTotal(furnitureList))}원',
+                  header: true,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // PDF 테이블 셀 생성 헬퍼 함수
+  pw.Widget _buildPDFTableCell(String text, {bool header = false}) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(8),
+      child: pw.Text(
+        text,
+        style: pw.TextStyle(
+          fontWeight: header ? pw.FontWeight.bold : null,
+        ),
+      ),
+    );
+  }
+
+  // 나머지 헬퍼 함수들...
+  pw.Widget _buildPDFCustomerInfo(Customer customer) {
+    return pw.Table(
+      border: pw.TableBorder.all(),
+      children: [
+        _buildPDFInfoRow('고객명', customer.name),
+        _buildPDFInfoRow('연락처', customer.phone),
+        _buildPDFInfoRow('이메일주소', customer.email),
+        _buildPDFInfoRow('배송지주소', customer.address),
+        // ... 기타 필요한 정보
+      ],
+    );
+  }
+
+  pw.Widget _buildPDFSpaceInfo(Map<String, dynamic> space) {
+    return pw.Table(
+      border: pw.TableBorder.all(),
+      children: [
+        _buildPDFInfoRow('현장주소', space['siteAddress'] ?? ''),
+        _buildPDFInfoRow('공간오픈일정', _formatDate(space['openingDate'])),
+        _buildPDFInfoRow('예산',
+            '${space['minBudget']?.toString() ?? '0'} ~ ${space['maxBudget']?.toString() ?? '0'}원'),
+        _buildPDFInfoRow('공간면적', '${space['spaceArea']?.toString() ?? '0'} ㎡'),
+        // ... 기타 필요한 정보
+      ],
+    );
+  }
+
+  pw.Widget _buildPDFManagerInfo(Map<String, dynamic>? manager) {
+    return pw.Table(
+      border: pw.TableBorder.all(),
+      children: [
+        _buildPDFInfoRow('담당자 성함', manager?['name'] ?? ''),
+        // ... 기타 필요한 정보
+      ],
+    );
+  }
+
+  pw.TableRow _buildPDFInfoRow(String label, String value) {
+    return pw.TableRow(
+      children: [
+        pw.Container(
+          padding: const pw.EdgeInsets.all(8),
+          width: 120,
+          child: pw.Text(label),
+        ),
+        pw.Container(
+          padding: const pw.EdgeInsets.all(8),
+          child: pw.Text(value),
+        ),
+      ],
+    );
   }
 
   @override
@@ -819,73 +1067,88 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
 // 테이블 영역 부분만 수정
 // 메인 컨텐츠 영역
             Expanded(
-                child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(24.0),
-                    child: FutureBuilder<Map<String, dynamic>>(
-                        future: _loadEstimateData(),
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState ==
-                              ConnectionState.waiting) {
-                            return const Center(
-                                child: CircularProgressIndicator());
-                          }
+              child: Screenshot(
+                  controller: screenshotController,
+                  child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(24.0),
+                      child: FutureBuilder<Map<String, dynamic>>(
+                          future: _loadEstimateData(),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return const Center(
+                                  child: CircularProgressIndicator());
+                            }
 
-                          if (snapshot.hasError) {
-                            return Center(
-                                child: Text('오류가 발생했습니다: ${snapshot.error}'));
-                          }
+                            if (snapshot.hasError) {
+                              return Center(
+                                  child: Text('오류가 발생했습니다: ${snapshot.error}'));
+                            }
 
-                          if (!snapshot.hasData) {
-                            return const Center(child: Text('데이터를 찾을 수 없습니다'));
-                          }
+                            if (!snapshot.hasData) {
+                              return const Center(
+                                  child: Text('데이터를 찾을 수 없습니다'));
+                            }
 
-                          return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      '${DateTime.now().year}년 ${DateTime.now().month}월 ${DateTime.now().day}일',
-                                      style: const TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColor.font1,
+                            return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        '${DateTime.now().year}년 ${DateTime.now().month}월 ${DateTime.now().day}일',
+                                        style: const TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColor.font1,
+                                        ),
                                       ),
-                                    ),
-                                    const Row(
-                                      children: [
-                                        Icon(Icons.person_outline_sharp,
-                                            color: AppColor.font2),
-                                        SizedBox(width: 16),
-                                        Icon(Icons.notifications_none_outlined,
-                                            color: AppColor.font2),
-                                        SizedBox(width: 16),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 56),
-                                const Text(
-                                  '견적서',
-                                  style: TextStyle(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColor.font1,
+                                      const Row(
+                                        children: [
+                                          Icon(Icons.person_outline_sharp,
+                                              color: AppColor.font2),
+                                          SizedBox(width: 16),
+                                          Icon(
+                                              Icons.notifications_none_outlined,
+                                              color: AppColor.font2),
+                                          SizedBox(width: 16),
+                                        ],
+                                      ),
+                                    ],
                                   ),
-                                ),
-                                const SizedBox(height: 32),
-                                _buildCustomerSection(snapshot.data!),
-                                const SizedBox(height: 48),
-                                _buildSpaceSection(snapshot.data!),
-                                const SizedBox(height: 48),
-                                _buildEstimateSection(snapshot.data!),
-                                const SizedBox(height: 48),
-                                _buildManagerSection(snapshot.data!),
-                                const SizedBox(height: 48)
-                              ]);
-                        })))
+                                  const SizedBox(height: 56),
+                                  const Text(
+                                    '견적서',
+                                    style: TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColor.font1,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 32),
+                                  _buildCustomerSection(snapshot.data!),
+                                  const SizedBox(height: 48),
+                                  _buildSpaceSection(snapshot.data!),
+                                  const SizedBox(height: 48),
+                                  _buildEstimateSection(snapshot.data!),
+                                  const SizedBox(height: 48),
+                                  _buildManagerSection(snapshot.data!),
+                                  const SizedBox(height: 48),
+                                  ElevatedButton.icon(
+                                    onPressed: () =>
+                                        generatePDF(snapshot.data!),
+                                    icon: const Icon(Icons.picture_as_pdf),
+                                    label: const Text('PDF 다운로드'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppColor.primary,
+                                      foregroundColor: Colors.white,
+                                    ),
+                                  ),
+                                ]);
+                          }))),
+            ),
           ],
         ),
       ),

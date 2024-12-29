@@ -43,6 +43,7 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
   List<String> _otherDocumentUrls = []; // URL 저장용 리스트 추가
   int _fileFieldCounter = 0;
   final int _textLength = 0;
+  Set<String> selectedConcepts = <String>{}; // 빈 Set으로 초기화
   // 업종 목록
   final List<Map<String, String>> businessTypes = [
     {'value': 'korean', 'label': '한식'},
@@ -55,18 +56,26 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
     {'value': 'fastfood', 'label': '패스트푸드'},
     {'value': 'other', 'label': '기타'},
   ];
-  String selectedConcept = '모던'; // 초기 선택값 설정
+
+  @override
+  void initState() {
+    super.initState();
+    selectedBusinessType = null;
+    _loadTempEstimate();
+  }
 
   Widget _buildConceptButton(String text) {
-    bool isSelected = selectedConcept == text;
-
-    // 텍스트 길이에 따라 버튼 너비 조정
-    double buttonWidth = text.length * 14.0 + 24.0; // 글자당 14픽셀 + 좌우 패딩
+    bool isSelected = selectedConcepts.contains(text);
+    double buttonWidth = text.length * 14.0 + 24.0;
 
     return InkWell(
       onTap: () {
         setState(() {
-          selectedConcept = text;
+          if (isSelected) {
+            selectedConcepts.remove(text);
+          } else {
+            selectedConcepts.add(text);
+          }
         });
       },
       child: Container(
@@ -94,31 +103,13 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
     );
   }
 
-  @override
-  void initState() {
-    super.initState();
-    selectedBusinessType = null;
-    _loadTempEstimate();
-  }
-
-  double convertArea(String value, String fromUnit, String toUnit) {
-    if (value.isEmpty) return 0;
-    double numValue = double.tryParse(value) ?? 0;
-    if (fromUnit == toUnit) return numValue;
-    if (fromUnit == '평' && toUnit == '㎡') {
-      return numValue * 3.305785; // 평 to ㎡
-    } else {
-      return numValue / 3.305785; // ㎡ to 평
-    }
-  }
-
   Widget _buildAgeRangeButton(String text) {
     bool isSelected = selectedAgeRange == text;
 
     return InkWell(
       onTap: () {
         setState(() {
-          selectedAgeRange = text; // 무조건 새로운 값으로 설정 (선택 해제 불가)
+          selectedAgeRange = text;
         });
       },
       child: Container(
@@ -130,7 +121,7 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
             width: 1,
           ),
           borderRadius: BorderRadius.circular(18),
-          color: Colors.transparent, // 항상 흰색 배경
+          color: Colors.transparent,
         ),
         child: Center(
           child: Text(
@@ -162,7 +153,6 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
                     uploadPath: 'other_documents',
                     isAllFileTypes: true,
                     onFileUploaded: (String url) {
-                      print('추가 파일 업로드 전 URLs: $_otherDocumentUrls');
                       setState(() {
                         if (_otherDocumentUrls.length > currentIndex) {
                           _otherDocumentUrls[currentIndex] = url;
@@ -170,9 +160,8 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
                           _otherDocumentUrls.add(url);
                         }
                       });
-                      print('추가 파일 업로드 후 URLs: $_otherDocumentUrls');
                     },
-                    onFileSelected: (_) {}, // 웹에서는 필요 없음
+                    onFileSelected: (_) {},
                   ),
                 ),
                 IconButton(
@@ -192,10 +181,8 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
         ),
       );
     });
-    print('파일 필드 추가됨. 현재 개수: ${_additionalFiles.length}');
   }
 
-  // 입력값 검증 메서드
   bool _validateInputs() {
     if (_minBudgetController.text.isEmpty ||
         _maxBudgetController.text.isEmpty) {
@@ -236,34 +223,28 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
       return false;
     }
 
+    if (selectedConcepts.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('컨셉을 하나 이상 선택해주세요')),
+      );
+      return false;
+    }
+
     return true;
   }
 
-  // SpaceDetailPage 클래스 내에 추가할 함수들
-// 임시 저장
   Future<void> _saveTempDetailInfo() async {
     try {
-      // 입력값 유효성 검사는 유지
       double? minBudget = double.tryParse(_minBudgetController.text);
       double? maxBudget = double.tryParse(_maxBudgetController.text);
+      double? spaceArea = double.tryParse(_areaController.text);
 
-      // 면적 처리
-      double? spaceArea;
-      if (_areaController.text.isNotEmpty) {
-        spaceArea = double.tryParse(_areaController.text);
-        if (selectedUnit == '평') {
-          spaceArea = spaceArea! * 3.305785;
-        }
-      }
-
-      // 업종 가져오기
       String? businessTypeLabel;
       if (selectedBusinessType != null) {
         businessTypeLabel = businessTypes.firstWhere(
             (type) => type['value'] == selectedBusinessType)['label'];
       }
 
-      // 고객 정보 가져오기
       final customer = await ref
           .read(customerDataProvider.notifier)
           .getCustomer(widget.customerId);
@@ -273,7 +254,6 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
 
       final estimateId = customer.estimateIds[0];
 
-      // 임시 저장 데이터
       final tempData = {
         'customerId': widget.customerId,
         'estimateId': estimateId,
@@ -284,15 +264,15 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
           'minBudget': minBudget,
           'maxBudget': maxBudget,
           'spaceArea': spaceArea,
+          'spaceUnit': selectedUnit,
           'targetAgeGroups': [selectedAgeRange],
           'businessType': businessTypeLabel,
-          'concept': selectedConcept,
+          'concept': selectedConcepts.toList(),
           'detailNotes': _noteController.text,
           'designFileUrls': _otherDocumentUrls,
         }
       };
 
-      // temp_estimates 컬렉션에 저장
       await FirebaseFirestore.instance
           .collection('temp_estimates')
           .doc(estimateId)
@@ -313,7 +293,6 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
     }
   }
 
-// 임시 저장 데이터 로드
   Future<void> _loadTempEstimate() async {
     try {
       final customer = await ref
@@ -338,14 +317,13 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
             _maxBudgetController.text =
                 spaceDetailInfo['maxBudget']?.toString() ?? '';
 
-            // 면적 변환
-            final area = spaceDetailInfo['spaceArea'];
-            if (area != null) {
-              if (selectedUnit == '평') {
-                _areaController.text = (area / 3.305785).toStringAsFixed(2);
-              } else {
-                _areaController.text = area.toString();
-              }
+            selectedUnit = spaceDetailInfo['spaceUnit'] ?? '평';
+            _areaController.text =
+                spaceDetailInfo['spaceArea']?.toString() ?? '';
+
+            final concepts = spaceDetailInfo['concept'] as List<dynamic>?;
+            if (concepts != null) {
+              selectedConcepts = concepts.map((e) => e.toString()).toSet();
             }
 
             selectedAgeRange = spaceDetailInfo['targetAgeGroups']?[0] ?? '10대';
@@ -354,7 +332,7 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
               selectedBusinessType = businessTypes
                   .firstWhere((type) => type['label'] == businessType)['value'];
             }
-            selectedConcept = spaceDetailInfo['concept'] ?? '모던';
+
             _noteController.text = spaceDetailInfo['detailNotes'] ?? '';
             _otherDocumentUrls =
                 List<String>.from(spaceDetailInfo['designFileUrls'] ?? []);
@@ -366,8 +344,6 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
     }
   }
 
-// 최종 저장
-  // SpaceDetailPage 클래스 내의 _saveSpaceDetailInfo 함수 수정
   Future<void> _saveSpaceDetailInfo() async {
     if (!_validateInputs()) return;
 
@@ -381,46 +357,40 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
 
       final estimateId = customer.estimateIds[0];
 
-      // 1. estimates 컬렉션에 직접 저장
       final estimateData = {
         'minBudget': double.parse(_minBudgetController.text),
         'maxBudget': double.parse(_maxBudgetController.text),
-        'spaceArea': selectedUnit == '평'
-            ? double.parse(_areaController.text) * 3.305785
-            : double.parse(_areaController.text),
+        'spaceArea': double.parse(_areaController.text),
+        'spaceUnit': selectedUnit,
         'targetAgeGroups': [selectedAgeRange],
         'businessType': businessTypes.firstWhere(
             (type) => type['value'] == selectedBusinessType)['label'],
-        'concept': selectedConcept,
+        'concept': selectedConcepts.toList(),
         'detailNotes': _noteController.text,
         'designFileUrls': _otherDocumentUrls,
         'status': EstimateStatus.IN_PROGRESS.toString(),
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
-      // Firestore에 직접 저장
       await FirebaseFirestore.instance
           .collection('estimates')
           .doc(estimateId)
           .set(estimateData, SetOptions(merge: true));
 
-      // 2. Provider를 통해 상태 업데이트
       await ref.read(estimatesProvider.notifier).updateSpaceDetailInfo(
             estimateId: estimateId,
             minBudget: double.parse(_minBudgetController.text),
             maxBudget: double.parse(_maxBudgetController.text),
-            spaceArea: selectedUnit == '평'
-                ? double.parse(_areaController.text) * 3.305785
-                : double.parse(_areaController.text),
+            spaceArea: double.parse(_areaController.text),
+            spaceUnit: selectedUnit,
             targetAgeGroups: [selectedAgeRange],
             businessType: businessTypes.firstWhere(
                 (type) => type['value'] == selectedBusinessType)['label']!,
-            concept: selectedConcept,
+            concept: selectedConcepts.toList(),
             detailNotes: _noteController.text,
             designFileUrls: _otherDocumentUrls,
           );
 
-      // 3. 임시 저장 데이터 삭제
       await FirebaseFirestore.instance
           .collection('temp_estimates')
           .doc(estimateId)
@@ -430,7 +400,6 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('저장되었습니다')),
         );
-        // furniture 페이지로 이동
         context.go(
             '/main/addpage/spaceadd/${widget.customerId}/space-detail/furniture');
       }
@@ -902,18 +871,7 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
                                   onChanged: (String? newValue) {
                                     if (newValue != null) {
                                       setState(() {
-                                        // 현재 입력된 값을 새로운 단위로 변환
-                                        String currentValue =
-                                            _areaController.text;
-                                        if (currentValue.isNotEmpty) {
-                                          double convertedValue = convertArea(
-                                              currentValue,
-                                              selectedUnit,
-                                              newValue);
-                                          _areaController.text =
-                                              convertedValue.toStringAsFixed(2);
-                                        }
-                                        selectedUnit = newValue;
+                                        selectedUnit = newValue; // 단순히 단위만 변경
                                       });
                                     }
                                   },

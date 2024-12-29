@@ -63,7 +63,10 @@ dev_dependencies:
   file_picker:
   uuid:
   flutter_localization:
-  excel:
+
+  screenshot:
+  pdf:
+  printing:
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
@@ -97,6 +100,12 @@ flutter:
           weight: 800
         - asset: assets/fonts/Pretendard-Black.otf
           weight: 900
+    - family: Noto
+      fonts:
+        - asset: assets/fonts/notosans/Noto_Sans_KR/static/NotoSansKR-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/notosans/Noto_Sans_KR/static/NotoSansKR-Bold.ttf
+          weight: 600
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg
