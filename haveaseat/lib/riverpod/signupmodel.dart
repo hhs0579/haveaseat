@@ -27,12 +27,12 @@ final userDataProvider = StreamProvider<Map<String, dynamic>?>((ref) {
 class SignUpNotifier extends StateNotifier<AsyncValue<void>> {
   final Ref ref;
   SignUpNotifier(this.ref) : super(const AsyncValue.data(null));
+
   Future<void> signUp({
     required String email,
     required String password,
     required String name,
-    // required String department,
-    // required String position,
+    required String phoneNumber,
   }) async {
     state = const AsyncValue.loading();
     try {
@@ -51,12 +51,11 @@ class SignUpNotifier extends StateNotifier<AsyncValue<void>> {
         'uid': userCredential.user!.uid,
         'name': name,
         'email': email,
-        // 'department': department,
-        // 'position': position,
-        'role': 'user', // 기본 역할 설정
+        'phoneNumber': phoneNumber,
+        'role': 'user',
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
-        'isActive': true, // 계정 활성화 상태
+        'isActive': true,
       });
       await FirebaseAuth.instance.signOut();
 

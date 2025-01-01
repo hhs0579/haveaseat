@@ -4,7 +4,6 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:haveaseat/components/router.dart';
 import 'package:haveaseat/firebase_options.dart';
 
-import 'package:haveaseat/riverpod/mainmodel.dart';
 import 'package:haveaseat/components/behavior.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,7 +25,6 @@ class MyApp extends ConsumerWidget {
           GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,
         ],
-        
         supportedLocales: const [
           Locale('ko', 'KR'), // 한국어
           Locale('en', 'US'), // 영어

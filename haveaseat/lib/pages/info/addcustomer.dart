@@ -93,198 +93,211 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
   }
 
   // 임시 저장 함수
-  
-  
 
   List<String> getAllUploadedUrls() {
     return _uploadedUrls;
   }
 
- // 임시 저장 함수
-Future<void> _saveTempCustomer() async {
-  try {
-    final user = ref.read(UserProvider.currentUserProvider).value;
-    if (user == null) {
-      throw Exception('로그인이 필요합니다');
-    }
-
-    // 새로운 견적 ID 생성
-    final estimateRef = FirebaseFirestore.instance.collection('estimates').doc();
-
-    // 임시 저장 데이터 생성
-    final tempData = {
-      'estimateId': estimateRef.id,
-      'status': EstimateStatus.IN_PROGRESS.toString(),
-      'lastUpdated': FieldValue.serverTimestamp(),
-      'isTemp': true,
-      // 고객 정보
-      'customerInfo': {
-        'name': _nameController.text,
-        'phone': _phoneController.text,
-        'email': '${_emailController.text}@${selectedDomain ?? _directDomainController.text}',
-        'address': '${_addressController.text} ${_detailAddressController.text}',
-        'businessLicenseUrl': _businessLicenseUrl,
-        'otherDocumentUrls': _otherDocumentUrls,
-        'note': _noteController.text,
-        'assignedTo': user.uid,
+  // 임시 저장 함수
+  Future<void> _saveTempCustomer() async {
+    try {
+      final user = ref.read(UserProvider.currentUserProvider).value;
+      if (user == null) {
+        throw Exception('로그인이 필요합니다');
       }
-    };
 
-    // temp_estimates 컬렉션에 저장
-    await FirebaseFirestore.instance
-        .collection('temp_estimates')
-        .doc(estimateRef.id)
-        .set(tempData, SetOptions(merge: true));
+      // 새로운 견적 ID 생성
+      final estimateRef =
+          FirebaseFirestore.instance.collection('estimates').doc();
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('임시 저장되었습니다')),
-      );
-    }
-  } catch (e) {
-    print('임시 저장 중 오류: $e');
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('임시 저장 중 오류가 발생했습니다: $e')),
-      );
-    }
-  }
-}
-
-// 임시 저장 데이터 불러오기
-Future<void> _loadTempSavedData() async {
-  try {
-    final user = ref.read(UserProvider.currentUserProvider).value;
-    if (user == null) return;
-
-    final tempDoc = await FirebaseFirestore.instance
-        .collection('temp_estimates')
-        .where('customerInfo.assignedTo', isEqualTo: user.uid)
-        .where('isTemp', isEqualTo: true)
-        .get();
-
-    if (tempDoc.docs.isNotEmpty) {
-      final data = tempDoc.docs.first.data();
-      final customerInfo = data['customerInfo'] as Map<String, dynamic>;
-      
-      setState(() {
-        _nameController.text = customerInfo['name'] ?? '';
-        _phoneController.text = customerInfo['phone'] ?? '';
-
-        // 이메일 처리
-        if (customerInfo['email'] != null) {
-          final emailParts = customerInfo['email'].split('@');
-          if (emailParts.length == 2) {
-            _emailController.text = emailParts[0];
-            final domain = emailParts[1];
-            if (['gmail.com', 'naver.com', 'kakao.com', 'nate.com', 'hanmail.net', 'daum.net']
-                .contains(domain)) {
-              selectedDomain = domain;
-              isDirectInput = false;
-            } else {
-              _directDomainController.text = domain;
-              selectedDomain = null;
-              isDirectInput = true;
-            }
-          }
+      // 임시 저장 데이터 생성
+      final tempData = {
+        'estimateId': estimateRef.id,
+        'status': EstimateStatus.IN_PROGRESS.toString(),
+        'lastUpdated': FieldValue.serverTimestamp(),
+        'isTemp': true,
+        // 고객 정보
+        'customerInfo': {
+          'name': _nameController.text,
+          'phone': _phoneController.text,
+          'email':
+              '${_emailController.text}@${selectedDomain ?? _directDomainController.text}',
+          'address':
+              '${_addressController.text} ${_detailAddressController.text}',
+          'businessLicenseUrl': _businessLicenseUrl,
+          'otherDocumentUrls': _otherDocumentUrls,
+          'note': _noteController.text,
+          'assignedTo': user.uid,
         }
+      };
 
-        // 주소 처리
-        if (customerInfo['address'] != null) {
-          final addressParts = customerInfo['address'].split(' ');
-          _addressController.text = addressParts.take(addressParts.length - 1).join(' ');
-          _detailAddressController.text = addressParts.last;
-        }
-
-        _noteController.text = customerInfo['note'] ?? '';
-        _businessLicenseUrl = customerInfo['businessLicenseUrl'];
-        _otherDocumentUrls = List<String>.from(customerInfo['otherDocumentUrls'] ?? []);
-      });
-    }
-  } catch (e) {
-    print('임시 저장 데이터 로드 중 오류: $e');
-  }
-}
-
-// 고객 정보 최종 저장
-Future<void> _saveCustomer() async {
-  if (!_validateInputs()) return;
-
-  try {
-    final user = ref.read(UserProvider.currentUserProvider).value;
-    if (user == null) {
-      throw Exception('로그인이 필요합니다');
-    }
-
-    // 고객 정보 저장 및 ID 반환 받기
-    final customerId = await ref.read(customerDataProvider.notifier).addCustomer(
-      name: _nameController.text,
-      phone: _phoneController.text,
-      email: '${_emailController.text}@${selectedDomain ?? _directDomainController.text}',
-      address: '${_addressController.text} ${_detailAddressController.text}',
-      businessLicenseUrl: _businessLicenseUrl ?? '',
-      otherDocumentUrls: _otherDocumentUrls,
-      note: _noteController.text,
-      assignedTo: user.uid,
-    );
-
-    // 임시 저장 데이터 삭제
-    if (_tempSaveDocId != null) {
+      // temp_estimates 컬렉션에 저장
       await FirebaseFirestore.instance
           .collection('temp_estimates')
-          .doc(_tempSaveDocId)
-          .delete();
-    }
+          .doc(estimateRef.id)
+          .set(tempData, SetOptions(merge: true));
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('고객 정보가 저장되었습니다')),
-      );
-      // 공간 기본정보 페이지로 이동
-      context.go('/main/addpage/spaceadd/$customerId');
-    }
-  } catch (e) {
-    print('저장 중 오류: $e');
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('저장 중 오류가 발생했습니다: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('임시 저장되었습니다')),
+        );
+      }
+    } catch (e) {
+      print('임시 저장 중 오류: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('임시 저장 중 오류가 발생했습니다: $e')),
+        );
+      }
     }
   }
-}
+
+// 임시 저장 데이터 불러오기
+  Future<void> _loadTempSavedData() async {
+    try {
+      final user = ref.read(UserProvider.currentUserProvider).value;
+      if (user == null) return;
+
+      final tempDoc = await FirebaseFirestore.instance
+          .collection('temp_estimates')
+          .where('customerInfo.assignedTo', isEqualTo: user.uid)
+          .where('isTemp', isEqualTo: true)
+          .get();
+
+      if (tempDoc.docs.isNotEmpty) {
+        final data = tempDoc.docs.first.data();
+        final customerInfo = data['customerInfo'] as Map<String, dynamic>;
+
+        setState(() {
+          _nameController.text = customerInfo['name'] ?? '';
+          _phoneController.text = customerInfo['phone'] ?? '';
+
+          // 이메일 처리
+          if (customerInfo['email'] != null) {
+            final emailParts = customerInfo['email'].split('@');
+            if (emailParts.length == 2) {
+              _emailController.text = emailParts[0];
+              final domain = emailParts[1];
+              if ([
+                'gmail.com',
+                'naver.com',
+                'kakao.com',
+                'nate.com',
+                'hanmail.net',
+                'daum.net'
+              ].contains(domain)) {
+                selectedDomain = domain;
+                isDirectInput = false;
+              } else {
+                _directDomainController.text = domain;
+                selectedDomain = null;
+                isDirectInput = true;
+              }
+            }
+          }
+
+          // 주소 처리
+          if (customerInfo['address'] != null) {
+            final addressParts = customerInfo['address'].split(' ');
+            _addressController.text =
+                addressParts.take(addressParts.length - 1).join(' ');
+            _detailAddressController.text = addressParts.last;
+          }
+
+          _noteController.text = customerInfo['note'] ?? '';
+          _businessLicenseUrl = customerInfo['businessLicenseUrl'];
+          _otherDocumentUrls =
+              List<String>.from(customerInfo['otherDocumentUrls'] ?? []);
+        });
+      }
+    } catch (e) {
+      print('임시 저장 데이터 로드 중 오류: $e');
+    }
+  }
+
+// 고객 정보 최종 저장
+  Future<void> _saveCustomer() async {
+    if (!_validateInputs()) return;
+
+    try {
+      final user = ref.read(UserProvider.currentUserProvider).value;
+      if (user == null) {
+        throw Exception('로그인이 필요합니다');
+      }
+
+      // 고객 정보 저장 및 ID 반환 받기
+      final customerId =
+          await ref.read(customerDataProvider.notifier).addCustomer(
+                name: _nameController.text,
+                phone: _phoneController.text,
+                email:
+                    '${_emailController.text}@${selectedDomain ?? _directDomainController.text}',
+                address:
+                    '${_addressController.text} ${_detailAddressController.text}',
+                businessLicenseUrl: _businessLicenseUrl ?? '',
+                otherDocumentUrls: _otherDocumentUrls,
+                note: _noteController.text,
+                assignedTo: user.uid,
+              );
+
+      // 임시 저장 데이터 삭제
+      if (_tempSaveDocId != null) {
+        await FirebaseFirestore.instance
+            .collection('temp_estimates')
+            .doc(_tempSaveDocId)
+            .delete();
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('고객 정보가 저장되었습니다')),
+        );
+        // 공간 기본정보 페이지로 이동
+        context.go('/main/addpage/spaceadd/$customerId');
+      }
+    } catch (e) {
+      print('저장 중 오류: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('저장 중 오류가 발생했습니다: $e')),
+        );
+      }
+    }
+  }
 
 // 입력값 검증
-bool _validateInputs() {
-  if (_nameController.text.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('고객명을 입력해주세요')),
-    );
-    return false;
+  bool _validateInputs() {
+    if (_nameController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('고객명을 입력해주세요')),
+      );
+      return false;
+    }
+
+    if (_phoneController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('연락처를 입력해주세요')),
+      );
+      return false;
+    }
+
+    if (_emailController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('이메일을 입력해주세요')),
+      );
+      return false;
+    }
+
+    if (_addressController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('주소를 입력해주세요')),
+      );
+      return false;
+    }
+
+    return true;
   }
 
-  if (_phoneController.text.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('연락처를 입력해주세요')),
-    );
-    return false;
-  }
-
-  if (_emailController.text.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('이메일을 입력해주세요')),
-    );
-    return false;
-  }
-
-  if (_addressController.text.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('주소를 입력해주세요')),
-    );
-    return false;
-  }
-
-  return true;
-}
   @override
   void initState() {
     super.initState();
@@ -317,626 +330,751 @@ bool _validateInputs() {
     return Scaffold(
         body: ResponsiveLayout(
             mobile: const SingleChildScrollView(),
-            desktop: SingleChildScrollView(
-                child: Form(
+            desktop: Form(
               key: _formKey,
               child:
                   Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                SingleChildScrollView(
-                  child: SizedBox(
-                    width: 240,
-                    child: Container(
-                      height: 1420,
-                      constraints: const BoxConstraints(maxWidth: 240),
-                      decoration: const BoxDecoration(
-                          border:
-                              Border(right: BorderSide(color: AppColor.line1))),
-                      child: Column(
-                        crossAxisAlignment:
-                            CrossAxisAlignment.center, // center로 변경
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: 40),
-                          SizedBox(
-                            width: 137,
-                            height: 17,
-                            child: Image.asset('assets/images/logo.png'),
-                          ),
-                          const SizedBox(height: 56),
-                          userData.when(
-                            data: (data) {
-                              if (data != null) {
-                                return Column(
-                                  children: [
-                                    // crossAxisAlignment 제거
-                                    Text(
-                                      UserProvider.getUserName(data),
-                                      style: const TextStyle(
-                                          fontSize: 24,
-                                          fontWeight: FontWeight.w600,
-                                          color: AppColor.font1),
-                                    ),
-                                  ],
-                                );
-                              }
-                              return const Text('사용자 정보를 불러올 수 없습니다.');
-                            },
-                            loading: () => const CircularProgressIndicator(),
-                            error: (error, stack) => Text('오류: $error'),
-                          ),
-                          const SizedBox(
-                            height: 16,
-                          ),
-                          InkWell(
-                            onTap: () {},
-                            child: Container(
-                              width: 152,
-                              height: 48,
-                              decoration: BoxDecoration(
-                                  color: Colors.transparent,
-                                  border: Border.all(
-                                    color: AppColor.line1,
-                                  )),
-                              child: const Center(
-                                  child: Text(
-                                '정보수정',
-                                style: TextStyle(
+                Container(
+                  width: 240,
+                  constraints: const BoxConstraints(minHeight: 1420),
+                  decoration: const BoxDecoration(
+                    border: Border(right: BorderSide(color: AppColor.line1)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      const SizedBox(height: 40),
+                      InkWell(
+                        onTap: () => context.go('/main'),
+                        child: SizedBox(
+                          width: 137,
+                          height: 17,
+                          child: Image.asset('assets/images/logo.png'),
+                        ),
+                      ),
+                      const SizedBox(height: 56),
+                      userData.when(
+                        data: (data) {
+                          if (data != null) {
+                            return Column(
+                              children: [
+                                Text(
+                                  UserProvider.getUserName(data),
+                                  style: const TextStyle(
+                                    fontSize: 24,
                                     fontWeight: FontWeight.w600,
                                     color: AppColor.font1,
-                                    fontSize: 16),
-                              )),
+                                  ),
+                                ),
+                              ],
+                            );
+                          }
+                          return const Text('사용자 정보를 불러올 수 없습니다.');
+                        },
+                        loading: () => const CircularProgressIndicator(),
+                        error: (error, stack) => Text('오류: $error'),
+                      ),
+                      const SizedBox(height: 16),
+                      // 정보수정 버튼
+                      Container(
+                        width: 152,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: AppColor.line1),
+                        ),
+                        child: const Center(
+                          child: Text(
+                            '정보수정',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: AppColor.font1,
+                              fontSize: 16,
                             ),
                           ),
-                          const SizedBox(
-                            height: 40,
-                          ),
-                          InkWell(
-                            onTap: () {},
-                            child: Container(
-                                width: 200,
-                                height: 48,
-                                color: Colors.transparent,
-                                child: const Row(
-                                  children: [
-                                    SizedBox(
-                                      width: 17.87,
-                                    ),
-                                    Icon(
-                                      Icons.search_outlined,
-                                      color: Colors.black,
-                                      size: 20,
-                                    ),
-                                    SizedBox(
-                                      width: 3.85,
-                                    ),
-                                    Text(
-                                      '대시보드',
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          color: AppColor.font1,
-                                          fontSize: 16),
-                                    ),
-                                  ],
-                                )),
-                          ),
-                          InkWell(
-                            onTap: () {},
-                            child: Container(
-                                width: 200,
-                                height: 48,
-                                color: Colors.transparent,
-                                child: const Row(
-                                  children: [
-                                    SizedBox(
-                                      width: 17.87,
-                                    ),
-                                    Icon(
-                                      Icons.person_outline_sharp,
-                                      color: Colors.black,
-                                      size: 20,
-                                    ),
-                                    SizedBox(
-                                      width: 3.85,
-                                    ),
-                                    Text(
-                                      '고객 정보',
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          color: AppColor.font1,
-                                          fontSize: 16),
-                                    ),
-                                  ],
-                                )),
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: 40),
+                      // 메뉴 버튼들
+                      InkWell(
+                        onTap: () => context.go('/main'),
+                        child: Container(
+                            width: 200,
+                            height: 48,
+                            color: Colors.black,
+                            child: Row(
+                              children: [
+                                const SizedBox(
+                                  width: 17.87,
+                                ),
+                                SizedBox(
+                                    width: 16.25,
+                                    height: 16.25,
+                                    child: Image.asset(
+                                      'assets/images/user.png',
+                                      color: Colors.white,
+                                    )),
+                                const SizedBox(
+                                  width: 3.85,
+                                ),
+                                const Text(
+                                  '담당 고객정보',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                      fontSize: 16),
+                                ),
+                              ],
+                            )),
+                      ),
+                      InkWell(
+                        onTap: () => context.go('/all-customers'),
+                        child: Container(
+                            width: 200,
+                            height: 48,
+                            color: Colors.transparent,
+                            child: Row(
+                              children: [
+                                const SizedBox(
+                                  width: 17.87,
+                                ),
+                                SizedBox(
+                                    width: 16.25,
+                                    height: 16.25,
+                                    child:
+                                        Image.asset('assets/images/group.png')),
+                                const SizedBox(
+                                  width: 3.85,
+                                ),
+                                const Text(
+                                  '전체 고객정보',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColor.font1,
+                                      fontSize: 16),
+                                ),
+                              ],
+                            )),
+                      ),
+                      InkWell(
+                        onTap: () {},
+                        child: Container(
+                            width: 200,
+                            height: 48,
+                            color: Colors.transparent,
+                            child: Row(
+                              children: [
+                                const SizedBox(
+                                  width: 17.87,
+                                ),
+                                SizedBox(
+                                    width: 16.25,
+                                    height: 16.25,
+                                    child:
+                                        Image.asset('assets/images/corp.png')),
+                                const SizedBox(
+                                  width: 3.85,
+                                ),
+                                const Text(
+                                  '업체 정보',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColor.font1,
+                                      fontSize: 16),
+                                ),
+                              ],
+                            )),
+                      ),
+                      const SizedBox(
+                        height: 48,
+                      ),
+                      InkWell(
+                        onTap: () {},
+                        child: Container(
+                            width: 200,
+                            height: 48,
+                            color: Colors.transparent,
+                            child: Row(
+                              children: [
+                                const SizedBox(
+                                  width: 17.87,
+                                ),
+                                SizedBox(
+                                    width: 16.25,
+                                    height: 16.25,
+                                    child: Image.asset('assets/images/as.png')),
+                                const SizedBox(
+                                  width: 3.85,
+                                ),
+                                const Text(
+                                  '교환',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColor.font1,
+                                      fontSize: 16),
+                                ),
+                              ],
+                            )),
+                      ),
+                      InkWell(
+                        onTap: () {},
+                        child: Container(
+                            width: 200,
+                            height: 48,
+                            color: Colors.transparent,
+                            child: Row(
+                              children: [
+                                const SizedBox(
+                                  width: 17.87,
+                                ),
+                                SizedBox(
+                                    width: 16.25,
+                                    height: 16.25,
+                                    child: Image.asset('assets/images/as.png')),
+                                const SizedBox(
+                                  width: 3.85,
+                                ),
+                                const Text(
+                                  '반품',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColor.font1,
+                                      fontSize: 16),
+                                ),
+                              ],
+                            )),
+                      ),
+                      const SizedBox(
+                        height: 48,
+                      ),
+                      InkWell(
+                        onTap: () => context.go('/temp'),
+                        child: Container(
+                            width: 200,
+                            height: 48,
+                            color: Colors.transparent,
+                            child: Row(
+                              children: [
+                                const SizedBox(
+                                  width: 17.87,
+                                ),
+                                SizedBox(
+                                    width: 16.25,
+                                    height: 16.25,
+                                    child:
+                                        Image.asset('assets/images/draft.png')),
+                                const SizedBox(
+                                  width: 3.85,
+                                ),
+                                const Text(
+                                  '임시저장',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColor.font1,
+                                      fontSize: 16),
+                                ),
+                              ],
+                            )),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(
                   width: 48,
                 ),
                 Expanded(
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(
-                          height: 40,
-                        ),
-                        SizedBox(
-                          // Container 추가하여 너비 제한
-                          width: MediaQuery.of(context).size.width -
-                              288, // 전체 너비 - (왼쪽 사이드바 240 + 간격 48)
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                '${DateTime.now().year}년 ${DateTime.now().month}월 ${DateTime.now().day}일',
-                                style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColor.font1),
-                              ),
-                              const Row(
-                                children: [
-                                  Icon(
-                                    Icons.person_outline_sharp,
-                                    color: AppColor.font2,
-                                  ),
-                                  SizedBox(width: 16),
-                                  Icon(
-                                    Icons.notifications_none_outlined,
-                                    color: AppColor.font2,
-                                  ),
-                                  SizedBox(width: 43), // 오른쪽 여백 추가
-                                ],
-                              )
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 56),
-                        const Text(
-                          '고객 정보 입력',
-                          style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w600,
-                              color: AppColor.font1),
-                        ),
-                        const SizedBox(
-                          height: 32,
-                        ),
-                        const Text(
-                          '기본 정보',
-                          style: TextStyle(
-                              fontSize: 18,
-                              color: AppColor.font1,
-                              fontWeight: FontWeight.w600),
-                        ),
-                        const SizedBox(
-                          height: 8,
-                        ),
-                        Container(
-                          width: 640,
-                          height: 2,
-                          color: AppColor.primary,
-                        ),
-                        const SizedBox(
-                          height: 24,
-                        ),
-                        const Text(
-                          '고객명',
-                          style: TextStyle(
-                              fontSize: 14,
-                              color: AppColor.font1,
-                              fontWeight: FontWeight.w600),
-                        ),
-                        const SizedBox(height: 12),
-                        Container(
-                          width: 640,
-                          height: 48,
-                          margin:
-                              const EdgeInsets.only(bottom: 24), // 에러 메시지 공간 확보
-                          decoration: BoxDecoration(
-                            border: Border.all(color: AppColor.line1),
-                          ),
-                          child: TextFormField(
-                            controller: _nameController,
-                            decoration: const InputDecoration(
-                              isDense: true,
-                              contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 14),
-                              border: InputBorder.none,
-                              hintText: '고객명을 입력해 주세요',
-                              hintStyle: TextStyle(
-                                  color: AppColor.font2, fontSize: 14),
-                            ),
-                          ),
-                        ),
-
-                        const Text(
-                          '연락처',
-                          style: TextStyle(
-                              fontSize: 14,
-                              color: AppColor.font1,
-                              fontWeight: FontWeight.w600),
-                        ),
-                        const SizedBox(height: 12),
-                        Container(
-                          width: 640,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            border: Border.all(color: AppColor.line1),
-                          ),
-                          child: TextFormField(
-                            controller: _phoneController,
-                            decoration: const InputDecoration(
-                              isDense: true,
-                              contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 14),
-                              border: InputBorder.none,
-                              hintText: '연락처를 입력해 주세요',
-                              hintStyle: TextStyle(
-                                  color: AppColor.font2, fontSize: 14),
-                            ),
-                            keyboardType: TextInputType.phone,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        const Text(
-                          '이메일 주소',
-                          style: TextStyle(
-                              fontSize: 14,
-                              color: AppColor.font1,
-                              fontWeight: FontWeight.w600),
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
+                  child: Padding(
+                    padding: const EdgeInsets.all(0),
+                    child: SingleChildScrollView(
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            const SizedBox(
+                              height: 40,
+                            ),
+                            SizedBox(
+                              // Container 추가하여 너비 제한
+                              width: MediaQuery.of(context).size.width -
+                                  288, // 전체 너비 - (왼쪽 사이드바 240 + 간격 48)
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    '${DateTime.now().year}년 ${DateTime.now().month}월 ${DateTime.now().day}일',
+                                    style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColor.font1),
+                                  ),
+                                  const Row(
+                                    children: [
+                                      Icon(
+                                        Icons.person_outline_sharp,
+                                        color: AppColor.font2,
+                                      ),
+                                      SizedBox(width: 16),
+                                      Icon(
+                                        Icons.notifications_none_outlined,
+                                        color: AppColor.font2,
+                                      ),
+                                      SizedBox(width: 43), // 오른쪽 여백 추가
+                                    ],
+                                  )
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 56),
+                            const Text(
+                              '고객 정보 입력',
+                              style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColor.font1),
+                            ),
+                            const SizedBox(
+                              height: 32,
+                            ),
+                            const Text(
+                              '기본 정보',
+                              style: TextStyle(
+                                  fontSize: 18,
+                                  color: AppColor.font1,
+                                  fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(
+                              height: 8,
+                            ),
                             Container(
-                              width: 301.5,
+                              width: 640,
+                              height: 2,
+                              color: AppColor.primary,
+                            ),
+                            const SizedBox(
+                              height: 24,
+                            ),
+                            const Text(
+                              '고객명',
+                              style: TextStyle(
+                                  fontSize: 14,
+                                  color: AppColor.font1,
+                                  fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(height: 12),
+                            Container(
+                              width: 640,
                               height: 48,
+                              margin: const EdgeInsets.only(
+                                  bottom: 24), // 에러 메시지 공간 확보
                               decoration: BoxDecoration(
                                 border: Border.all(color: AppColor.line1),
                               ),
                               child: TextFormField(
-                                controller: _emailController,
+                                controller: _nameController,
                                 decoration: const InputDecoration(
                                   isDense: true,
                                   contentPadding: EdgeInsets.symmetric(
                                       horizontal: 16, vertical: 14),
                                   border: InputBorder.none,
-                                  hintText: '이메일 주소를 입력해주세요',
+                                  hintText: '고객명을 입력해 주세요',
                                   hintStyle: TextStyle(
                                       color: AppColor.font2, fontSize: 14),
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            const Text(
-                              '@',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: AppColor.font1,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Container(
-                                width: 301.5,
-                                height: 48,
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: AppColor.line1),
-                                ),
-                                child: isDirectInput
-                                    ? TextFormField(
-                                        controller: _directDomainController,
-                                        decoration: const InputDecoration(
-                                          isDense: true,
-                                          contentPadding: EdgeInsets.symmetric(
-                                              horizontal: 16, vertical: 14),
-                                          border: InputBorder.none,
-                                          hintText: '직접 입력',
-                                          hintStyle: TextStyle(
-                                              color: AppColor.font2,
-                                              fontSize: 14),
-                                        ),
-                                      )
-                                    : DropdownButtonHideUnderline(
-                                        child: DropdownButton<String>(
-                                          value: selectedDomain,
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 16, vertical: 14),
-                                          items: [
-                                            'gmail.com',
-                                            'naver.com',
-                                            'kakao.com',
-                                            'nate.com',
-                                            'hanmail.net',
-                                            'daum.net',
-                                            '직접 입력'
-                                          ].map((String value) {
-                                            return DropdownMenuItem<String>(
-                                              value: value,
-                                              child: Text(
-                                                value,
-                                                style: const TextStyle(
-                                                  fontSize: 14,
-                                                  color: AppColor.font1,
-                                                ),
-                                              ),
-                                            );
-                                          }).toList(),
-                                          onChanged: (String? newValue) {
-                                            setState(() {
-                                              if (newValue == '직접 입력') {
-                                                isDirectInput = true;
-                                                selectedDomain = null;
-                                              } else {
-                                                isDirectInput = false;
-                                                selectedDomain = newValue;
-                                              }
-                                            });
-                                          },
-                                        ),
-                                      )),
-                          ],
-                        ),
-                        const SizedBox(
-                          height: 40,
-                        ),
-                        const Text(
-                          '배송 정보',
-                          style: TextStyle(
-                              fontSize: 18,
-                              color: AppColor.font1,
-                              fontWeight: FontWeight.w600),
-                        ),
-                        const SizedBox(
-                          height: 8,
-                        ),
-                        Container(
-                          height: 2,
-                          width: 640,
-                          color: AppColor.primary,
-                        ),
-                        const SizedBox(
-                          height: 24,
-                        ),
-                        AddressSearchField(
-                          controller: _addressController,
-                          detailController: _detailAddressController,
-                        ),
-                        const SizedBox(
-                          height: 40,
-                        ),
-                        const Text(
-                          '사업자 정보',
-                          style: TextStyle(
-                              fontSize: 18,
-                              color: AppColor.font1,
-                              fontWeight: FontWeight.w600),
-                        ),
-                        const SizedBox(
-                          height: 8,
-                        ),
-                        Container(
-                          height: 2,
-                          width: 640,
-                          color: AppColor.primary,
-                        ),
-                        const SizedBox(
-                          height: 24,
-                        ),
-                        FileUploadField(
-                          label: '사업자등록증',
-                          uploadPath: 'business_licenses',
-                          isAllFileTypes: false,
-                          onFileUploaded: (String url) {
-                            print('사업자등록증 업로드 전 URL: $_businessLicenseUrl');
-                            setState(() {
-                              _businessLicenseUrl = url;
-                            });
-                            print('사업자등록증 업로드 후 URL: $_businessLicenseUrl');
-                          },
-                          onFileSelected: (_) {}, // 웹에서는 필요없음
-                        ),
-                        const SizedBox(
-                          height: 24,
-                        ),
 
-                        FileUploadField(
-                          label: '기타 서류',
-                          uploadPath: 'other_documents',
-                          isAllFileTypes: true,
-                          onFileUploaded: (String url) {
-                            print('기타 서류 업로드 전 URLs: $_otherDocumentUrls');
-                            setState(() {
-                              _otherDocumentUrls.add(url);
-                            });
-                            print('기타 서류 업로드 후 URLs: $_otherDocumentUrls');
-                          },
-                          onFileSelected: (_) {}, // 웹에서는 필요없음
-                        ),
-                        ..._additionalFiles,
-                        const SizedBox(
-                          height: 12,
-                        ),
-                        InkWell(
-                          onTap: () {
-                            print('파일 추가 버튼 클릭');
-                            _addFileUploadField();
-                          },
-                          child: Container(
-                            height: 36,
-                            width: 640,
-                            decoration: BoxDecoration(
-                              border: Border.all(color: AppColor.line1),
+                            const Text(
+                              '연락처',
+                              style: TextStyle(
+                                  fontSize: 14,
+                                  color: AppColor.font1,
+                                  fontWeight: FontWeight.w600),
                             ),
-                            child: const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  '파일 추가',
-                                  style: TextStyle(
-                                    color: AppColor.font1,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                SizedBox(width: 8),
-                                Icon(Icons.add, color: AppColor.font1, size: 16)
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(
-                          height: 40,
-                        ),
-                        const Text(
-                          '기타 정보',
-                          style: TextStyle(
-                              fontSize: 18,
-                              color: AppColor.font1,
-                              fontWeight: FontWeight.w600),
-                        ),
-                        const SizedBox(
-                          height: 8,
-                        ),
-                        Container(
-                          height: 2,
-                          width: 640,
-                          color: AppColor.primary,
-                        ),
-                        const SizedBox(
-                          height: 24,
-                        ),
-                        const Text(
-                          '기타 입력 사항',
-                          style: TextStyle(
-                              fontSize: 14,
-                              color: AppColor.font1,
-                              fontWeight: FontWeight.w600),
-                        ),
-                        const SizedBox(
-                          height: 12,
-                        ),
-                        Container(
-                          width: 640,
-                          height: 180,
-                          decoration: BoxDecoration(
-                            border: Border.all(color: AppColor.line1),
-                          ),
-                          child: Stack(
-                            children: [
-                              TextFormField(
-                                controller: _noteController,
-                                maxLength: 2000,
-                                maxLines: null,
+                            const SizedBox(height: 12),
+                            Container(
+                              width: 640,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                border: Border.all(color: AppColor.line1),
+                              ),
+                              child: TextFormField(
+                                controller: _phoneController,
                                 decoration: const InputDecoration(
                                   isDense: true,
-                                  contentPadding: EdgeInsets.all(16),
+                                  contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 14),
                                   border: InputBorder.none,
-                                  hintText: '내용을 입력해주세요',
+                                  hintText: '연락처를 입력해 주세요',
                                   hintStyle: TextStyle(
-                                    color: AppColor.font2,
+                                      color: AppColor.font2, fontSize: 14),
+                                ),
+                                keyboardType: TextInputType.phone,
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            const Text(
+                              '이메일 주소',
+                              style: TextStyle(
+                                  fontSize: 14,
+                                  color: AppColor.font1,
+                                  fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                Container(
+                                  width: 301.5,
+                                  height: 48,
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: AppColor.line1),
+                                  ),
+                                  child: TextFormField(
+                                    controller: _emailController,
+                                    decoration: const InputDecoration(
+                                      isDense: true,
+                                      contentPadding: EdgeInsets.symmetric(
+                                          horizontal: 16, vertical: 14),
+                                      border: InputBorder.none,
+                                      hintText: '이메일 주소를 입력해주세요',
+                                      hintStyle: TextStyle(
+                                          color: AppColor.font2, fontSize: 14),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                const Text(
+                                  '@',
+                                  style: TextStyle(
                                     fontSize: 14,
-                                  ),
-                                  counterText: '',
-                                ),
-                              ),
-                              Positioned(
-                                right: 16,
-                                bottom: 16,
-                                child: Text(
-                                  '$_textLength/2000자',
-                                  style: const TextStyle(
-                                    color: AppColor.font2,
-                                    fontSize: 12,
+                                    color: AppColor.font1,
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ),
+                                const SizedBox(width: 12),
+                                Container(
+                                    width: 301.5,
+                                    height: 48,
+                                    decoration: BoxDecoration(
+                                      border: Border.all(color: AppColor.line1),
+                                    ),
+                                    child: isDirectInput
+                                        ? TextFormField(
+                                            controller: _directDomainController,
+                                            decoration: const InputDecoration(
+                                              isDense: true,
+                                              contentPadding:
+                                                  EdgeInsets.symmetric(
+                                                      horizontal: 16,
+                                                      vertical: 14),
+                                              border: InputBorder.none,
+                                              hintText: '직접 입력',
+                                              hintStyle: TextStyle(
+                                                  color: AppColor.font2,
+                                                  fontSize: 14),
+                                            ),
+                                          )
+                                        : DropdownButtonHideUnderline(
+                                            child: DropdownButton<String>(
+                                              value: selectedDomain,
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 16,
+                                                      vertical: 14),
+                                              items: [
+                                                'gmail.com',
+                                                'naver.com',
+                                                'kakao.com',
+                                                'nate.com',
+                                                'hanmail.net',
+                                                'daum.net',
+                                                '직접 입력'
+                                              ].map((String value) {
+                                                return DropdownMenuItem<String>(
+                                                  value: value,
+                                                  child: Text(
+                                                    value,
+                                                    style: const TextStyle(
+                                                      fontSize: 14,
+                                                      color: AppColor.font1,
+                                                    ),
+                                                  ),
+                                                );
+                                              }).toList(),
+                                              onChanged: (String? newValue) {
+                                                setState(() {
+                                                  if (newValue == '직접 입력') {
+                                                    isDirectInput = true;
+                                                    selectedDomain = null;
+                                                  } else {
+                                                    isDirectInput = false;
+                                                    selectedDomain = newValue;
+                                                  }
+                                                });
+                                              },
+                                            ),
+                                          )),
+                              ],
+                            ),
+                            const SizedBox(
+                              height: 40,
+                            ),
+                            const Text(
+                              '배송 정보',
+                              style: TextStyle(
+                                  fontSize: 18,
+                                  color: AppColor.font1,
+                                  fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(
+                              height: 8,
+                            ),
+                            Container(
+                              height: 2,
+                              width: 640,
+                              color: AppColor.primary,
+                            ),
+                            const SizedBox(
+                              height: 24,
+                            ),
+                            AddressSearchField(
+                              controller: _addressController,
+                              detailController: _detailAddressController,
+                            ),
+                            const SizedBox(
+                              height: 40,
+                            ),
+                            const Text(
+                              '사업자 정보',
+                              style: TextStyle(
+                                  fontSize: 18,
+                                  color: AppColor.font1,
+                                  fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(
+                              height: 8,
+                            ),
+                            Container(
+                              height: 2,
+                              width: 640,
+                              color: AppColor.primary,
+                            ),
+                            const SizedBox(
+                              height: 24,
+                            ),
+                            FileUploadField(
+                              label: '사업자등록증',
+                              uploadPath: 'business_licenses',
+                              isAllFileTypes: false,
+                              onFileUploaded: (String url) {
+                                print('사업자등록증 업로드 전 URL: $_businessLicenseUrl');
+                                setState(() {
+                                  _businessLicenseUrl = url;
+                                });
+                                print('사업자등록증 업로드 후 URL: $_businessLicenseUrl');
+                              },
+                              onFileSelected: (_) {}, // 웹에서는 필요없음
+                            ),
+                            const SizedBox(
+                              height: 24,
+                            ),
 
-                        const SizedBox(
-                          height: 48,
-                        ),
-                        Row(
-                          children: [
+                            FileUploadField(
+                              label: '기타 서류',
+                              uploadPath: 'other_documents',
+                              isAllFileTypes: true,
+                              onFileUploaded: (String url) {
+                                print('기타 서류 업로드 전 URLs: $_otherDocumentUrls');
+                                setState(() {
+                                  _otherDocumentUrls.add(url);
+                                });
+                                print('기타 서류 업로드 후 URLs: $_otherDocumentUrls');
+                              },
+                              onFileSelected: (_) {}, // 웹에서는 필요없음
+                            ),
+                            ..._additionalFiles,
+                            const SizedBox(
+                              height: 12,
+                            ),
                             InkWell(
                               onTap: () {
-                                GoRouter.of(context).go('/main');
+                                print('파일 추가 버튼 클릭');
+                                _addFileUploadField();
                               },
                               child: Container(
-                                width: 60,
-                                height: 48,
+                                height: 36,
+                                width: 640,
                                 decoration: BoxDecoration(
-                                  color: Colors.transparent,
                                   border: Border.all(color: AppColor.line1),
                                 ),
-                                child: const Center(
-                                  child: Text(
-                                    '취소',
-                                    style: TextStyle(
-                                        color: AppColor.primary,
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600),
-                                  ),
+                                child: const Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      '파일 추가',
+                                      style: TextStyle(
+                                        color: AppColor.font1,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    SizedBox(width: 8),
+                                    Icon(Icons.add,
+                                        color: AppColor.font1, size: 16)
+                                  ],
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 8),
-                            InkWell(
-                              onTap: _saveTempCustomer,
-                              child: Container(
-                                width: 87,
-                                height: 48,
-                                decoration: BoxDecoration(
-                                  color: Colors.transparent,
-                                  border: Border.all(color: AppColor.line1),
-                                ),
-                                child: const Center(
-                                  child: Text(
-                                    '임시 저장',
-                                    style: TextStyle(
-                                        color: AppColor.primary,
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600),
+                            const SizedBox(
+                              height: 40,
+                            ),
+                            const Text(
+                              '기타 정보',
+                              style: TextStyle(
+                                  fontSize: 18,
+                                  color: AppColor.font1,
+                                  fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(
+                              height: 8,
+                            ),
+                            Container(
+                              height: 2,
+                              width: 640,
+                              color: AppColor.primary,
+                            ),
+                            const SizedBox(
+                              height: 24,
+                            ),
+                            const Text(
+                              '기타 입력 사항',
+                              style: TextStyle(
+                                  fontSize: 14,
+                                  color: AppColor.font1,
+                                  fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(
+                              height: 12,
+                            ),
+                            Container(
+                              width: 640,
+                              height: 180,
+                              decoration: BoxDecoration(
+                                border: Border.all(color: AppColor.line1),
+                              ),
+                              child: Stack(
+                                children: [
+                                  TextFormField(
+                                    controller: _noteController,
+                                    maxLength: 2000,
+                                    maxLines: null,
+                                    decoration: const InputDecoration(
+                                      isDense: true,
+                                      contentPadding: EdgeInsets.all(16),
+                                      border: InputBorder.none,
+                                      hintText: '내용을 입력해주세요',
+                                      hintStyle: TextStyle(
+                                        color: AppColor.font2,
+                                        fontSize: 14,
+                                      ),
+                                      counterText: '',
+                                    ),
                                   ),
-                                ),
+                                  Positioned(
+                                    right: 16,
+                                    bottom: 16,
+                                    child: Text(
+                                      '$_textLength/2000자',
+                                      style: const TextStyle(
+                                        color: AppColor.font2,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            const SizedBox(width: 8),
-                            InkWell(
-                              onTap: () {
-                                // 고객 추가 처리
-                                _saveCustomer();
-                              },
-                              child: Container(
-                                width: 60,
-                                height: 48,
-                                decoration: BoxDecoration(
-                                  color: AppColor.primary,
-                                  border: Border.all(color: AppColor.line1),
-                                ),
-                                child: const Center(
-                                  child: Text(
-                                    '다음',
-                                    style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
 
-                        // 사업자등록증 부분을 다음과 같이 변경
-                      ]),
+                            const SizedBox(
+                              height: 48,
+                            ),
+                            Row(
+                              children: [
+                                InkWell(
+                                  onTap: () {
+                                    GoRouter.of(context).go('/main');
+                                  },
+                                  child: Container(
+                                    width: 60,
+                                    height: 48,
+                                    decoration: BoxDecoration(
+                                      color: Colors.transparent,
+                                      border: Border.all(color: AppColor.line1),
+                                    ),
+                                    child: const Center(
+                                      child: Text(
+                                        '취소',
+                                        style: TextStyle(
+                                            color: AppColor.primary,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                InkWell(
+                                  onTap: _saveTempCustomer,
+                                  child: Container(
+                                    width: 87,
+                                    height: 48,
+                                    decoration: BoxDecoration(
+                                      color: Colors.transparent,
+                                      border: Border.all(color: AppColor.line1),
+                                    ),
+                                    child: const Center(
+                                      child: Text(
+                                        '임시 저장',
+                                        style: TextStyle(
+                                            color: AppColor.primary,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                InkWell(
+                                  onTap: () {
+                                    // 고객 추가 처리
+                                    _saveCustomer();
+                                  },
+                                  child: Container(
+                                    width: 60,
+                                    height: 48,
+                                    decoration: BoxDecoration(
+                                      color: AppColor.primary,
+                                      border: Border.all(color: AppColor.line1),
+                                    ),
+                                    child: const Center(
+                                      child: Text(
+                                        '다음',
+                                        style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(
+                              height: 48,
+                            )
+                            // 사업자등록증 부분을 다음과 같이 변경
+                          ]),
+                    ),
+                  ),
                 ),
               ]),
-            ))));
+            )));
   }
 }

@@ -505,10 +505,10 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                   width: cellWidth,
                   child: _buildInfoCell('담당자 성함', userData?['name'] ?? ''),
                 ),
-                // SizedBox(
-                //   width: cellWidth,
-                //   child: _buildInfoCell('연락처', userData?.phone ?? ''),
-                // ),
+                SizedBox(
+                  width: cellWidth,
+                  child: _buildInfoCell('연락처', userData?['phoneNumber'] ?? ''),
+                ),
               ],
             );
           },
@@ -589,69 +589,22 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
 
       final pdf = pw.Document();
 
-      // A4 크기의 페이지 생성
+      // 넓은 페이지 크기 설정 (A4 너비의 두 배, 높이는 자동)
+      final pageFormat = PdfPageFormat(
+        PdfPageFormat.a4.width * 1.5, // 너비를 1.5배로
+        PdfPageFormat.a4.height * 2, // 높이를 2배로 (필요에 따라 조정)
+        marginAll: 40,
+      );
+
       pdf.addPage(
-        pw.MultiPage(
-          pageFormat: PdfPageFormat.a4,
-          margin: const pw.EdgeInsets.all(40),
-          theme: pw.ThemeData.withFont(
-            base: ttf,
-            bold: ttfBold,
-          ),
-          build: (pw.Context context) => [
-            // 날짜
-            pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Text(
-                  '${DateTime.now().year}년 ${DateTime.now().month}월 ${DateTime.now().day}일',
-                  style: pw.TextStyle(
-                      fontSize: 16, fontWeight: pw.FontWeight.bold),
-                ),
-              ],
-            ),
-            pw.SizedBox(height: 20),
-
-            // 제목
-            pw.Text(
-              '견적서',
-              style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
-            ),
-            pw.SizedBox(height: 40),
-
-            // 고객 정보 섹션
-            _buildPDFSection(
-              '고객 정보',
-              data['customer'] as Customer,
-              isCustomerSection: true,
-            ),
-            pw.SizedBox(height: 20),
-
-            // 공간 정보 섹션
-            _buildPDFSection(
-              '공간 정보',
-              data['estimate'] as Map<String, dynamic>,
-              isSpaceSection: true,
-            ),
-            pw.SizedBox(height: 20),
-
-            // 견적 정보 섹션
-            _buildPDFEstimateSection(
-              data['estimate'] as Map<String, dynamic>,
-            ),
-            pw.SizedBox(height: 20),
-
-            // 담당자 정보 섹션
-            _buildPDFSection(
-              '담당자 정보',
-              data['userData'] as Map<String, dynamic>?,
-              isManagerSection: true,
-            ),
-          ],
+        pw.Page(
+          pageFormat: pageFormat,
+          build: (pw.Context context) {
+            return _buildPDFContent(data, ttf, ttfBold);
+          },
         ),
       );
 
-      // PDF 다운로드
       final bytes = await pdf.save();
       final blob = html.Blob([bytes], 'application/pdf');
       final url = html.Url.createObjectUrlFromBlob(blob);
@@ -668,82 +621,432 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
     }
   }
 
-  // PDF 섹션 생성 헬퍼 함수
-  pw.Widget _buildPDFSection(
-    String title,
-    dynamic data, {
-    bool isCustomerSection = false,
-    bool isSpaceSection = false,
-    bool isManagerSection = false,
-  }) {
+  pw.Widget _buildPDFContent(
+      Map<String, dynamic> data, pw.Font ttf, pw.Font ttfBold) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        pw.Text(title,
-            style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
-        pw.Divider(thickness: 2),
-        if (isCustomerSection) ...[
-          _buildPDFCustomerInfo(data as Customer),
-        ] else if (isSpaceSection) ...[
-          _buildPDFSpaceInfo(data as Map<String, dynamic>),
-        ] else if (isManagerSection) ...[
-          _buildPDFManagerInfo(data as Map<String, dynamic>?),
-        ],
+        // 헤더
+        _buildPDFHeader(ttfBold),
+        pw.SizedBox(height: 56),
+
+        // 제목
+        pw.Text(
+          '견적서',
+          style: pw.TextStyle(
+              fontSize: 24, font: ttfBold, color: PdfColor.fromHex('1A1A1A')),
+        ),
+        pw.SizedBox(height: 32),
+
+        // 각 섹션
+        _buildPDFCustomerSection(data['customer'], ttf, ttfBold),
+        pw.SizedBox(height: 48),
+        _buildPDFSpaceSection(data['estimate'], ttf, ttfBold),
+        pw.SizedBox(height: 48),
+        _buildPDFEstimateSection(data['estimate'], ttf, ttfBold),
+        pw.SizedBox(height: 48),
+        _buildPDFManagerSection(data['userData'], ttf, ttfBold),
       ],
     );
   }
 
-  // 견적 정보 섹션 생성
-  pw.Widget _buildPDFEstimateSection(Map<String, dynamic> estimate) {
+// PDF 헤더 위젯
+  pw.Widget _buildPDFHeader(pw.Font ttfBold) {
+    return pw.Row(
+      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+      children: [
+        pw.Text(
+          '${DateTime.now().year}년 ${DateTime.now().month}월 ${DateTime.now().day}일',
+          style: pw.TextStyle(
+            fontSize: 18,
+            font: ttfBold,
+            color: PdfColor.fromHex('1A1A1A'),
+          ),
+        ),
+      ],
+    );
+  }
+
+// PDF 고객 정보 섹션
+  pw.Widget _buildPDFCustomerSection(
+      Customer customer, pw.Font ttf, pw.Font ttfBold) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(
+          '고객 정보',
+          style: pw.TextStyle(
+              fontSize: 18, font: ttfBold, color: PdfColor.fromHex('1A1A1A')),
+        ),
+        pw.SizedBox(height: 12),
+        pw.Container(
+          width: double.infinity,
+          height: 2,
+          color: PdfColor.fromHex('000000'),
+        ),
+        pw.SizedBox(height: 24),
+        pw.Table(
+          columnWidths: {
+            0: const pw.FlexColumnWidth(1),
+            1: const pw.FlexColumnWidth(1),
+          },
+          children: [
+            pw.TableRow(children: [
+              _buildPDFInfoCell('고객명', customer.name, ttf),
+              _buildPDFInfoCell('연락처', customer.phone, ttf),
+            ]),
+            pw.TableRow(children: [
+              _buildPDFInfoCell('이메일주소', customer.email, ttf),
+              _buildPDFInfoCell('배송지주소', customer.address, ttf),
+            ]),
+            pw.TableRow(children: [
+              _buildPDFInfoCell(
+                  '사업자등록증',
+                  customer.businessLicenseUrl.isEmpty
+                      ? '미첨부'
+                      : getFileName(customer.businessLicenseUrl),
+                  ttf),
+              _buildPDFInfoCell(
+                  '기타서류',
+                  customer.otherDocumentUrls.isEmpty
+                      ? '미첨부'
+                      : getFileName(customer.otherDocumentUrls.first),
+                  ttf),
+            ]),
+          ],
+        ),
+        _buildPDFFullWidthCell('기타입력사항', customer.note, ttf),
+      ],
+    );
+  }
+
+// PDF 공간 정보 섹션
+  pw.Widget _buildPDFSpaceSection(
+      Map<String, dynamic> estimate, pw.Font ttf, pw.Font ttfBold) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(
+          '공간 정보',
+          style: pw.TextStyle(
+              fontSize: 18, font: ttfBold, color: PdfColor.fromHex('1A1A1A')),
+        ),
+        pw.SizedBox(height: 12),
+        pw.Container(
+          width: double.infinity,
+          height: 2,
+          color: PdfColor.fromHex('000000'),
+        ),
+        pw.SizedBox(height: 24),
+        pw.Table(
+          columnWidths: {
+            0: const pw.FlexColumnWidth(1),
+            1: const pw.FlexColumnWidth(1),
+          },
+          children: [
+            pw.TableRow(children: [
+              _buildPDFInfoCell('현장주소', estimate['siteAddress'] ?? '', ttf),
+              _buildPDFInfoCell(
+                  '공간오픈일정', _formatDate(estimate['openingDate']), ttf),
+            ]),
+            pw.TableRow(children: [
+              _buildPDFInfoCell(
+                  '예산',
+                  '${estimate['minBudget']?.toString() ?? '0'} ~ ${estimate['maxBudget']?.toString() ?? '0'}원',
+                  ttf),
+              _buildPDFInfoCell(
+                  '공간면적', '${estimate['spaceArea']?.toString() ?? '0'} ㎡', ttf),
+            ]),
+            pw.TableRow(children: [
+              _buildPDFInfoCell('업종', estimate['businessType'] ?? '', ttf),
+              _buildPDFInfoCell(
+                  '공간컨셉',
+                  (estimate['concept'] as List<dynamic>?)?.join(', ') ?? '',
+                  ttf),
+            ]),
+            pw.TableRow(children: [
+              _buildPDFInfoCell('수령자', estimate['recipient'] ?? '', ttf),
+              _buildPDFInfoCell('연락처', estimate['contactNumber'] ?? '', ttf),
+            ]),
+            pw.TableRow(children: [
+              _buildPDFInfoCell('배송방법', estimate['shippingMethod'] ?? '', ttf),
+              _buildPDFInfoCell('결제방법', estimate['paymentMethod'] ?? '', ttf),
+            ]),
+          ],
+        ),
+        _buildPDFFullWidthCell('기타입력사항', estimate['basicNotes'] ?? '', ttf),
+      ],
+    );
+  }
+
+// PDF 담당자 정보 섹션
+  pw.Widget _buildPDFManagerSection(
+      Map<String, dynamic>? userData, pw.Font ttf, pw.Font ttfBold) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(
+          '담당자 정보',
+          style: pw.TextStyle(
+              fontSize: 18, font: ttfBold, color: PdfColor.fromHex('1A1A1A')),
+        ),
+        pw.SizedBox(height: 12),
+        pw.Container(
+          width: double.infinity,
+          height: 2,
+          color: PdfColor.fromHex('000000'),
+        ),
+        pw.SizedBox(height: 24),
+        pw.Table(
+          columnWidths: {
+            0: const pw.FlexColumnWidth(1),
+            1: const pw.FlexColumnWidth(1),
+          },
+          children: [
+            pw.TableRow(children: [
+              _buildPDFInfoCell('담당자 성함', userData?['name'] ?? '', ttf),
+              _buildPDFInfoCell('담당자 성함', userData?['phoneNumber'] ?? '', ttf),
+              pw.Container(), // 빈 셀
+            ]),
+          ],
+        ),
+      ],
+    );
+  }
+
+// PDF용 정보 셀 위젯
+  pw.Widget _buildPDFInfoCell(String label, String value, pw.Font ttf) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(12),
+      decoration: pw.BoxDecoration(
+        border:
+            pw.Border(bottom: pw.BorderSide(color: PdfColor.fromHex('EAEAEC'))),
+      ),
+      child: pw.Row(
+        children: [
+          pw.Container(
+            width: 120,
+            padding: const pw.EdgeInsets.symmetric(horizontal: 8),
+            color: PdfColor.fromHex('F7F7FB'),
+            child: pw.Text(
+              label,
+              style: pw.TextStyle(fontSize: 14, font: ttf),
+            ),
+          ),
+          pw.Expanded(
+            child: pw.Padding(
+              padding: const pw.EdgeInsets.symmetric(horizontal: 8),
+              child: pw.Text(
+                value,
+                style: pw.TextStyle(fontSize: 14, font: ttf),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+// PDF용 전체 너비 셀 위젯
+  pw.Widget _buildPDFFullWidthCell(String label, String value, pw.Font ttf) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(12),
+      decoration: pw.BoxDecoration(
+        border:
+            pw.Border(bottom: pw.BorderSide(color: PdfColor.fromHex('EAEAEC'))),
+      ),
+      child: pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Container(
+            width: 120,
+            padding: const pw.EdgeInsets.symmetric(horizontal: 8),
+            color: PdfColor.fromHex('F7F7FB'),
+            child: pw.Text(
+              label,
+              style: pw.TextStyle(fontSize: 14, font: ttf),
+            ),
+          ),
+          pw.Expanded(
+            child: pw.Padding(
+              padding: const pw.EdgeInsets.symmetric(horizontal: 8),
+              child: pw.Text(
+                value,
+                style: pw.TextStyle(fontSize: 14, font: ttf),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String getFileName(String url) {
+    try {
+      String fileName = url.split('/').last;
+      fileName = Uri.decodeFull(fileName);
+      fileName = fileName.split('?').first;
+      return fileName;
+    } catch (e) {
+      return url;
+    }
+  }
+
+  pw.Widget _buildPDFSection(
+      String title, List<pw.Widget> content, pw.Font ttf, pw.Font ttfBold) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(
+          title,
+          style: pw.TextStyle(
+              fontSize: 18, font: ttfBold, color: PdfColor.fromHex('1A1A1A')),
+        ),
+        pw.SizedBox(height: 12),
+        pw.Container(
+          width: double.infinity,
+          decoration: pw.BoxDecoration(
+            border: pw.Border(
+              bottom:
+                  pw.BorderSide(color: PdfColor.fromHex('000000'), width: 2),
+            ),
+          ),
+        ),
+        pw.SizedBox(height: 24),
+        ...content,
+      ],
+    );
+  }
+
+  pw.Widget _buildPDFInfoRow(String label, String value, pw.Font ttf) {
+    return pw.Container(
+      decoration: pw.BoxDecoration(
+        border: pw.Border(
+          bottom: pw.BorderSide(color: PdfColor.fromHex('EAEAEC')),
+        ),
+      ),
+      height: 48,
+      child: pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.center,
+        children: [
+          pw.Container(
+            width: 120,
+            color: PdfColor.fromHex('F7F7FB'),
+            padding:
+                const pw.EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: pw.Text(
+              label,
+              style: pw.TextStyle(fontSize: 14, font: ttf),
+            ),
+          ),
+          pw.Expanded(
+            child: pw.Padding(
+              padding: const pw.EdgeInsets.symmetric(horizontal: 16),
+              child: pw.Text(
+                value,
+                style: pw.TextStyle(fontSize: 14, font: ttf),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  pw.Widget _buildPDFEstimateSection(
+      Map<String, dynamic> estimate, pw.Font ttf, pw.Font ttfBold) {
     final furnitureList = (estimate['furnitureList'] as List<dynamic>?) ?? [];
 
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        pw.Text('견적 정보',
-            style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
-        pw.Divider(thickness: 2),
-        pw.Table(
-          border: pw.TableBorder.all(),
-          children: [
-            // 테이블 헤더
-            pw.TableRow(
-              children: [
-                _buildPDFTableCell('견적종류', header: true),
-                _buildPDFTableCell('가구명', header: true),
-                _buildPDFTableCell('수량', header: true),
-                _buildPDFTableCell('견적일자', header: true),
-                _buildPDFTableCell('가격', header: true),
-              ],
+        pw.Text(
+          '견적 정보',
+          style: pw.TextStyle(
+              fontSize: 18, font: ttfBold, color: PdfColor.fromHex('1A1A1A')),
+        ),
+        pw.SizedBox(height: 12),
+        pw.Container(
+          width: double.infinity,
+          decoration: pw.BoxDecoration(
+            border: pw.Border(
+              bottom:
+                  pw.BorderSide(color: PdfColor.fromHex('000000'), width: 2),
             ),
-            // 가구 목록
-            ...furnitureList
-                .map((furniture) => pw.TableRow(
-                      children: [
-                        _buildPDFTableCell('기존가구'),
-                        _buildPDFTableCell(furniture['name'] ?? ''),
-                        _buildPDFTableCell(
-                            furniture['quantity']?.toString() ?? ''),
-                        _buildPDFTableCell(_formatDate(estimate['updatedAt'])),
-                        _buildPDFTableCell(
-                            '${_formatNumber(furniture['price'])}원'),
-                      ],
-                    ))
-                .toList(),
-            // 총 합계
-            pw.TableRow(
-              children: [
-                _buildPDFTableCell(''),
-                _buildPDFTableCell(''),
-                _buildPDFTableCell(''),
-                _buildPDFTableCell('총 합계', header: true),
-                _buildPDFTableCell(
-                  '${_formatNumber(_calculateTotal(furnitureList))}원',
-                  header: true,
+          ),
+        ),
+        pw.SizedBox(height: 16),
+        pw.Container(
+          decoration: pw.BoxDecoration(
+            border: pw.Border.all(color: PdfColor.fromHex('EAEAEC')),
+          ),
+          child: pw.Column(
+            children: [
+              // 테이블 헤더
+              pw.Container(
+                color: PdfColor.fromHex('F7F7FB'),
+                padding: const pw.EdgeInsets.all(16),
+                child: pw.Row(
+                  children: [
+                    pw.Expanded(
+                        flex: 2,
+                        child: pw.Text('견적종류',
+                            style: pw.TextStyle(font: ttfBold))),
+                    pw.Expanded(
+                        flex: 3,
+                        child:
+                            pw.Text('가구명', style: pw.TextStyle(font: ttfBold))),
+                    pw.Expanded(
+                        flex: 1,
+                        child:
+                            pw.Text('수량', style: pw.TextStyle(font: ttfBold))),
+                    pw.Expanded(
+                        flex: 2,
+                        child: pw.Text('견적일자',
+                            style: pw.TextStyle(font: ttfBold))),
+                    pw.Expanded(
+                        flex: 2,
+                        child:
+                            pw.Text('가격', style: pw.TextStyle(font: ttfBold))),
+                  ],
                 ),
-              ],
-            ),
-          ],
+              ),
+              ...furnitureList.map((furniture) => pw.Container(
+                    decoration: pw.BoxDecoration(
+                      border: pw.Border(
+                        top: pw.BorderSide(color: PdfColor.fromHex('EAEAEC')),
+                      ),
+                    ),
+                    padding: const pw.EdgeInsets.all(16),
+                    child: pw.Row(
+                      children: [
+                        pw.Expanded(
+                            flex: 2,
+                            child: pw.Text('기존가구',
+                                style: pw.TextStyle(font: ttf))),
+                        pw.Expanded(
+                            flex: 3,
+                            child: pw.Text(furniture['name'] ?? '',
+                                style: pw.TextStyle(font: ttf))),
+                        pw.Expanded(
+                            flex: 1,
+                            child: pw.Text(
+                                furniture['quantity']?.toString() ?? '',
+                                style: pw.TextStyle(font: ttf))),
+                        pw.Expanded(
+                            flex: 2,
+                            child: pw.Text(_formatDate(estimate['updatedAt']),
+                                style: pw.TextStyle(font: ttf))),
+                        pw.Expanded(
+                            flex: 2,
+                            child: pw.Text(
+                                '${_formatNumber(furniture['price'])}원',
+                                style: pw.TextStyle(font: ttf))),
+                      ],
+                    ),
+                  )),
+            ],
+          ),
         ),
       ],
     );
@@ -759,60 +1062,6 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
           fontWeight: header ? pw.FontWeight.bold : null,
         ),
       ),
-    );
-  }
-
-  // 나머지 헬퍼 함수들...
-  pw.Widget _buildPDFCustomerInfo(Customer customer) {
-    return pw.Table(
-      border: pw.TableBorder.all(),
-      children: [
-        _buildPDFInfoRow('고객명', customer.name),
-        _buildPDFInfoRow('연락처', customer.phone),
-        _buildPDFInfoRow('이메일주소', customer.email),
-        _buildPDFInfoRow('배송지주소', customer.address),
-        // ... 기타 필요한 정보
-      ],
-    );
-  }
-
-  pw.Widget _buildPDFSpaceInfo(Map<String, dynamic> space) {
-    return pw.Table(
-      border: pw.TableBorder.all(),
-      children: [
-        _buildPDFInfoRow('현장주소', space['siteAddress'] ?? ''),
-        _buildPDFInfoRow('공간오픈일정', _formatDate(space['openingDate'])),
-        _buildPDFInfoRow('예산',
-            '${space['minBudget']?.toString() ?? '0'} ~ ${space['maxBudget']?.toString() ?? '0'}원'),
-        _buildPDFInfoRow('공간면적', '${space['spaceArea']?.toString() ?? '0'} ㎡'),
-        // ... 기타 필요한 정보
-      ],
-    );
-  }
-
-  pw.Widget _buildPDFManagerInfo(Map<String, dynamic>? manager) {
-    return pw.Table(
-      border: pw.TableBorder.all(),
-      children: [
-        _buildPDFInfoRow('담당자 성함', manager?['name'] ?? ''),
-        // ... 기타 필요한 정보
-      ],
-    );
-  }
-
-  pw.TableRow _buildPDFInfoRow(String label, String value) {
-    return pw.TableRow(
-      children: [
-        pw.Container(
-          padding: const pw.EdgeInsets.all(8),
-          width: 120,
-          child: pw.Text(label),
-        ),
-        pw.Container(
-          padding: const pw.EdgeInsets.all(8),
-          child: pw.Text(value),
-        ),
-      ],
     );
   }
 

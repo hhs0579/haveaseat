@@ -15,6 +15,7 @@ class signUp extends ConsumerWidget {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _phoneController = TextEditingController();
   // final _selectedRole = StateProvider<String?>((ref) => null);
   final _emailValidationMessage = StateProvider<String?>((ref) => null);
   @override
@@ -358,6 +359,51 @@ class signUp extends ConsumerWidget {
                               // ),
                             ),
                           ),
+                          const SizedBox(height: 20),
+                          const Text('휴대폰 번호',
+                              style: TextStyle(
+                                color: AppColor.font1,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              )),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: _phoneController,
+                            keyboardType: TextInputType.phone,
+                            validator: (value) {
+                              if (value?.isEmpty ?? true) {
+                                return '휴대폰 번호를 입력해주세요';
+                              }
+                              // Simple Korean phone number validation
+                              final phoneRegExp =
+                                  RegExp(r'^010-?([0-9]{4})-?([0-9]{4})$');
+                              if (!phoneRegExp.hasMatch(value!)) {
+                                return '올바른 휴대폰 번호 형식이 아닙니다';
+                              }
+                              return null;
+                            },
+                            decoration: const InputDecoration(
+                              hintText: '휴대폰 번호를 입력해 주세요',
+                              hintStyle: TextStyle(
+                                color: AppColor.font2,
+                                fontSize: 14,
+                              ),
+                              border: OutlineInputBorder(
+                                borderSide: BorderSide(color: AppColor.line1),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderSide: BorderSide(color: AppColor.line1),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderSide: BorderSide(color: AppColor.line1),
+                              ),
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              errorStyle: TextStyle(height: 0),
+                            ),
+                          ),
                           const SizedBox(height: 36),
                           // 회원가입 버튼
                           SizedBox(
@@ -369,26 +415,6 @@ class signUp extends ConsumerWidget {
                                   : () async {
                                       if (_formKey.currentState?.validate() ??
                                           false) {
-                                        // 부서 선택 체크
-                                        // if (selectedDepartment == null) {
-                                        //   ScaffoldMessenger.of(context)
-                                        //       .showSnackBar(
-                                        //     const SnackBar(
-                                        //         content: Text('소속부서를 선택해주세요')),
-                                        //   );
-                                        //   return;
-                                        // }
-
-                                        // 직급 선택 체크
-                                        // if (selectedPosition == null) {
-                                        //   ScaffoldMessenger.of(context)
-                                        //       .showSnackBar(
-                                        //     const SnackBar(
-                                        //         content: Text('직급을 선택해주세요')),
-                                        //   );
-                                        //   return;
-                                        // }
-
                                         try {
                                           await ref
                                               .read(signUpNotifierProvider
@@ -398,14 +424,12 @@ class signUp extends ConsumerWidget {
                                                 password:
                                                     _passwordController.text,
                                                 name: _nameController.text,
-                                                // department: selectedDepartment,
-                                                // position: selectedPosition,
+                                                phoneNumber:
+                                                    _phoneController.text,
                                               );
 
                                           if (context.mounted) {
-                                            // 먼저 로그인 페이지로 이동
                                             context.go('/login');
-                                            // 그 다음 로그아웃
                                           }
                                         } catch (e) {
                                           if (context.mounted) {
