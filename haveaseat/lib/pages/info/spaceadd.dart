@@ -414,469 +414,587 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
     return Scaffold(
         body: ResponsiveLayout(
             mobile: const SingleChildScrollView(),
-            desktop: SingleChildScrollView(
-                child: Form(
+            desktop: Form(
               key: _formKey,
               child:
                   Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                SingleChildScrollView(
-                  child: SizedBox(
-                    width: 240,
-                    child: Container(
-                      height: 1420,
-                      constraints: const BoxConstraints(maxWidth: 240),
-                      decoration: const BoxDecoration(
-                          border:
-                              Border(right: BorderSide(color: AppColor.line1))),
-                      child: Column(
-                        crossAxisAlignment:
-                            CrossAxisAlignment.center, // center로 변경
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: 40),
-                          SizedBox(
-                            width: 137,
-                            height: 17,
-                            child: Image.asset('assets/images/logo.png'),
-                          ),
-                          const SizedBox(height: 56),
-                          userData.when(
-                            data: (data) {
-                              if (data != null) {
-                                return Column(
-                                  children: [
-                                    // crossAxisAlignment 제거
-                                    Text(
-                                      UserProvider.getUserName(data),
-                                      style: const TextStyle(
-                                          fontSize: 24,
-                                          fontWeight: FontWeight.w600,
-                                          color: AppColor.font1),
-                                    ),
-                                  ],
-                                );
-                              }
-                              return const Text('사용자 정보를 불러올 수 없습니다.');
-                            },
-                            loading: () => const CircularProgressIndicator(),
-                            error: (error, stack) => Text('오류: $error'),
-                          ),
-                          const SizedBox(
-                            height: 16,
-                          ),
-                          InkWell(
-                            onTap: () {},
-                            child: Container(
-                              width: 152,
-                              height: 48,
-                              decoration: BoxDecoration(
-                                  color: Colors.transparent,
-                                  border: Border.all(
-                                    color: AppColor.line1,
-                                  )),
-                              child: const Center(
-                                  child: Text(
-                                '정보수정',
-                                style: TextStyle(
+                Container(
+                  width: 240,
+                  constraints: const BoxConstraints(minHeight: 1420),
+                  decoration: const BoxDecoration(
+                    border: Border(right: BorderSide(color: AppColor.line1)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      const SizedBox(height: 40),
+                      InkWell(
+                        onTap: () => context.go('/main'),
+                        child: SizedBox(
+                          width: 137,
+                          height: 17,
+                          child: Image.asset('assets/images/logo.png'),
+                        ),
+                      ),
+                      const SizedBox(height: 56),
+                      userData.when(
+                        data: (data) {
+                          if (data != null) {
+                            return Column(
+                              children: [
+                                Text(
+                                  UserProvider.getUserName(data),
+                                  style: const TextStyle(
+                                    fontSize: 24,
                                     fontWeight: FontWeight.w600,
                                     color: AppColor.font1,
-                                    fontSize: 16),
-                              )),
+                                  ),
+                                ),
+                              ],
+                            );
+                          }
+                          return const Text('사용자 정보를 불러올 수 없습니다.');
+                        },
+                        loading: () => const CircularProgressIndicator(),
+                        error: (error, stack) => Text('오류: $error'),
+                      ),
+                      const SizedBox(height: 16),
+                      // 정보수정 버튼
+                      Container(
+                        width: 152,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: AppColor.line1),
+                        ),
+                        child: const Center(
+                          child: Text(
+                            '정보수정',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: AppColor.font1,
+                              fontSize: 16,
                             ),
                           ),
-                          const SizedBox(
-                            height: 40,
-                          ),
-                          InkWell(
-                            onTap: () {},
-                            child: Container(
-                                width: 200,
-                                height: 48,
-                                color: Colors.transparent,
-                                child: const Row(
-                                  children: [
-                                    SizedBox(
-                                      width: 17.87,
-                                    ),
-                                    Icon(
-                                      Icons.person_outline_sharp,
-                                      color: Colors.black,
-                                      size: 20,
-                                    ),
-                                    SizedBox(
-                                      width: 3.85,
-                                    ),
-                                    Text(
-                                      '담당 고객정보',
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          color: AppColor.font1,
-                                          fontSize: 16),
-                                    ),
-                                  ],
-                                )),
-                          ),
-                          InkWell(
-                            onTap: () {},
-                            child: Container(
-                                width: 200,
-                                height: 48,
-                                color: Colors.transparent,
-                                child: const Row(
-                                  children: [
-                                    SizedBox(
-                                      width: 17.87,
-                                    ),
-                                    Icon(
-                                      Icons.person_outline_sharp,
-                                      color: Colors.black,
-                                      size: 20,
-                                    ),
-                                    SizedBox(
-                                      width: 3.85,
-                                    ),
-                                    Text(
-                                      '전체 고객정보',
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          color: AppColor.font1,
-                                          fontSize: 16),
-                                    ),
-                                  ],
-                                )),
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: 40),
+                      // 메뉴 버튼들
+                      InkWell(
+                        onTap: () => context.go('/main'),
+                        child: Container(
+                            width: 200,
+                            height: 48,
+                            color: Colors.black,
+                            child: Row(
+                              children: [
+                                const SizedBox(
+                                  width: 17.87,
+                                ),
+                                SizedBox(
+                                    width: 16.25,
+                                    height: 16.25,
+                                    child: Image.asset(
+                                      'assets/images/user.png',
+                                      color: Colors.white,
+                                    )),
+                                const SizedBox(
+                                  width: 3.85,
+                                ),
+                                const Text(
+                                  '담당 고객정보',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                      fontSize: 16),
+                                ),
+                              ],
+                            )),
+                      ),
+                      InkWell(
+                        onTap: () => context.go('/all-customers'),
+                        child: Container(
+                            width: 200,
+                            height: 48,
+                            color: Colors.transparent,
+                            child: Row(
+                              children: [
+                                const SizedBox(
+                                  width: 17.87,
+                                ),
+                                SizedBox(
+                                    width: 16.25,
+                                    height: 16.25,
+                                    child:
+                                        Image.asset('assets/images/group.png')),
+                                const SizedBox(
+                                  width: 3.85,
+                                ),
+                                const Text(
+                                  '전체 고객정보',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColor.font1,
+                                      fontSize: 16),
+                                ),
+                              ],
+                            )),
+                      ),
+                      InkWell(
+                        onTap: () {},
+                        child: Container(
+                            width: 200,
+                            height: 48,
+                            color: Colors.transparent,
+                            child: Row(
+                              children: [
+                                const SizedBox(
+                                  width: 17.87,
+                                ),
+                                SizedBox(
+                                    width: 16.25,
+                                    height: 16.25,
+                                    child:
+                                        Image.asset('assets/images/corp.png')),
+                                const SizedBox(
+                                  width: 3.85,
+                                ),
+                                const Text(
+                                  '업체 정보',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColor.font1,
+                                      fontSize: 16),
+                                ),
+                              ],
+                            )),
+                      ),
+                      const SizedBox(
+                        height: 48,
+                      ),
+                      InkWell(
+                        onTap: () {},
+                        child: Container(
+                            width: 200,
+                            height: 48,
+                            color: Colors.transparent,
+                            child: Row(
+                              children: [
+                                const SizedBox(
+                                  width: 17.87,
+                                ),
+                                SizedBox(
+                                    width: 16.25,
+                                    height: 16.25,
+                                    child: Image.asset('assets/images/as.png')),
+                                const SizedBox(
+                                  width: 3.85,
+                                ),
+                                const Text(
+                                  '교환',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColor.font1,
+                                      fontSize: 16),
+                                ),
+                              ],
+                            )),
+                      ),
+                      InkWell(
+                        onTap: () {},
+                        child: Container(
+                            width: 200,
+                            height: 48,
+                            color: Colors.transparent,
+                            child: Row(
+                              children: [
+                                const SizedBox(
+                                  width: 17.87,
+                                ),
+                                SizedBox(
+                                    width: 16.25,
+                                    height: 16.25,
+                                    child: Image.asset('assets/images/as.png')),
+                                const SizedBox(
+                                  width: 3.85,
+                                ),
+                                const Text(
+                                  '반품',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColor.font1,
+                                      fontSize: 16),
+                                ),
+                              ],
+                            )),
+                      ),
+                      const SizedBox(
+                        height: 48,
+                      ),
+                      InkWell(
+                        onTap: () => context.go('/temp'),
+                        child: Container(
+                            width: 200,
+                            height: 48,
+                            color: Colors.transparent,
+                            child: Row(
+                              children: [
+                                const SizedBox(
+                                  width: 17.87,
+                                ),
+                                SizedBox(
+                                    width: 16.25,
+                                    height: 16.25,
+                                    child:
+                                        Image.asset('assets/images/draft.png')),
+                                const SizedBox(
+                                  width: 3.85,
+                                ),
+                                const Text(
+                                  '임시저장',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColor.font1,
+                                      fontSize: 16),
+                                ),
+                              ],
+                            )),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(
                   width: 48,
                 ),
                 Expanded(
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(
-                          height: 40,
-                        ),
-                        SizedBox(
-                          // Container 추가하여 너비 제한
-                          width: MediaQuery.of(context).size.width -
-                              288, // 전체 너비 - (왼쪽 사이드바 240 + 간격 48)
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                '${DateTime.now().year}년 ${DateTime.now().month}월 ${DateTime.now().day}일',
-                                style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColor.font1),
-                              ),
-                              const Row(
-                                children: [
-                                  Icon(
-                                    Icons.person_outline_sharp,
-                                    color: AppColor.font2,
-                                  ),
-                                  SizedBox(width: 16),
-                                  Icon(
-                                    Icons.notifications_none_outlined,
-                                    color: AppColor.font2,
-                                  ),
-                                  SizedBox(width: 43), // 오른쪽 여백 추가
-                                ],
-                              )
-                            ],
+                  child: SingleChildScrollView(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(
+                            height: 40,
                           ),
-                        ),
-                        const SizedBox(height: 56),
-                        const Text(
-                          '공간 기본 정보 입력',
-                          style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w600,
-                              color: AppColor.font1),
-                        ),
-                        const SizedBox(
-                          height: 32,
-                        ),
+                          SizedBox(
+                            // Container 추가하여 너비 제한
+                            width: MediaQuery.of(context).size.width -
+                                288, // 전체 너비 - (왼쪽 사이드바 240 + 간격 48)
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  '${DateTime.now().year}년 ${DateTime.now().month}월 ${DateTime.now().day}일',
+                                  style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColor.font1),
+                                ),
+                                const Row(
+                                  children: [
+                                    Icon(
+                                      Icons.person_outline_sharp,
+                                      color: AppColor.font2,
+                                    ),
+                                    SizedBox(width: 16),
+                                    Icon(
+                                      Icons.notifications_none_outlined,
+                                      color: AppColor.font2,
+                                    ),
+                                    SizedBox(width: 43), // 오른쪽 여백 추가
+                                  ],
+                                )
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 56),
+                          const Text(
+                            '공간 기본 정보 입력',
+                            style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w600,
+                                color: AppColor.font1),
+                          ),
+                          const SizedBox(
+                            height: 32,
+                          ),
 
-                        const Text(
-                          '기본 정보 입력',
-                          style: TextStyle(
-                              fontSize: 18,
-                              color: AppColor.font1,
-                              fontWeight: FontWeight.w600),
-                        ),
-                        const SizedBox(
-                          height: 8,
-                        ),
-                        Container(
-                          height: 2,
-                          width: 640,
-                          color: AppColor.primary,
-                        ),
-                        const SizedBox(
-                          height: 24,
-                        ),
-                        AddressSearchField(
-                          controller: _siteAddressController,
-                          detailController: _detailSiteAddressController,
-                          labelText: '현장 주소',
-                        ),
-                        const SizedBox(
-                          height: 24,
-                        ),
-                        const Text(
-                          '공간 오픈 일정',
-                          style: TextStyle(
-                              fontSize: 14,
-                              color: AppColor.font1,
-                              fontWeight: FontWeight.w600),
-                        ),
-                        const SizedBox(
-                          height: 12,
-                        ),
-                        InkWell(
-                          onTap: () => _selectDate(context),
-                          child: Container(
+                          const Text(
+                            '기본 정보 입력',
+                            style: TextStyle(
+                                fontSize: 18,
+                                color: AppColor.font1,
+                                fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(
+                            height: 8,
+                          ),
+                          Container(
+                            height: 2,
+                            width: 640,
+                            color: AppColor.primary,
+                          ),
+                          const SizedBox(
+                            height: 24,
+                          ),
+                          AddressSearchField(
+                            controller: _siteAddressController,
+                            detailController: _detailSiteAddressController,
+                            labelText: '현장 주소',
+                          ),
+                          const SizedBox(
+                            height: 24,
+                          ),
+                          const Text(
+                            '공간 오픈 일정',
+                            style: TextStyle(
+                                fontSize: 14,
+                                color: AppColor.font1,
+                                fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(
+                            height: 12,
+                          ),
+                          InkWell(
+                            onTap: () => _selectDate(context),
+                            child: Container(
+                              width: 640,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                border: Border.all(color: AppColor.line1),
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Container(
+                                    margin: const EdgeInsets.only(left: 12),
+                                    child: Text(
+                                      _openingDate != null
+                                          ? '${_openingDate!.year}년 ${_openingDate!.month}월 ${_openingDate!.day}일'
+                                          : '년, 월, 일',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: _openingDate != null
+                                            ? AppColor.font1
+                                            : AppColor.font2,
+                                      ),
+                                    ),
+                                  ),
+                                  Container(
+                                      margin:
+                                          const EdgeInsets.only(right: 15.88),
+                                      child: const Icon(Icons.calendar_month)),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(
+                            height: 40,
+                          ),
+                          const Text(
+                            '수령자 정보 입력',
+                            style: TextStyle(
+                                fontSize: 18,
+                                color: AppColor.font1,
+                                fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(
+                            height: 8,
+                          ),
+                          Container(
+                            height: 2,
+                            width: 640,
+                            color: AppColor.primary,
+                          ),
+                          const SizedBox(
+                            height: 24,
+                          ),
+                          const Text(
+                            '수령자',
+                            style: TextStyle(
+                                fontSize: 14,
+                                color: AppColor.font1,
+                                fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 12),
+                          Container(
+                            width: 640,
+                            height: 48,
+                            margin: const EdgeInsets.only(
+                                bottom: 24), // 에러 메시지 공간 확보
+                            decoration: BoxDecoration(
+                              border: Border.all(color: AppColor.line1),
+                            ),
+                            child: TextFormField(
+                              controller: _recipientController,
+                              decoration: const InputDecoration(
+                                isDense: true,
+                                contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 14),
+                                border: InputBorder.none,
+                                hintText: '수령자 이름을 입력해 주세요',
+                                hintStyle: TextStyle(
+                                    color: AppColor.font2, fontSize: 14),
+                              ),
+                            ),
+                          ),
+
+                          const Text(
+                            '연락처',
+                            style: TextStyle(
+                                fontSize: 14,
+                                color: AppColor.font1,
+                                fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 12),
+                          Container(
                             width: 640,
                             height: 48,
                             decoration: BoxDecoration(
                               border: Border.all(color: AppColor.line1),
                             ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Container(
-                                  margin: const EdgeInsets.only(left: 12),
-                                  child: Text(
-                                    _openingDate != null
-                                        ? '${_openingDate!.year}년 ${_openingDate!.month}월 ${_openingDate!.day}일'
-                                        : '년, 월, 일',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: _openingDate != null
-                                          ? AppColor.font1
-                                          : AppColor.font2,
+                            child: TextFormField(
+                              controller: _contactNumberController,
+                              decoration: const InputDecoration(
+                                isDense: true,
+                                contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 14),
+                                border: InputBorder.none,
+                                hintText: '연락처를 입력해 주세요',
+                                hintStyle: TextStyle(
+                                    color: AppColor.font2, fontSize: 14),
+                              ),
+                              keyboardType: TextInputType.phone,
+                            ),
+                          ),
+                          const SizedBox(
+                            height: 40,
+                          ),
+                          const Text(
+                            '배송 정보 입력',
+                            style: TextStyle(
+                                fontSize: 18,
+                                color: AppColor.font1,
+                                fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(
+                            height: 8,
+                          ),
+                          Container(
+                            height: 2,
+                            width: 640,
+                            color: AppColor.primary,
+                          ),
+                          const SizedBox(
+                            height: 24,
+                          ),
+
+                          _buildRadioGroup(
+                            title: '배송 방법',
+                            options: const ['택배배송', '차량배송', '물류배송'],
+                            groupValue: _shippingMethod,
+                            onChanged: (value) {
+                              setState(() {
+                                _shippingMethod = value;
+                              });
+                            },
+                          ),
+
+                          const SizedBox(height: 24),
+                          _buildRadioGroup(
+                            title: '결제 방법',
+                            options: const ['선불', '착불'],
+                            groupValue: _paymentMethod,
+                            onChanged: (value) {
+                              setState(() {
+                                _paymentMethod = value;
+                              });
+                            },
+                          ),
+
+                          const SizedBox(
+                            height: 48,
+                          ),
+                          Row(
+                            children: [
+                              InkWell(
+                                onTap: () {
+                                  GoRouter.of(context).go('/main');
+                                },
+                                child: Container(
+                                  width: 60,
+                                  height: 48,
+                                  decoration: BoxDecoration(
+                                    color: Colors.transparent,
+                                    border: Border.all(color: AppColor.line1),
+                                  ),
+                                  child: const Center(
+                                    child: Text(
+                                      '취소',
+                                      style: TextStyle(
+                                          color: AppColor.primary,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600),
                                     ),
                                   ),
                                 ),
-                                Container(
-                                    margin: const EdgeInsets.only(right: 15.88),
-                                    child: const Icon(Icons.calendar_month)),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(
-                          height: 40,
-                        ),
-                        const Text(
-                          '수령자 정보 입력',
-                          style: TextStyle(
-                              fontSize: 18,
-                              color: AppColor.font1,
-                              fontWeight: FontWeight.w600),
-                        ),
-                        const SizedBox(
-                          height: 8,
-                        ),
-                        Container(
-                          height: 2,
-                          width: 640,
-                          color: AppColor.primary,
-                        ),
-                        const SizedBox(
-                          height: 24,
-                        ),
-                        const Text(
-                          '수령자',
-                          style: TextStyle(
-                              fontSize: 14,
-                              color: AppColor.font1,
-                              fontWeight: FontWeight.w600),
-                        ),
-                        const SizedBox(height: 12),
-                        Container(
-                          width: 640,
-                          height: 48,
-                          margin:
-                              const EdgeInsets.only(bottom: 24), // 에러 메시지 공간 확보
-                          decoration: BoxDecoration(
-                            border: Border.all(color: AppColor.line1),
-                          ),
-                          child: TextFormField(
-                            controller: _recipientController,
-                            decoration: const InputDecoration(
-                              isDense: true,
-                              contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 14),
-                              border: InputBorder.none,
-                              hintText: '수령자 이름을 입력해 주세요',
-                              hintStyle: TextStyle(
-                                  color: AppColor.font2, fontSize: 14),
-                            ),
-                          ),
-                        ),
-
-                        const Text(
-                          '연락처',
-                          style: TextStyle(
-                              fontSize: 14,
-                              color: AppColor.font1,
-                              fontWeight: FontWeight.w600),
-                        ),
-                        const SizedBox(height: 12),
-                        Container(
-                          width: 640,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            border: Border.all(color: AppColor.line1),
-                          ),
-                          child: TextFormField(
-                            controller: _contactNumberController,
-                            decoration: const InputDecoration(
-                              isDense: true,
-                              contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 14),
-                              border: InputBorder.none,
-                              hintText: '연락처를 입력해 주세요',
-                              hintStyle: TextStyle(
-                                  color: AppColor.font2, fontSize: 14),
-                            ),
-                            keyboardType: TextInputType.phone,
-                          ),
-                        ),
-                        const SizedBox(
-                          height: 40,
-                        ),
-                        const Text(
-                          '배송 정보 입력',
-                          style: TextStyle(
-                              fontSize: 18,
-                              color: AppColor.font1,
-                              fontWeight: FontWeight.w600),
-                        ),
-                        const SizedBox(
-                          height: 8,
-                        ),
-                        Container(
-                          height: 2,
-                          width: 640,
-                          color: AppColor.primary,
-                        ),
-                        const SizedBox(
-                          height: 24,
-                        ),
-
-                        _buildRadioGroup(
-                          title: '배송 방법',
-                          options: const ['택배배송', '차량배송', '물류배송'],
-                          groupValue: _shippingMethod,
-                          onChanged: (value) {
-                            setState(() {
-                              _shippingMethod = value;
-                            });
-                          },
-                        ),
-
-                        const SizedBox(height: 24),
-                        _buildRadioGroup(
-                          title: '결제 방법',
-                          options: const ['선불', '착불'],
-                          groupValue: _paymentMethod,
-                          onChanged: (value) {
-                            setState(() {
-                              _paymentMethod = value;
-                            });
-                          },
-                        ),
-
-                        const SizedBox(
-                          height: 48,
-                        ),
-                        Row(
-                          children: [
-                            InkWell(
-                              onTap: () {
-                                GoRouter.of(context).go('/main');
-                              },
-                              child: Container(
-                                width: 60,
-                                height: 48,
-                                decoration: BoxDecoration(
-                                  color: Colors.transparent,
-                                  border: Border.all(color: AppColor.line1),
-                                ),
-                                child: const Center(
-                                  child: Text(
-                                    '취소',
-                                    style: TextStyle(
-                                        color: AppColor.primary,
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600),
+                              ),
+                              const SizedBox(width: 8),
+                              InkWell(
+                                onTap: () {
+                                  // 임시 저장 처리
+                                  _saveTempBasicInfo();
+                                },
+                                child: Container(
+                                  width: 87,
+                                  height: 48,
+                                  decoration: BoxDecoration(
+                                    color: Colors.transparent,
+                                    border: Border.all(color: AppColor.line1),
+                                  ),
+                                  child: const Center(
+                                    child: Text(
+                                      '임시 저장',
+                                      style: TextStyle(
+                                          color: AppColor.primary,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600),
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            InkWell(
-                              onTap: () {
-                                // 임시 저장 처리
-                                _saveTempBasicInfo();
-                              },
-                              child: Container(
-                                width: 87,
-                                height: 48,
-                                decoration: BoxDecoration(
-                                  color: Colors.transparent,
-                                  border: Border.all(color: AppColor.line1),
-                                ),
-                                child: const Center(
-                                  child: Text(
-                                    '임시 저장',
-                                    style: TextStyle(
-                                        color: AppColor.primary,
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600),
+                              const SizedBox(width: 8),
+                              InkWell(
+                                onTap: () {
+                                  // 고객 추가 처리
+                                  _saveSpaceBasicInfo();
+                                },
+                                child: Container(
+                                  width: 60,
+                                  height: 48,
+                                  decoration: BoxDecoration(
+                                    color: AppColor.primary,
+                                    border: Border.all(color: AppColor.line1),
+                                  ),
+                                  child: const Center(
+                                    child: Text(
+                                      '다음',
+                                      style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600),
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            InkWell(
-                              onTap: () {
-                                // 고객 추가 처리
-                                _saveSpaceBasicInfo();
-                              },
-                              child: Container(
-                                width: 60,
-                                height: 48,
-                                decoration: BoxDecoration(
-                                  color: AppColor.primary,
-                                  border: Border.all(color: AppColor.line1),
-                                ),
-                                child: const Center(
-                                  child: Text(
-                                    '다음',
-                                    style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        // 사업자등록증 부분을 다음과 같이 변경
-                      ]),
+                            ],
+                          ),
+                          const SizedBox(
+                            height: 48,
+                          )
+                          // 사업자등록증 부분을 다음과 같이 변경
+                        ]),
+                  ),
                 ),
               ]),
-            ))));
+            )));
   }
 }
