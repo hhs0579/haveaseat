@@ -83,7 +83,7 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
         height: 36,
         decoration: BoxDecoration(
           border: Border.all(
-            color: isSelected ? AppColor.font1 : AppColor.line1,
+            color: isSelected ? AppColor.main : AppColor.line1,
             width: 1,
           ),
           borderRadius: BorderRadius.circular(18),
@@ -93,7 +93,7 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
           child: Text(
             text,
             style: TextStyle(
-              color: isSelected ? AppColor.font1 : AppColor.line1,
+              color: isSelected ? AppColor.main : AppColor.line1,
               fontSize: 14,
               fontWeight: FontWeight.w400,
             ),
@@ -117,7 +117,7 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
         height: 36,
         decoration: BoxDecoration(
           border: Border.all(
-            color: isSelected ? AppColor.font1 : AppColor.line1,
+            color: isSelected ? AppColor.main : AppColor.line1,
             width: 1,
           ),
           borderRadius: BorderRadius.circular(18),
@@ -127,7 +127,7 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
           child: Text(
             text,
             style: TextStyle(
-              color: isSelected ? AppColor.font1 : AppColor.line1,
+              color: isSelected ? AppColor.main : AppColor.line1,
               fontSize: 14,
               fontWeight: FontWeight.w400,
             ),
@@ -424,252 +424,220 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 240,
-                    constraints: const BoxConstraints(minHeight: 1420),
-                    decoration: const BoxDecoration(
-                      border: Border(right: BorderSide(color: AppColor.line1)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        const SizedBox(height: 40),
-                        InkWell(
-                          onTap: () => context.go('/main'),
-                          child: SizedBox(
-                            width: 137,
-                            height: 17,
-                            child: Image.asset('assets/images/logo.png'),
-                          ),
-                        ),
-                        const SizedBox(height: 56),
-                        userData.when(
-                          data: (data) {
-                            if (data != null) {
-                              return Column(
-                                children: [
-                                  Text(
-                                    UserProvider.getUserName(data),
-                                    style: const TextStyle(
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColor.font1,
-                                    ),
-                                  ),
-                                ],
-                              );
-                            }
-                            return const Text('사용자 정보를 불러올 수 없습니다.');
-                          },
-                          loading: () => const CircularProgressIndicator(),
-                          error: (error, stack) => Text('오류: $error'),
-                        ),
-                        const SizedBox(height: 16),
-                        // 정보수정 버튼
-                        Container(
-                          width: 152,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            border: Border.all(color: AppColor.line1),
-                          ),
-                          child: const Center(
-                            child: Text(
-                              '정보수정',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                color: AppColor.font1,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 40),
-                        // 메뉴 버튼들
-                        InkWell(
-                          onTap: () => context.go('/main'),
-                          child: Container(
-                              width: 200,
-                              height: 48,
-                              color: Colors.black,
-                              child: Row(
-                                children: [
-                                  const SizedBox(
-                                    width: 17.87,
-                                  ),
-                                  SizedBox(
-                                      width: 16.25,
-                                      height: 16.25,
-                                      child: Image.asset(
-                                        'assets/images/user.png',
-                                        color: Colors.white,
-                                      )),
-                                  const SizedBox(
-                                    width: 3.85,
-                                  ),
-                                  const Text(
-                                    '담당 고객정보',
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.white,
-                                        fontSize: 16),
-                                  ),
-                                ],
-                              )),
-                        ),
-                        InkWell(
-                          onTap: () => context.go('/all-customers'),
-                          child: Container(
-                              width: 200,
-                              height: 48,
-                              color: Colors.transparent,
-                              child: Row(
-                                children: [
-                                  const SizedBox(
-                                    width: 17.87,
-                                  ),
-                                  SizedBox(
-                                      width: 16.25,
-                                      height: 16.25,
-                                      child: Image.asset(
-                                          'assets/images/group.png')),
-                                  const SizedBox(
-                                    width: 3.85,
-                                  ),
-                                  const Text(
-                                    '전체 고객정보',
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColor.font1,
-                                        fontSize: 16),
-                                  ),
-                                ],
-                              )),
-                        ),
-                        InkWell(
-                          onTap: () {},
-                          child: Container(
-                              width: 200,
-                              height: 48,
-                              color: Colors.transparent,
-                              child: Row(
-                                children: [
-                                  const SizedBox(
-                                    width: 17.87,
-                                  ),
-                                  SizedBox(
-                                      width: 16.25,
-                                      height: 16.25,
-                                      child: Image.asset(
-                                          'assets/images/corp.png')),
-                                  const SizedBox(
-                                    width: 3.85,
-                                  ),
-                                  const Text(
-                                    '업체 정보',
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColor.font1,
-                                        fontSize: 16),
-                                  ),
-                                ],
-                              )),
-                        ),
-                        const SizedBox(
-                          height: 48,
-                        ),
-                        InkWell(
-                          onTap: () {},
-                          child: Container(
-                              width: 200,
-                              height: 48,
-                              color: Colors.transparent,
-                              child: Row(
-                                children: [
-                                  const SizedBox(
-                                    width: 17.87,
-                                  ),
-                                  SizedBox(
-                                      width: 16.25,
-                                      height: 16.25,
-                                      child:
-                                          Image.asset('assets/images/as.png')),
-                                  const SizedBox(
-                                    width: 3.85,
-                                  ),
-                                  const Text(
-                                    '교환',
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColor.font1,
-                                        fontSize: 16),
-                                  ),
-                                ],
-                              )),
-                        ),
-                        InkWell(
-                          onTap: () {},
-                          child: Container(
-                              width: 200,
-                              height: 48,
-                              color: Colors.transparent,
-                              child: Row(
-                                children: [
-                                  const SizedBox(
-                                    width: 17.87,
-                                  ),
-                                  SizedBox(
-                                      width: 16.25,
-                                      height: 16.25,
-                                      child:
-                                          Image.asset('assets/images/as.png')),
-                                  const SizedBox(
-                                    width: 3.85,
-                                  ),
-                                  const Text(
-                                    '반품',
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColor.font1,
-                                        fontSize: 16),
-                                  ),
-                                ],
-                              )),
-                        ),
-                        const SizedBox(
-                          height: 48,
-                        ),
-                        InkWell(
-                          onTap: () => context.go('/temp'),
-                          child: Container(
-                              width: 200,
-                              height: 48,
-                              color: Colors.transparent,
-                              child: Row(
-                                children: [
-                                  const SizedBox(
-                                    width: 17.87,
-                                  ),
-                                  SizedBox(
-                                      width: 16.25,
-                                      height: 16.25,
-                                      child: Image.asset(
-                                          'assets/images/draft.png')),
-                                  const SizedBox(
-                                    width: 3.85,
-                                  ),
-                                  const Text(
-                                    '임시저장',
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColor.font1,
-                                        fontSize: 16),
-                                  ),
-                                ],
-                              )),
-                        ),
-                      ],
+                      Container(
+              width: 240,
+              height: MediaQuery.of(context).size.height,
+              decoration: const BoxDecoration(
+                border: Border(right: BorderSide(color: AppColor.line1)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const SizedBox(height: 40),
+                  InkWell(
+                    onTap: () => context.go('/main'),
+                    child: SizedBox(
+                      width: 137,
+                      height: 17,
+                      child: Image.asset('assets/images/logo.png'),
                     ),
                   ),
+                  const SizedBox(height: 56),
+                  userData.when(
+                    data: (data) {
+                      if (data != null) {
+                        return Column(
+                          children: [
+                            Text(
+                              UserProvider.getUserName(data),
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w600,
+                                color: AppColor.font1,
+                              ),
+                            ),
+                          ],
+                        );
+                      }
+                      return const Text('사용자 정보를 불러올 수 없습니다.');
+                    },
+                    loading: () => const CircularProgressIndicator(),
+                    error: (error, stack) => Text('오류: $error'),
+                  ),
+                  const SizedBox(height: 16),
+                  // 정보수정 버튼
+                  Container(
+                    width: 152,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: AppColor.line1),
+                    ),
+                    child: const Center(
+                      child: Text(
+                        '정보수정',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: AppColor.font1,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+                  // 메뉴 버튼들
+                  InkWell(
+                    onTap: () => context.go('/main'),
+                    child: Container(
+                        width: 200,
+                        height: 48,
+                        color: const Color(0xffB18E72),
+                        child: Row(
+                          children: [
+                            const SizedBox(
+                              width: 17.87,
+                            ),
+                            SizedBox(
+                                width: 16.25,
+                                height: 16.25,
+                                child: Image.asset(
+                                  'assets/images/user.png',
+                                  color: Colors.white,
+                                )),
+                            const SizedBox(
+                              width: 3.85,
+                            ),
+                            const Text(
+                              '담당 고객정보',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                  fontSize: 16),
+                            ),
+                          ],
+                        )),
+                  ),
+                  InkWell(
+                    onTap: () => context.go('/all-customers'),
+                    child: Container(
+                        width: 200,
+                        height: 48,
+                        color: Colors.transparent,
+                        child: Row(
+                          children: [
+                            const SizedBox(
+                              width: 17.87,
+                            ),
+                            SizedBox(
+                                width: 16.25,
+                                height: 16.25,
+                                child: Image.asset('assets/images/group.png')),
+                            const SizedBox(
+                              width: 3.85,
+                            ),
+                            const Text(
+                              '전체 고객정보',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColor.font1,
+                                  fontSize: 16),
+                            ),
+                          ],
+                        )),
+                  ),
+
+                  const SizedBox(
+                    height: 48,
+                  ),
+                  InkWell(
+                    onTap: () {},
+                    child: Container(
+                        width: 200,
+                        height: 48,
+                        color: Colors.transparent,
+                        child: Row(
+                          children: [
+                            const SizedBox(
+                              width: 17.87,
+                            ),
+                            SizedBox(
+                                width: 16.25,
+                                height: 16.25,
+                                child: Image.asset('assets/images/as.png')),
+                            const SizedBox(
+                              width: 3.85,
+                            ),
+                            const Text(
+                              '교환',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColor.font1,
+                                  fontSize: 16),
+                            ),
+                          ],
+                        )),
+                  ),
+                  InkWell(
+                    onTap: () {},
+                    child: Container(
+                        width: 200,
+                        height: 48,
+                        color: Colors.transparent,
+                        child: Row(
+                          children: [
+                            const SizedBox(
+                              width: 17.87,
+                            ),
+                            SizedBox(
+                                width: 16.25,
+                                height: 16.25,
+                                child: Image.asset('assets/images/as.png')),
+                            const SizedBox(
+                              width: 3.85,
+                            ),
+                            const Text(
+                              '반품',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColor.font1,
+                                  fontSize: 16),
+                            ),
+                          ],
+                        )),
+                  ),
+                  const SizedBox(
+                    height: 48,
+                  ),
+                  InkWell(
+                    onTap: () => context.go('/temp'),
+                    child: Container(
+                        width: 200,
+                        height: 48,
+                        color: Colors.transparent,
+                        child: Row(
+                          children: [
+                            const SizedBox(
+                              width: 17.87,
+                            ),
+                            SizedBox(
+                                width: 16.25,
+                                height: 16.25,
+                                child: Image.asset('assets/images/draft.png')),
+                            const SizedBox(
+                              width: 3.85,
+                            ),
+                            const Text(
+                              '임시저장',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColor.font1,
+                                  fontSize: 16),
+                            ),
+                          ],
+                        )),
+                  ),
+                ],
+              ),
+            ),
                   const SizedBox(
                     width: 48,
                   ),
@@ -1282,10 +1250,10 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
                                   ),
                                 ),
                               ),
-                              const SizedBox(
-                                height: 48,
-                              ),
                             ],
+                          ),
+                          const SizedBox(
+                            height: 48,
                           ),
                         ]),
                   )),

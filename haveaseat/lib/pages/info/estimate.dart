@@ -1079,7 +1079,7 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
             // 사이드바
             Container(
               width: 240,
-              constraints: const BoxConstraints(minHeight: 1420),
+              height: MediaQuery.of(context).size.height,
               decoration: const BoxDecoration(
                 border: Border(right: BorderSide(color: AppColor.line1)),
               ),
@@ -1143,7 +1143,7 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                     child: Container(
                         width: 200,
                         height: 48,
-                        color: Colors.black,
+                        color: const Color(0xffB18E72),
                         child: Row(
                           children: [
                             const SizedBox(
@@ -1197,34 +1197,7 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                           ],
                         )),
                   ),
-                  InkWell(
-                    onTap: () {},
-                    child: Container(
-                        width: 200,
-                        height: 48,
-                        color: Colors.transparent,
-                        child: Row(
-                          children: [
-                            const SizedBox(
-                              width: 17.87,
-                            ),
-                            SizedBox(
-                                width: 16.25,
-                                height: 16.25,
-                                child: Image.asset('assets/images/corp.png')),
-                            const SizedBox(
-                              width: 3.85,
-                            ),
-                            const Text(
-                              '업체 정보',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColor.font1,
-                                  fontSize: 16),
-                            ),
-                          ],
-                        )),
-                  ),
+
                   const SizedBox(
                     height: 48,
                   ),

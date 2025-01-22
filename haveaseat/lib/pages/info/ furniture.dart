@@ -24,6 +24,20 @@ class furniturePage extends ConsumerStatefulWidget {
   ConsumerState<furniturePage> createState() => _furniturePageState();
 }
 
+class FurnitureField {
+  final TextEditingController searchController;
+  final TextEditingController quantityController;
+  List<dynamic> filteredProducts;
+
+  FurnitureField()
+      : searchController = TextEditingController(),
+        quantityController = TextEditingController(),
+        filteredProducts = [];
+}
+
+// 가구 입력 필드들을 관리하는 리스트
+final List<FurnitureField> _furnitureFields = [];
+
 class _furniturePageState extends ConsumerState<furniturePage> {
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _quantityController = TextEditingController();
@@ -31,18 +45,9 @@ class _furniturePageState extends ConsumerState<furniturePage> {
 // 임시 저장
   Future<void> _saveTempFurniture() async {
     try {
-      // 선택된 제품 찾기
-      final product = ref
-          .read(productProvider.notifier)
-          .searchProducts(_searchController.text)
-          .firstWhere(
-            (p) => p.name == _searchController.text,
-            orElse: () => throw Exception('선택된 제품을 찾을 수 없습니다'),
-          );
-
-      // 수량 검증
-      final quantity = int.tryParse(_quantityController.text);
-      if (quantity == null) throw Exception('올바른 수량을 입력해주세요');
+      if (_furnitureFields.isEmpty) {
+        throw Exception('가구 정보를 입력해주세요');
+      }
 
       // 고객 정보 가져오기
       final customer = await ref
@@ -53,6 +58,34 @@ class _furniturePageState extends ConsumerState<furniturePage> {
       }
 
       final estimateId = customer.estimateIds[0];
+      List<Map<String, dynamic>> furnitureList = [];
+
+      // 각 가구 필드에 대해 처리
+      for (var field in _furnitureFields) {
+        if (field.searchController.text.isEmpty) {
+          continue; // 빈 필드는 건너뛰기
+        }
+
+        // 선택된 제품 찾기
+        final product = ref
+            .read(productProvider.notifier)
+            .searchProducts(field.searchController.text)
+            .firstWhere(
+              (p) => p.name == field.searchController.text,
+              orElse: () => throw Exception(
+                  '선택된 제품을 찾을 수 없습니다: ${field.searchController.text}'),
+            );
+
+        // 수량 검증
+        final quantity = int.tryParse(field.quantityController.text);
+        if (quantity == null) throw Exception('올바른 수량을 입력해주세요');
+
+        furnitureList.add({
+          'name': product.name,
+          'quantity': quantity,
+          'price': product.price,
+        });
+      }
 
       // 임시 저장 데이터
       final tempData = {
@@ -61,16 +94,9 @@ class _furniturePageState extends ConsumerState<furniturePage> {
         'status': EstimateStatus.IN_PROGRESS.toString(),
         'lastUpdated': FieldValue.serverTimestamp(),
         'isTemp': true,
-        'furnitureList': [
-          {
-            'name': product.name,
-            'quantity': quantity,
-            'price': product.price,
-          }
-        ]
+        'furnitureList': furnitureList,
       };
 
-      // temp_estimates 컬렉션에 저장
       await FirebaseFirestore.instance
           .collection('temp_estimates')
           .doc(estimateId)
@@ -90,21 +116,11 @@ class _furniturePageState extends ConsumerState<furniturePage> {
     }
   }
 
-// 최종 저장
   Future<void> _saveFurniture() async {
     try {
-      // 제품 검증
-      final product = ref
-          .read(productProvider.notifier)
-          .searchProducts(_searchController.text)
-          .firstWhere(
-            (p) => p.name == _searchController.text,
-            orElse: () => throw Exception('선택된 제품을 찾을 수 없습니다'),
-          );
-
-      // 수량 검증
-      final quantity = int.tryParse(_quantityController.text);
-      if (quantity == null) throw Exception('올바른 수량을 입력해주세요');
+      if (_furnitureFields.isEmpty) {
+        throw Exception('가구 정보를 입력해주세요');
+      }
 
       // 고객 정보 가져오기
       final customer = await ref
@@ -115,13 +131,34 @@ class _furniturePageState extends ConsumerState<furniturePage> {
       }
 
       final estimateId = customer.estimateIds[0];
+      List<Map<String, dynamic>> furnitureList = [];
 
-      // 가구 데이터
-      final furnitureData = {
-        'name': product.name,
-        'quantity': quantity,
-        'price': product.price,
-      };
+      // 각 가구 필드에 대해 처리
+      for (var field in _furnitureFields) {
+        if (field.searchController.text.isEmpty) {
+          continue; // 빈 필드는 건너뛰기
+        }
+
+        // 선택된 제품 찾기
+        final product = ref
+            .read(productProvider.notifier)
+            .searchProducts(field.searchController.text)
+            .firstWhere(
+              (p) => p.name == field.searchController.text,
+              orElse: () => throw Exception(
+                  '선택된 제품을 찾을 수 없습니다: ${field.searchController.text}'),
+            );
+
+        // 수량 검증
+        final quantity = int.tryParse(field.quantityController.text);
+        if (quantity == null) throw Exception('올바른 수량을 입력해주세요');
+
+        furnitureList.add({
+          'name': product.name,
+          'quantity': quantity,
+          'price': product.price,
+        });
+      }
 
       // 기존 데이터 가져오기
       final estimateDoc = await FirebaseFirestore.instance
@@ -138,7 +175,7 @@ class _furniturePageState extends ConsumerState<furniturePage> {
           .collection('estimates')
           .doc(estimateId)
           .set({
-        'furnitureList': FieldValue.arrayUnion([furnitureData]),
+        'furnitureList': furnitureList,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
@@ -153,7 +190,7 @@ class _furniturePageState extends ConsumerState<furniturePage> {
           const SnackBar(content: Text('저장되었습니다')),
         );
         context.go(
-            '/main/addpage/spaceadd/${widget.customerId}/space-detail/furniture/estimate'); // 최종 화면으로 이동
+            '/main/addpage/spaceadd/${widget.customerId}/space-detail/furniture/estimate');
       }
     } catch (e) {
       if (mounted) {
@@ -164,74 +201,63 @@ class _furniturePageState extends ConsumerState<furniturePage> {
     }
   }
 
-  Widget buildSearchField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget buildSearchField(int index) {
+    final field = _furnitureFields[index];
+    return Row(
       children: [
-        Container(
-          height: 48,
-          width: 640,
-          decoration: BoxDecoration(
-            border: Border.all(color: AppColor.line1),
-          ),
-          child: TextField(
-            controller: _searchController,
-            onChanged: (value) {
-              final products =
-                  ref.read(productProvider.notifier).searchProducts(value);
-              setState(() {
-                _filteredProducts = products;
-              });
-            },
-            decoration: const InputDecoration(
-              hintText: '상품명을 입력하세요',
-              contentPadding: EdgeInsets.symmetric(horizontal: 16),
-              border: InputBorder.none,
-            ),
-          ),
-        ),
-        if (_searchController.text.isNotEmpty && _filteredProducts.isNotEmpty)
-          Container(
-            width: 640,
-            constraints: const BoxConstraints(maxHeight: 530),
-            decoration: BoxDecoration(
-              border: Border.all(color: AppColor.line1),
-              color: Colors.transparent,
-            ),
-            child: ScrollConfiguration(
-              behavior: ScrollConfiguration.of(context).copyWith(
-                scrollbars: true,
-                dragDevices: {
-                  PointerDeviceKind.touch,
-                  PointerDeviceKind.mouse,
-                },
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              height: 48,
+              width: 640, // 삭제 버튼을 위해 너비 조정
+              decoration: BoxDecoration(
+                border: Border.all(color: AppColor.line1),
               ),
-              child: Theme(
-                data: Theme.of(context).copyWith(
-                  scrollbarTheme: ScrollbarThemeData(
-                    thumbColor: MaterialStateProperty.all(Colors.black),
-                  ),
+              child: TextField(
+                controller: field.searchController,
+                onChanged: (value) {
+                  final products =
+                      ref.read(productProvider.notifier).searchProducts(value);
+                  setState(() {
+                    field.filteredProducts = products;
+                  });
+                },
+                decoration: const InputDecoration(
+                  hintText: '상품명을 입력하세요',
+                  contentPadding: EdgeInsets.symmetric(horizontal: 16),
+                  border: InputBorder.none,
+                ),
+              ),
+            ),
+            if (field.searchController.text.isNotEmpty &&
+                field.filteredProducts.isNotEmpty)
+              Container(
+                width: 640,
+                constraints: const BoxConstraints(maxHeight: 530),
+                decoration: BoxDecoration(
+                  border: Border.all(color: AppColor.line1),
+                  color: Colors.transparent,
                 ),
                 child: ListView.builder(
                   shrinkWrap: true,
-                  itemCount: _filteredProducts.length,
-                  itemBuilder: (context, index) {
-                    final product = _filteredProducts[index];
+                  itemCount: field.filteredProducts.length,
+                  itemBuilder: (context, prodIndex) {
+                    final product = field.filteredProducts[prodIndex];
                     final formattedPrice =
                         NumberFormat("#,###").format(product.price);
                     return Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 12),
                       decoration: const BoxDecoration(
-                        border: Border(
-                          bottom: BorderSide(color: AppColor.line1, width: 1),
-                        ),
+                        border:
+                            Border(bottom: BorderSide(color: AppColor.line1)),
                       ),
                       child: InkWell(
                         onTap: () {
-                          _searchController.text = product.name;
+                          field.searchController.text = product.name;
                           setState(() {
-                            _filteredProducts = [];
+                            field.filteredProducts = [];
                           });
                         },
                         child: Row(
@@ -241,9 +267,7 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                               child: Text(
                                 product.name,
                                 style: const TextStyle(
-                                  fontSize: 14,
-                                  color: AppColor.font1,
-                                ),
+                                    fontSize: 14, color: AppColor.font1),
                               ),
                             ),
                             Text(
@@ -261,9 +285,94 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                   },
                 ),
               ),
+          ],
+        ),
+        const SizedBox(width: 8),
+        if (index > 0) // 첫 번째가 아닌 경우에만 삭제 버튼 표시
+          Container(
+            width: 52,
+            height: 48,
+            decoration: BoxDecoration(
+              border: Border.all(color: AppColor.line1),
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+              onPressed: () {
+                setState(() {
+                  _furnitureFields[index].searchController.dispose();
+                  _furnitureFields[index].quantityController.dispose();
+                  _furnitureFields.removeAt(index);
+                });
+              },
             ),
           ),
       ],
+    );
+  }
+
+// 수정된 수량 입력 필드
+  Widget buildQuantityField(int index) {
+    final field = _furnitureFields[index];
+    return Container(
+      height: 48,
+      width: 640,
+      decoration: BoxDecoration(
+        border: Border.all(color: AppColor.line1),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            child: Stack(
+              children: [
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                    ),
+                    child: Text(
+                      field.quantityController.text.isEmpty ? '숫자입력' : '',
+                      style: const TextStyle(
+                        color: AppColor.font2,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ),
+                TextField(
+                  controller: field.quantityController,
+                  keyboardType: TextInputType.number,
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: AppColor.font1,
+                  ),
+                  decoration: const InputDecoration(
+                    border: InputBorder.none,
+                    contentPadding:
+                        EdgeInsets.only(right: 4, bottom: 4.2), // 오른쪽 패딩 줄임
+                    hintText: '',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(right: 16), // 오른쪽 패딩만 유지
+            child: Container(
+              alignment: Alignment.centerLeft,
+              child: const Text(
+                '개',
+                style: TextStyle(
+                  color: AppColor.font2,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -280,12 +389,14 @@ class _furniturePageState extends ConsumerState<furniturePage> {
         });
       }
     });
+    _furnitureFields.add(FurnitureField());
   }
 
   @override
   void dispose() {
     _searchController.dispose();
     _quantityController.dispose(); // 추가
+
     super.dispose();
   }
 
@@ -301,7 +412,7 @@ class _furniturePageState extends ConsumerState<furniturePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // 사이드바
-            Container(
+               Container(
               width: 240,
               height: MediaQuery.of(context).size.height,
               decoration: const BoxDecoration(
@@ -367,7 +478,7 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                     child: Container(
                         width: 200,
                         height: 48,
-                        color: Colors.transparent,
+                        color: const Color(0xffB18E72),
                         child: Row(
                           children: [
                             const SizedBox(
@@ -376,7 +487,10 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                             SizedBox(
                                 width: 16.25,
                                 height: 16.25,
-                                child: Image.asset('assets/images/user.png')),
+                                child: Image.asset(
+                                  'assets/images/user.png',
+                                  color: Colors.white,
+                                )),
                             const SizedBox(
                               width: 3.85,
                             ),
@@ -384,7 +498,7 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                               '담당 고객정보',
                               style: TextStyle(
                                   fontWeight: FontWeight.w600,
-                                  color: AppColor.font1,
+                                  color: Colors.white,
                                   fontSize: 16),
                             ),
                           ],
@@ -418,34 +532,7 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                           ],
                         )),
                   ),
-                  InkWell(
-                    onTap: () {},
-                    child: Container(
-                        width: 200,
-                        height: 48,
-                        color: Colors.transparent,
-                        child: Row(
-                          children: [
-                            const SizedBox(
-                              width: 17.87,
-                            ),
-                            SizedBox(
-                                width: 16.25,
-                                height: 16.25,
-                                child: Image.asset('assets/images/corp.png')),
-                            const SizedBox(
-                              width: 3.85,
-                            ),
-                            const Text(
-                              '업체 정보',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColor.font1,
-                                  fontSize: 16),
-                            ),
-                          ],
-                        )),
-                  ),
+
                   const SizedBox(
                     height: 48,
                   ),
@@ -509,7 +596,7 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                     height: 48,
                   ),
                   InkWell(
-                    onTap: () {},
+                    onTap: () => context.go('/temp'),
                     child: Container(
                         width: 200,
                         height: 48,
@@ -616,101 +703,75 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                                 const SizedBox(
                                   height: 24,
                                 ),
-                                const Text(
-                                  '견적종류',
-                                  style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.black),
+                                ListView.builder(
+                                  shrinkWrap: true,
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  itemCount: _furnitureFields.length,
+                                  itemBuilder: (context, index) {
+                                    return Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        if (index > 0)
+                                          const SizedBox(height: 24),
+                                        const Text(
+                                          '견적종류',
+                                          style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.black),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        buildSearchField(index),
+                                        const SizedBox(height: 24),
+                                        const Text(
+                                          '수량',
+                                          style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.black),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        buildQuantityField(index),
+                                        const SizedBox(height: 24),
+                                        Container(
+                                          width: 640,
+                                          height: 1,
+                                          color: Colors.black,
+                                        ),
+                                      ],
+                                    );
+                                  },
                                 ),
-
-                                const SizedBox(
-                                  height: 8,
-                                ),
-                                buildSearchField(),
                                 const SizedBox(
                                   height: 24,
                                 ),
-                                const Text(
-                                  '수량',
-                                  style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.black),
-                                ),
-                                const SizedBox(
-                                  height: 8,
+                                InkWell(
+                                  onTap: () {
+                                    setState(() {
+                                      _furnitureFields.add(FurnitureField());
+                                    });
+                                  },
+                                  child: Container(
+                                    height: 36,
+                                    width: 640,
+                                    decoration: BoxDecoration(
+                                      color: Colors.transparent,
+                                      border: Border.all(color: AppColor.line1),
+                                    ),
+                                    child: const Center(
+                                      child: Text(
+                                        '가구 추가 +',
+                                        style: TextStyle(
+                                            color: AppColor.primary,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600),
+                                      ),
+                                    ),
+                                  ),
                                 ),
                                 Container(
-                                  height: 48,
-                                  width: 640,
-                                  decoration: BoxDecoration(
-                                    border: Border.all(color: AppColor.line1),
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Expanded(
-                                        child: Stack(
-                                          children: [
-                                            // 힌트 텍스트를 커스터마이징하여 왼쪽 고정
-                                            Align(
-                                              alignment: Alignment.centerLeft,
-                                              child: Padding(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                        horizontal: 16),
-                                                child: Text(
-                                                  _quantityController
-                                                          .text.isEmpty
-                                                      ? '숫자입력'
-                                                      : '',
-                                                  style: const TextStyle(
-                                                    color: AppColor.font2,
-                                                    fontSize: 14,
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                            // 입력 필드
-                                            TextField(
-                                              controller: _quantityController,
-                                              keyboardType:
-                                                  TextInputType.number,
-                                              textAlign: TextAlign
-                                                  .right, // 입력 텍스트는 오른쪽 정렬
-                                              style: const TextStyle(
-                                                fontSize: 14,
-                                                color: AppColor.font1,
-                                              ),
-                                              decoration: const InputDecoration(
-                                                border: InputBorder.none,
-                                                contentPadding:
-                                                    EdgeInsets.symmetric(
-                                                        horizontal: 16),
-                                                hintText: '', // 힌트 텍스트를 비워둠
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      const Padding(
-                                        padding: EdgeInsets.symmetric(
-                                            horizontal: 16),
-                                        child: Text(
-                                          '개',
-                                          style: TextStyle(
-                                            color: AppColor.font2,
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(
-                                  height: 48,
+                                  height: 24,
                                 ),
                                 Row(
                                   children: [

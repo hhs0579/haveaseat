@@ -42,6 +42,13 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
   List<String> _otherDocumentUrls = []; // URL 저장용 리스트 추가
   String? _businessLicenseUrl; // URL 저장용 변수 추가
   String? _tempSaveDocId;
+  final FocusNode _nameFocus = FocusNode();
+  final FocusNode _phoneFocus = FocusNode();
+  final FocusNode _emailFocus = FocusNode();
+  final FocusNode _domainFocus = FocusNode();
+  final FocusNode _addressFocus = FocusNode();
+  final FocusNode _detailAddressFocus = FocusNode();
+  final FocusNode _noteFocus = FocusNode();
   void onBusinessLicenseUploaded(File file) {
     setState(() {
       _businessLicenseFile = file;
@@ -319,6 +326,13 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
     _directDomainController.dispose();
     _addressController.dispose();
     _detailAddressController.dispose();
+    _nameFocus.dispose();
+    _phoneFocus.dispose();
+    _emailFocus.dispose();
+    _domainFocus.dispose();
+    _addressFocus.dispose();
+    _detailAddressFocus.dispose();
+    _noteFocus.dispose();
 
     super.dispose();
   }
@@ -334,250 +348,220 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
               key: _formKey,
               child:
                   Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Container(
-                  width: 240,
-                  constraints: const BoxConstraints(minHeight: 1420),
-                  decoration: const BoxDecoration(
-                    border: Border(right: BorderSide(color: AppColor.line1)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      const SizedBox(height: 40),
-                      InkWell(
-                        onTap: () => context.go('/main'),
-                        child: SizedBox(
-                          width: 137,
-                          height: 17,
-                          child: Image.asset('assets/images/logo.png'),
-                        ),
-                      ),
-                      const SizedBox(height: 56),
-                      userData.when(
-                        data: (data) {
-                          if (data != null) {
-                            return Column(
-                              children: [
-                                Text(
-                                  UserProvider.getUserName(data),
-                                  style: const TextStyle(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColor.font1,
-                                  ),
-                                ),
-                              ],
-                            );
-                          }
-                          return const Text('사용자 정보를 불러올 수 없습니다.');
-                        },
-                        loading: () => const CircularProgressIndicator(),
-                        error: (error, stack) => Text('오류: $error'),
-                      ),
-                      const SizedBox(height: 16),
-                      // 정보수정 버튼
                       Container(
-                        width: 152,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          border: Border.all(color: AppColor.line1),
-                        ),
-                        child: const Center(
-                          child: Text(
-                            '정보수정',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              color: AppColor.font1,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 40),
-                      // 메뉴 버튼들
-                      InkWell(
-                        onTap: () => context.go('/main'),
-                        child: Container(
-                            width: 200,
-                            height: 48,
-                            color: Colors.black,
-                            child: Row(
-                              children: [
-                                const SizedBox(
-                                  width: 17.87,
-                                ),
-                                SizedBox(
-                                    width: 16.25,
-                                    height: 16.25,
-                                    child: Image.asset(
-                                      'assets/images/user.png',
-                                      color: Colors.white,
-                                    )),
-                                const SizedBox(
-                                  width: 3.85,
-                                ),
-                                const Text(
-                                  '담당 고객정보',
-                                  style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.white,
-                                      fontSize: 16),
-                                ),
-                              ],
-                            )),
-                      ),
-                      InkWell(
-                        onTap: () => context.go('/all-customers'),
-                        child: Container(
-                            width: 200,
-                            height: 48,
-                            color: Colors.transparent,
-                            child: Row(
-                              children: [
-                                const SizedBox(
-                                  width: 17.87,
-                                ),
-                                SizedBox(
-                                    width: 16.25,
-                                    height: 16.25,
-                                    child:
-                                        Image.asset('assets/images/group.png')),
-                                const SizedBox(
-                                  width: 3.85,
-                                ),
-                                const Text(
-                                  '전체 고객정보',
-                                  style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColor.font1,
-                                      fontSize: 16),
-                                ),
-                              ],
-                            )),
-                      ),
-                      InkWell(
-                        onTap: () {},
-                        child: Container(
-                            width: 200,
-                            height: 48,
-                            color: Colors.transparent,
-                            child: Row(
-                              children: [
-                                const SizedBox(
-                                  width: 17.87,
-                                ),
-                                SizedBox(
-                                    width: 16.25,
-                                    height: 16.25,
-                                    child:
-                                        Image.asset('assets/images/corp.png')),
-                                const SizedBox(
-                                  width: 3.85,
-                                ),
-                                const Text(
-                                  '업체 정보',
-                                  style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColor.font1,
-                                      fontSize: 16),
-                                ),
-                              ],
-                            )),
-                      ),
-                      const SizedBox(
-                        height: 48,
-                      ),
-                      InkWell(
-                        onTap: () {},
-                        child: Container(
-                            width: 200,
-                            height: 48,
-                            color: Colors.transparent,
-                            child: Row(
-                              children: [
-                                const SizedBox(
-                                  width: 17.87,
-                                ),
-                                SizedBox(
-                                    width: 16.25,
-                                    height: 16.25,
-                                    child: Image.asset('assets/images/as.png')),
-                                const SizedBox(
-                                  width: 3.85,
-                                ),
-                                const Text(
-                                  '교환',
-                                  style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColor.font1,
-                                      fontSize: 16),
-                                ),
-                              ],
-                            )),
-                      ),
-                      InkWell(
-                        onTap: () {},
-                        child: Container(
-                            width: 200,
-                            height: 48,
-                            color: Colors.transparent,
-                            child: Row(
-                              children: [
-                                const SizedBox(
-                                  width: 17.87,
-                                ),
-                                SizedBox(
-                                    width: 16.25,
-                                    height: 16.25,
-                                    child: Image.asset('assets/images/as.png')),
-                                const SizedBox(
-                                  width: 3.85,
-                                ),
-                                const Text(
-                                  '반품',
-                                  style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColor.font1,
-                                      fontSize: 16),
-                                ),
-                              ],
-                            )),
-                      ),
-                      const SizedBox(
-                        height: 48,
-                      ),
-                      InkWell(
-                        onTap: () => context.go('/temp'),
-                        child: Container(
-                            width: 200,
-                            height: 48,
-                            color: Colors.transparent,
-                            child: Row(
-                              children: [
-                                const SizedBox(
-                                  width: 17.87,
-                                ),
-                                SizedBox(
-                                    width: 16.25,
-                                    height: 16.25,
-                                    child:
-                                        Image.asset('assets/images/draft.png')),
-                                const SizedBox(
-                                  width: 3.85,
-                                ),
-                                const Text(
-                                  '임시저장',
-                                  style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColor.font1,
-                                      fontSize: 16),
-                                ),
-                              ],
-                            )),
-                      ),
-                    ],
+              width: 240,
+              height: MediaQuery.of(context).size.height,
+              decoration: const BoxDecoration(
+                border: Border(right: BorderSide(color: AppColor.line1)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const SizedBox(height: 40),
+                  InkWell(
+                    onTap: () => context.go('/main'),
+                    child: SizedBox(
+                      width: 137,
+                      height: 17,
+                      child: Image.asset('assets/images/logo.png'),
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 56),
+                  userData.when(
+                    data: (data) {
+                      if (data != null) {
+                        return Column(
+                          children: [
+                            Text(
+                              UserProvider.getUserName(data),
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w600,
+                                color: AppColor.font1,
+                              ),
+                            ),
+                          ],
+                        );
+                      }
+                      return const Text('사용자 정보를 불러올 수 없습니다.');
+                    },
+                    loading: () => const CircularProgressIndicator(),
+                    error: (error, stack) => Text('오류: $error'),
+                  ),
+                  const SizedBox(height: 16),
+                  // 정보수정 버튼
+                  Container(
+                    width: 152,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: AppColor.line1),
+                    ),
+                    child: const Center(
+                      child: Text(
+                        '정보수정',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: AppColor.font1,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+                  // 메뉴 버튼들
+                  InkWell(
+                    onTap: () => context.go('/main'),
+                    child: Container(
+                        width: 200,
+                        height: 48,
+                        color: const Color(0xffB18E72),
+                        child: Row(
+                          children: [
+                            const SizedBox(
+                              width: 17.87,
+                            ),
+                            SizedBox(
+                                width: 16.25,
+                                height: 16.25,
+                                child: Image.asset(
+                                  'assets/images/user.png',
+                                  color: Colors.white,
+                                )),
+                            const SizedBox(
+                              width: 3.85,
+                            ),
+                            const Text(
+                              '담당 고객정보',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                  fontSize: 16),
+                            ),
+                          ],
+                        )),
+                  ),
+                  InkWell(
+                    onTap: () => context.go('/all-customers'),
+                    child: Container(
+                        width: 200,
+                        height: 48,
+                        color: Colors.transparent,
+                        child: Row(
+                          children: [
+                            const SizedBox(
+                              width: 17.87,
+                            ),
+                            SizedBox(
+                                width: 16.25,
+                                height: 16.25,
+                                child: Image.asset('assets/images/group.png')),
+                            const SizedBox(
+                              width: 3.85,
+                            ),
+                            const Text(
+                              '전체 고객정보',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColor.font1,
+                                  fontSize: 16),
+                            ),
+                          ],
+                        )),
+                  ),
+
+                  const SizedBox(
+                    height: 48,
+                  ),
+                  InkWell(
+                    onTap: () {},
+                    child: Container(
+                        width: 200,
+                        height: 48,
+                        color: Colors.transparent,
+                        child: Row(
+                          children: [
+                            const SizedBox(
+                              width: 17.87,
+                            ),
+                            SizedBox(
+                                width: 16.25,
+                                height: 16.25,
+                                child: Image.asset('assets/images/as.png')),
+                            const SizedBox(
+                              width: 3.85,
+                            ),
+                            const Text(
+                              '교환',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColor.font1,
+                                  fontSize: 16),
+                            ),
+                          ],
+                        )),
+                  ),
+                  InkWell(
+                    onTap: () {},
+                    child: Container(
+                        width: 200,
+                        height: 48,
+                        color: Colors.transparent,
+                        child: Row(
+                          children: [
+                            const SizedBox(
+                              width: 17.87,
+                            ),
+                            SizedBox(
+                                width: 16.25,
+                                height: 16.25,
+                                child: Image.asset('assets/images/as.png')),
+                            const SizedBox(
+                              width: 3.85,
+                            ),
+                            const Text(
+                              '반품',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColor.font1,
+                                  fontSize: 16),
+                            ),
+                          ],
+                        )),
+                  ),
+                  const SizedBox(
+                    height: 48,
+                  ),
+                  InkWell(
+                    onTap: () => context.go('/temp'),
+                    child: Container(
+                        width: 200,
+                        height: 48,
+                        color: Colors.transparent,
+                        child: Row(
+                          children: [
+                            const SizedBox(
+                              width: 17.87,
+                            ),
+                            SizedBox(
+                                width: 16.25,
+                                height: 16.25,
+                                child: Image.asset('assets/images/draft.png')),
+                            const SizedBox(
+                              width: 3.85,
+                            ),
+                            const Text(
+                              '임시저장',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColor.font1,
+                                  fontSize: 16),
+                            ),
+                          ],
+                        )),
+                  ),
+                ],
+              ),
+            ),
                 const SizedBox(
                   width: 48,
                 ),
@@ -653,7 +637,7 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
                               height: 24,
                             ),
                             const Text(
-                              '고객명',
+                              '회사명',
                               style: TextStyle(
                                   fontSize: 14,
                                   color: AppColor.font1,
@@ -670,6 +654,8 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
                               ),
                               child: TextFormField(
                                 controller: _nameController,
+                                focusNode: _nameFocus,
+                                textInputAction: TextInputAction.next,
                                 decoration: const InputDecoration(
                                   isDense: true,
                                   contentPadding: EdgeInsets.symmetric(
@@ -679,6 +665,10 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
                                   hintStyle: TextStyle(
                                       color: AppColor.font2, fontSize: 14),
                                 ),
+                                onFieldSubmitted: (_) {
+                                  FocusScope.of(context)
+                                      .requestFocus(_phoneFocus);
+                                },
                               ),
                             ),
 
@@ -698,6 +688,7 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
                               ),
                               child: TextFormField(
                                 controller: _phoneController,
+                                focusNode: _phoneFocus,
                                 decoration: const InputDecoration(
                                   isDense: true,
                                   contentPadding: EdgeInsets.symmetric(
@@ -708,6 +699,10 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
                                       color: AppColor.font2, fontSize: 14),
                                 ),
                                 keyboardType: TextInputType.phone,
+                                onFieldSubmitted: (_) {
+                                  FocusScope.of(context)
+                                      .requestFocus(_emailFocus);
+                                },
                               ),
                             ),
                             const SizedBox(height: 24),
@@ -729,6 +724,8 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
                                   ),
                                   child: TextFormField(
                                     controller: _emailController,
+                                    focusNode: _emailFocus,
+                                    textInputAction: TextInputAction.next,
                                     decoration: const InputDecoration(
                                       isDense: true,
                                       contentPadding: EdgeInsets.symmetric(
@@ -738,6 +735,10 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
                                       hintStyle: TextStyle(
                                           color: AppColor.font2, fontSize: 14),
                                     ),
+                                    onFieldSubmitted: (_) {
+                                      FocusScope.of(context)
+                                          .requestFocus(_domainFocus);
+                                    },
                                   ),
                                 ),
                                 const SizedBox(width: 12),
@@ -758,6 +759,9 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
                                     child: isDirectInput
                                         ? TextFormField(
                                             controller: _directDomainController,
+                                            focusNode: _domainFocus,
+                                            textInputAction:
+                                                TextInputAction.next,
                                             decoration: const InputDecoration(
                                               isDense: true,
                                               contentPadding:
@@ -770,6 +774,10 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
                                                   color: AppColor.font2,
                                                   fontSize: 14),
                                             ),
+                                            onFieldSubmitted: (_) {
+                                              FocusScope.of(context)
+                                                  .requestFocus(_addressFocus);
+                                            },
                                           )
                                         : DropdownButtonHideUnderline(
                                             child: DropdownButton<String>(
@@ -963,6 +971,8 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
                                 children: [
                                   TextFormField(
                                     controller: _noteController,
+                                    focusNode: _noteFocus,
+                                    textInputAction: TextInputAction.done,
                                     maxLength: 2000,
                                     maxLines: null,
                                     decoration: const InputDecoration(

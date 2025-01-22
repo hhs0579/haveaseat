@@ -38,6 +38,12 @@ class MyApp extends ConsumerWidget {
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.black),
           useMaterial3: true,
           fontFamily: 'Pretendard',
+          pageTransitionsTheme: PageTransitionsTheme(
+            builders: Map<TargetPlatform, PageTransitionsBuilder>.fromIterable(
+              TargetPlatform.values,
+              value: (dynamic _) => NoTransitionsBuilder(),
+            ),
+          ),
         ),
         scrollBehavior: MyCustomScrollBehavior());
   }
@@ -57,4 +63,17 @@ void main() async {
       child: MyApp(),
     ),
   );
+}
+
+class NoTransitionsBuilder extends PageTransitionsBuilder {
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    return child;
+  }
 }

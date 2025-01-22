@@ -9,6 +9,7 @@ import 'dart:html' as html;
 import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:math' show max;
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
 
 class MainPage extends ConsumerStatefulWidget {
   const MainPage({super.key});
@@ -31,6 +32,23 @@ class _MainPageState extends ConsumerState<MainPage> {
   static const double LICENSE_RATIO = 0.09;
   static const double BUDGET_RATIO = 0.1;
   static const double NOTE_RATIO = 0.1;
+
+  // 상태 관련 상수 및 변수
+  static const List<String> statusOptions = [
+    '견적진행중',
+    '견적완료',
+    '계약완료',
+    '발주시작',
+    '입고',
+    '검수',
+    '납품',
+    '후기',
+    '완료'
+  ];
+
+  String getCustomerStatus(String? status) {
+    return status ?? statusOptions[0];
+  }
 
   void _toggleAllCheck(bool? checked, List<Customer> customers) {
     setState(() {
@@ -198,10 +216,9 @@ class _MainPageState extends ConsumerState<MainPage> {
                   value, ref.read(customerDataProvider).value ?? []),
             ),
           ),
-          buildHeaderCell('고객명', totalWidth * CUSTOMER_NAME_RATIO),
+          buildHeaderCell('회사명', totalWidth * CUSTOMER_NAME_RATIO),
           buildHeaderCell('상태', totalWidth * STATUS_RATIO),
           buildHeaderCell('연락처', totalWidth * PHONE_RATIO),
-          buildHeaderCell('이메일 주소', totalWidth * EMAIL_RATIO),
           buildHeaderCell('주소', totalWidth * ADDRESS_RATIO),
           buildHeaderCell('사업자등록증', totalWidth * LICENSE_RATIO),
           buildHeaderCell('금액', totalWidth * BUDGET_RATIO),
@@ -218,51 +235,6 @@ class _MainPageState extends ConsumerState<MainPage> {
   bool _showEndDatePicker = false;
 
   // 검색 필터 함수
-// _filterCustomers 메소드 수정
-  List<Customer> _filterCustomers(List<Customer> customers) {
-    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-
-    // 먼저 담당 고객만 필터링 (managerId 대신 assignedTo 사용)
-    final myCustomers = customers
-        .where((customer) => customer.assignedTo == currentUserId)
-        .toList();
-
-    // 검색어나 날짜 필터가 없으면 담당 고객 전체 반환
-    if (_searchController.text.isEmpty &&
-        _startDate == null &&
-        _endDate == null) {
-      return myCustomers;
-    }
-
-    // 추가 필터 적용
-    return myCustomers.where((customer) {
-      // 검색어 필터링
-      if (_searchController.text.isNotEmpty) {
-        String searchTerm = _searchController.text.toLowerCase();
-        bool matchesSearch = customer.name.toLowerCase().contains(searchTerm) ||
-            customer.address.toLowerCase().contains(searchTerm) ||
-            customer.note
-                .toLowerCase()
-                .contains(searchTerm); // spaceDetailInfo 대신 note 사용
-
-        if (!matchesSearch) return false;
-      }
-
-      // 날짜 필터링
-      if (_startDate != null || _endDate != null) {
-        DateTime customerDate = customer.createdAt;
-        if (_startDate != null && customerDate.isBefore(_startDate!)) {
-          return false;
-        }
-        if (_endDate != null &&
-            customerDate.isAfter(_endDate!.add(const Duration(days: 1)))) {
-          return false;
-        }
-      }
-
-      return true;
-    }).toList();
-  }
 
   // 날짜 선택 위젯
   Widget _buildDatePicker(bool isStartDate) {
@@ -305,7 +277,8 @@ class _MainPageState extends ConsumerState<MainPage> {
     );
   }
 
-  Widget buildCustomerRow(Customer customer, double totalWidth) {
+  Widget buildCustomerRow(
+      Customer customer, double totalWidth, double totalAmount) {
     return Container(
       width: totalWidth,
       height: 48,
@@ -326,13 +299,43 @@ class _MainPageState extends ConsumerState<MainPage> {
             totalWidth * CUSTOMER_NAME_RATIO,
             isClickable: true,
             onTap: () {
-              context.go(
-                  '/main/customer/${customer.id}'); // Using go_router for navigation
+              context.go('/main/customer/${customer.id}');
             },
           ),
-          buildDataCell('진행중', totalWidth * STATUS_RATIO),
+          // 상태 드롭다운
+          SizedBox(
+            width: totalWidth * STATUS_RATIO,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<CustomerStatus>(
+                  value: customer.status,
+                  isExpanded: true,
+                  icon: const Icon(Icons.arrow_drop_down, size: 20),
+                  items: CustomerStatus.values.map((CustomerStatus status) {
+                    return DropdownMenuItem<CustomerStatus>(
+                      value: status,
+                      child: Text(
+                        status.label,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: AppColor.font1,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (CustomerStatus? newStatus) {
+                    if (newStatus != null) {
+                      ref
+                          .read(customerDataProvider.notifier)
+                          .updateCustomerStatus(customer.id, newStatus);
+                    }
+                  },
+                ),
+              ),
+            ),
+          ),
           buildDataCell(customer.phone, totalWidth * PHONE_RATIO),
-          buildDataCell(customer.email, totalWidth * EMAIL_RATIO),
           buildDataCell(customer.address, totalWidth * ADDRESS_RATIO),
           SizedBox(
             width: totalWidth * LICENSE_RATIO,
@@ -348,9 +351,134 @@ class _MainPageState extends ConsumerState<MainPage> {
                     ),
                   ),
           ),
-          buildDataCell('₩${customer.note ?? '0'}', totalWidth * BUDGET_RATIO),
+          buildDataCell('₩${NumberFormat('#,###').format(totalAmount)}',
+              totalWidth * BUDGET_RATIO),
           buildDataCell(customer.note, totalWidth * NOTE_RATIO),
         ],
+      ),
+    );
+  }
+  // _MainPageState 클래스에 추가할 변수와 메서드
+
+  CustomerStatus? _selectedStatus; // 선택된 status 저장
+
+// status별 고객 수를 계산하는 메서드
+  Map<CustomerStatus, int> _getStatusCounts(List<Customer> customers) {
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    final myCustomers =
+        customers.where((c) => c.assignedTo == currentUserId).toList();
+
+    return Map.fromEntries(
+      CustomerStatus.values.map((status) => MapEntry(
+            status,
+            myCustomers.where((customer) => customer.status == status).length,
+          )),
+    );
+  }
+
+// 필터링 메서드 수정
+  List<Customer> _filterCustomers(List<Customer> customers) {
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+
+    // 먼저 담당 고객만 필터링
+    var filteredCustomers = customers
+        .where((customer) => customer.assignedTo == currentUserId)
+        .toList();
+
+    // Status 필터 적용
+    if (_selectedStatus != null) {
+      filteredCustomers = filteredCustomers
+          .where((customer) => customer.status == _selectedStatus)
+          .toList();
+    }
+
+    // 검색어나 날짜 필터가 없으면 현재 필터된 고객 반환
+    if (_searchController.text.isEmpty &&
+        _startDate == null &&
+        _endDate == null) {
+      return filteredCustomers;
+    }
+
+    // 기존 검색어 및 날짜 필터 적용
+    return filteredCustomers.where((customer) {
+      // 검색어 필터링
+      if (_searchController.text.isNotEmpty) {
+        String searchTerm = _searchController.text.toLowerCase();
+        bool matchesSearch = customer.name.toLowerCase().contains(searchTerm) ||
+            customer.address.toLowerCase().contains(searchTerm) ||
+            customer.note.toLowerCase().contains(searchTerm);
+
+        if (!matchesSearch) return false;
+      }
+
+      // 날짜 필터링
+      if (_startDate != null || _endDate != null) {
+        DateTime customerDate = customer.createdAt;
+        if (_startDate != null && customerDate.isBefore(_startDate!)) {
+          return false;
+        }
+        if (_endDate != null &&
+            customerDate.isAfter(_endDate!.add(const Duration(days: 1)))) {
+          return false;
+        }
+      }
+
+      return true;
+    }).toList();
+  }
+
+// Status 카운트를 보여주는 위젯
+  Widget _buildStatusCounter(CustomerStatus status, int count) {
+    final bool isSelected = _selectedStatus == status;
+
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _selectedStatus = isSelected ? null : status;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
+        width: 161,
+        height: 56,
+        decoration: BoxDecoration(
+          border: Border.all(
+              color: isSelected ? const Color(0xffB18E72) : AppColor.line1,
+              width: 2),
+          color: Colors.transparent,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              status.label,
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
+                color: isSelected ? const Color(0xffB18E72) : Colors.black,
+              ),
+            ),
+            Row(
+              children: [
+                Text(
+                  count.toString(),
+                  style: TextStyle(
+                      color:
+                          isSelected ? const Color(0xffB18E72) : Colors.black,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 20),
+                ),
+                Text(
+                  ' 건',
+                  style: TextStyle(
+                      color:
+                          isSelected ? const Color(0xffB18E72) : Colors.black,
+                      fontSize: 16),
+                ),
+              ],
+            )
+          ],
+        ),
       ),
     );
   }
@@ -367,6 +495,7 @@ class _MainPageState extends ConsumerState<MainPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // 사이드바
+
             Container(
               width: 240,
               height: MediaQuery.of(context).size.height,
@@ -433,7 +562,7 @@ class _MainPageState extends ConsumerState<MainPage> {
                     child: Container(
                         width: 200,
                         height: 48,
-                        color: Colors.black,
+                        color: const Color(0xffB18E72),
                         child: Row(
                           children: [
                             const SizedBox(
@@ -487,34 +616,7 @@ class _MainPageState extends ConsumerState<MainPage> {
                           ],
                         )),
                   ),
-                  InkWell(
-                    onTap: () {},
-                    child: Container(
-                        width: 200,
-                        height: 48,
-                        color: Colors.transparent,
-                        child: Row(
-                          children: [
-                            const SizedBox(
-                              width: 17.87,
-                            ),
-                            SizedBox(
-                                width: 16.25,
-                                height: 16.25,
-                                child: Image.asset('assets/images/corp.png')),
-                            const SizedBox(
-                              width: 3.85,
-                            ),
-                            const Text(
-                              '업체 정보',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColor.font1,
-                                  fontSize: 16),
-                            ),
-                          ],
-                        )),
-                  ),
+
                   const SizedBox(
                     height: 48,
                   ),
@@ -671,200 +773,75 @@ class _MainPageState extends ConsumerState<MainPage> {
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 20, vertical: 16),
-                                    width: 210,
-                                    height: 56,
-                                    decoration: BoxDecoration(
-                                      border: Border.all(
-                                          color: AppColor.line1, width: 1),
-                                    ),
-                                    child: const Row(
+                                  customers.when(
+                                    data: (customerList) {
+                                      final statusCounts =
+                                          _getStatusCounts(customerList);
+                                      return Row(
                                         mainAxisSize: MainAxisSize.min,
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
                                         children: [
-                                          Text(
-                                            '담당 고객',
-                                            style: TextStyle(
-                                                fontWeight: FontWeight.w600,
-                                                fontSize: 16,
-                                                color: Colors.black),
-                                          ),
-                                          Row(
-                                            children: [Text(''), Text('명')],
-                                          )
-                                        ]),
+                                          _buildStatusCounter(
+                                              CustomerStatus
+                                                  .ESTIMATE_IN_PROGRESS,
+                                              statusCounts[CustomerStatus
+                                                      .ESTIMATE_IN_PROGRESS] ??
+                                                  0),
+                                          const SizedBox(width: 20),
+                                          _buildStatusCounter(
+                                              CustomerStatus.ESTIMATE_COMPLETE,
+                                              statusCounts[CustomerStatus
+                                                      .ESTIMATE_COMPLETE] ??
+                                                  0),
+                                          const SizedBox(width: 20),
+                                          _buildStatusCounter(
+                                              CustomerStatus.CONTRACT_COMPLETE,
+                                              statusCounts[CustomerStatus
+                                                      .CONTRACT_COMPLETE] ??
+                                                  0),
+                                          const SizedBox(width: 20),
+                                          _buildStatusCounter(
+                                              CustomerStatus.ORDER_START,
+                                              statusCounts[CustomerStatus
+                                                      .ORDER_START] ??
+                                                  0),
+                                          const SizedBox(width: 20),
+                                          _buildStatusCounter(
+                                              CustomerStatus.RECEIVING,
+                                              statusCounts[CustomerStatus
+                                                      .RECEIVING] ??
+                                                  0),
+                                          const SizedBox(width: 20),
+                                          _buildStatusCounter(
+                                              CustomerStatus.INSPECTION,
+                                              statusCounts[CustomerStatus
+                                                      .INSPECTION] ??
+                                                  0),
+                                          const SizedBox(width: 20),
+                                          _buildStatusCounter(
+                                              CustomerStatus.DELIVERY,
+                                              statusCounts[CustomerStatus
+                                                      .DELIVERY] ??
+                                                  0),
+                                          const SizedBox(width: 20),
+                                          _buildStatusCounter(
+                                              CustomerStatus.REVIEW,
+                                              statusCounts[
+                                                      CustomerStatus.REVIEW] ??
+                                                  0),
+                                          const SizedBox(width: 20),
+                                          _buildStatusCounter(
+                                              CustomerStatus.COMPLETE,
+                                              statusCounts[CustomerStatus
+                                                      .COMPLETE] ??
+                                                  0),
+                                        ],
+                                      );
+                                    },
+                                    loading: () => const Center(
+                                        child: CircularProgressIndicator()),
+                                    error: (error, stack) =>
+                                        Text('Error: $error'),
                                   ),
-                                  const SizedBox(
-                                    width: 20,
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 20, vertical: 16),
-                                    width: 210,
-                                    height: 56,
-                                    decoration: BoxDecoration(
-                                      border: Border.all(
-                                          color: AppColor.line1, width: 1),
-                                    ),
-                                    child: const Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Text(
-                                            '견적',
-                                            style: TextStyle(
-                                                fontWeight: FontWeight.w600,
-                                                fontSize: 16,
-                                                color: Colors.black),
-                                          ),
-                                          Row(
-                                            children: [Text(''), Text('건')],
-                                          )
-                                        ]),
-                                  ),
-                                  const SizedBox(
-                                    width: 20,
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 20, vertical: 16),
-                                    width: 210,
-                                    height: 56,
-                                    decoration: BoxDecoration(
-                                      border: Border.all(
-                                          color: AppColor.line1, width: 1),
-                                    ),
-                                    child: const Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Text(
-                                            '계약',
-                                            style: TextStyle(
-                                                fontWeight: FontWeight.w600,
-                                                fontSize: 16,
-                                                color: Colors.black),
-                                          ),
-                                          Row(
-                                            children: [Text(''), Text('건')],
-                                          )
-                                        ]),
-                                  ),
-                                  const SizedBox(
-                                    width: 20,
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 20, vertical: 16),
-                                    width: 210,
-                                    height: 56,
-                                    decoration: BoxDecoration(
-                                      border: Border.all(
-                                          color: AppColor.line1, width: 1),
-                                    ),
-                                    child: const Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Text(
-                                            '결제',
-                                            style: TextStyle(
-                                                fontWeight: FontWeight.w600,
-                                                fontSize: 16,
-                                                color: Colors.black),
-                                          ),
-                                          Row(
-                                            children: [Text(''), Text('건')],
-                                          )
-                                        ]),
-                                  ),
-                                  const SizedBox(
-                                    width: 20,
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 20, vertical: 16),
-                                    width: 210,
-                                    height: 56,
-                                    decoration: BoxDecoration(
-                                      border: Border.all(
-                                          color: AppColor.line1, width: 1),
-                                    ),
-                                    child: const Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Text(
-                                            '발주',
-                                            style: TextStyle(
-                                                fontWeight: FontWeight.w600,
-                                                fontSize: 16,
-                                                color: Colors.black),
-                                          ),
-                                          Row(
-                                            children: [Text(''), Text('건')],
-                                          )
-                                        ]),
-                                  ),
-                                  const SizedBox(
-                                    width: 20,
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 20, vertical: 16),
-                                    width: 210,
-                                    height: 56,
-                                    decoration: BoxDecoration(
-                                      border: Border.all(
-                                          color: AppColor.line1, width: 1),
-                                    ),
-                                    child: const Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Text(
-                                            '배송',
-                                            style: TextStyle(
-                                                fontWeight: FontWeight.w600,
-                                                fontSize: 16,
-                                                color: Colors.black),
-                                          ),
-                                          Row(
-                                            children: [Text(''), Text('건')],
-                                          )
-                                        ]),
-                                  ),
-                                  const SizedBox(
-                                    width: 20,
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 20, vertical: 16),
-                                    width: 210,
-                                    height: 56,
-                                    decoration: BoxDecoration(
-                                      border: Border.all(
-                                          color: AppColor.line1, width: 1),
-                                    ),
-                                    child: const Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Text(
-                                            '교환 및 환불',
-                                            style: TextStyle(
-                                                fontWeight: FontWeight.w600,
-                                                fontSize: 16,
-                                                color: Colors.black),
-                                          ),
-                                          Row(
-                                            children: [Text(''), Text('건')],
-                                          )
-                                        ]),
-                                  )
                                 ],
                               ),
                             ),
@@ -1120,39 +1097,65 @@ class _MainPageState extends ConsumerState<MainPage> {
                                                     children: [
                                                       buildTableHeader(
                                                           tableWidth),
+                                                      // customers.when 부분을 다음과 같이 수정
+
                                                       customers.when(
                                                         data: (customerList) {
-                                                          // 검색 필터 적용
                                                           final filteredCustomers =
                                                               _filterCustomers(
                                                                   customerList);
-                                                          return Column(
-                                                            children: filteredCustomers
-                                                                .map((customer) =>
-                                                                    buildCustomerRow(
-                                                                        customer,
-                                                                        tableWidth))
-                                                                .toList(),
+                                                          return FutureBuilder<
+                                                              Map<String,
+                                                                  double>>(
+                                                            future: ref
+                                                                .read(customerDataProvider
+                                                                    .notifier)
+                                                                .getCustomersTotalAmounts(
+                                                                    filteredCustomers
+                                                                        .map((c) =>
+                                                                            c.id)
+                                                                        .toList()),
+                                                            builder: (context,
+                                                                snapshot) {
+                                                              if (snapshot
+                                                                      .connectionState ==
+                                                                  ConnectionState
+                                                                      .waiting) {
+                                                                return const Center(
+                                                                    child:
+                                                                        CircularProgressIndicator());
+                                                              }
+
+                                                              if (snapshot
+                                                                  .hasError) {
+                                                                return Text(
+                                                                    'Error: ${snapshot.error}');
+                                                              }
+
+                                                              final totalAmounts =
+                                                                  snapshot.data ??
+                                                                      {};
+                                                              return Column(
+                                                                children:
+                                                                    filteredCustomers
+                                                                        .map((customer) =>
+                                                                            buildCustomerRow(
+                                                                              customer,
+                                                                              tableWidth,
+                                                                              totalAmounts[customer.id] ?? 0,
+                                                                            ))
+                                                                        .toList(),
+                                                              );
+                                                            },
                                                           );
                                                         },
-                                                        loading: () => SizedBox(
-                                                          width: tableWidth,
-                                                          height: 200,
-                                                          child: const Center(
+                                                        loading: () => const Center(
                                                             child:
-                                                                CircularProgressIndicator(),
-                                                          ),
-                                                        ),
+                                                                CircularProgressIndicator()),
                                                         error: (error, stack) =>
-                                                            SizedBox(
-                                                          width: tableWidth,
-                                                          height: 200,
-                                                          child: Center(
-                                                            child: Text(
+                                                            Text(
                                                                 'Error: $error'),
-                                                          ),
-                                                        ),
-                                                      ),
+                                                      )
                                                     ],
                                                   ),
                                                 ),

@@ -12,6 +12,21 @@ enum EstimateStatus {
   CANCELED // 취소됨
 }
 
+enum CustomerStatus {
+  ESTIMATE_IN_PROGRESS('견적진행중'),
+  ESTIMATE_COMPLETE('견적완료'),
+  CONTRACT_COMPLETE('계약완료'),
+  ORDER_START('발주시작'),
+  RECEIVING('입고'),
+  INSPECTION('검수'),
+  DELIVERY('납품'),
+  REVIEW('후기'),
+  COMPLETE('완료');
+
+  final String label;
+  const CustomerStatus(this.label);
+}
+
 // 고객 정보 모델
 class Customer {
   final String id;
@@ -22,6 +37,7 @@ class Customer {
   final String businessLicenseUrl;
   final List<String> otherDocumentUrls;
   final String note;
+  final CustomerStatus status;
   final String assignedTo;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -36,6 +52,7 @@ class Customer {
     required this.businessLicenseUrl,
     required this.otherDocumentUrls,
     required this.note,
+    this.status = CustomerStatus.ESTIMATE_IN_PROGRESS,
     required this.assignedTo,
     required this.createdAt,
     required this.updatedAt,
@@ -43,6 +60,18 @@ class Customer {
   });
 
   factory Customer.fromJson(String id, Map<String, dynamic> json) {
+    String statusStr =
+        json['status'] as String? ?? CustomerStatus.ESTIMATE_IN_PROGRESS.name;
+    CustomerStatus status;
+    try {
+      status = CustomerStatus.values.firstWhere(
+        (e) => e.name == statusStr,
+        orElse: () => CustomerStatus.ESTIMATE_IN_PROGRESS,
+      );
+    } catch (e) {
+      status = CustomerStatus.ESTIMATE_IN_PROGRESS;
+    }
+
     return Customer(
       id: id,
       name: json['name'] ?? '',
@@ -52,6 +81,7 @@ class Customer {
       businessLicenseUrl: json['businessLicenseUrl'] ?? '',
       otherDocumentUrls: List<String>.from(json['otherDocumentUrls'] ?? []),
       note: json['note'] ?? '',
+      status: status, // enum 값 사용
       assignedTo: json['assignedTo'] ?? '',
       createdAt: (json['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (json['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
@@ -59,6 +89,7 @@ class Customer {
     );
   }
 
+// Customer 클래스의 toJson 메서드도 수정
   Map<String, dynamic> toJson() {
     return {
       'name': name,
@@ -68,6 +99,7 @@ class Customer {
       'businessLicenseUrl': businessLicenseUrl,
       'otherDocumentUrls': otherDocumentUrls,
       'note': note,
+      'status': status.name, // enum의 name을 저장
       'assignedTo': assignedTo,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
@@ -549,6 +581,67 @@ class EstimatesNotifier extends StateNotifier<List<Estimate>> {
   }
 }
 
+Future<double> getCustomerTotalAmount(String customerId) async {
+  try {
+    // 고객의 모든 견적서 가져오기
+    final estimatesSnapshot = await FirebaseFirestore.instance
+        .collection('estimates')
+        .where('customerId', isEqualTo: customerId)
+        .get();
+
+    double totalAmount = 0;
+
+    // 각 견적서의 가구 리스트에서 가격 합산
+    for (var doc in estimatesSnapshot.docs) {
+      final estimate = Estimate.fromJson(doc.id, doc.data());
+      totalAmount +=
+          estimate.totalAmount; // Estimate 클래스의 totalAmount getter 사용
+    }
+
+    return totalAmount;
+  } catch (e) {
+    print('Error calculating total amount: $e');
+    return 0;
+  }
+}
+
+Future<Map<String, double>> getCustomersTotalAmounts(
+    List<String> customerIds) async {
+  try {
+    Map<String, double> results = {};
+
+    // 모든 견적서를 한 번에 가져오기
+    final estimatesSnapshot = await FirebaseFirestore.instance
+        .collection('estimates')
+        .where('customerId', whereIn: customerIds)
+        .get();
+
+    // 고객 ID별로 견적서 그룹화
+    Map<String, List<Estimate>> customerEstimates = {};
+    for (var doc in estimatesSnapshot.docs) {
+      final estimate = Estimate.fromJson(doc.id, doc.data());
+      customerEstimates
+          .putIfAbsent(estimate.customerId, () => [])
+          .add(estimate);
+    }
+
+    // 각 고객별 총액 계산
+    for (var customerId in customerIds) {
+      final estimates = customerEstimates[customerId] ?? [];
+      double totalAmount = 0;
+      for (var estimate in estimates) {
+        totalAmount += estimate.totalAmount;
+      }
+      results[customerId] = totalAmount;
+    }
+
+    return results;
+  } catch (e) {
+    print('Error calculating total amounts: $e');
+    return {};
+  }
+}
+
 // Customer Provider
 final customerDataProvider =
     AsyncNotifierProvider<CustomerNotifier, List<Customer>>(() {
@@ -582,6 +675,66 @@ class CustomerNotifier extends AsyncNotifier<List<Customer>> {
     } catch (e) {
       print('Error in _fetchCustomers: $e');
       rethrow;
+    }
+  }
+
+  Future<void> updateCustomerStatus(
+      String customerId, CustomerStatus newStatus) async {
+    try {
+      state = const AsyncValue.loading();
+
+      // Update the status in Firestore
+      // CustomerStatus enum을 올바른 string 값으로 변환
+      final statusValue = newStatus.name; // enum의 name 속성 사용
+
+      await FirebaseFirestore.instance
+          .collection('customers')
+          .doc(customerId)
+          .update({
+        'status': statusValue, // enum의 name을 저장
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Refresh the customers list
+      state = AsyncValue.data(await _fetchCustomers());
+    } catch (e) {
+      print('Error updating customer status: $e');
+      state = AsyncValue.error(e, StackTrace.current);
+      rethrow;
+    }
+  }
+
+  Future<Map<String, double>> getCustomersTotalAmounts(
+      List<String> customerIds) async {
+    try {
+      Map<String, double> results = {};
+
+      final estimatesSnapshot = await FirebaseFirestore.instance
+          .collection('estimates')
+          .where('customerId', whereIn: customerIds)
+          .get();
+
+      Map<String, List<Estimate>> customerEstimates = {};
+      for (var doc in estimatesSnapshot.docs) {
+        final estimate = Estimate.fromJson(doc.id, doc.data());
+        customerEstimates
+            .putIfAbsent(estimate.customerId, () => [])
+            .add(estimate);
+      }
+
+      for (var customerId in customerIds) {
+        final estimates = customerEstimates[customerId] ?? [];
+        double totalAmount = 0;
+        for (var estimate in estimates) {
+          totalAmount += estimate.totalAmount;
+        }
+        results[customerId] = totalAmount;
+      }
+
+      return results;
+    } catch (e) {
+      print('Error calculating total amounts: $e');
+      return {};
     }
   }
 
