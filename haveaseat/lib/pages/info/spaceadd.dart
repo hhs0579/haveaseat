@@ -113,6 +113,17 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
       if (user == null) {
         throw Exception('로그인이 필요합니다');
       }
+      final userData = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      final customer = await ref
+          .read(customerDataProvider.notifier)
+          .getCustomer(widget.customerId);
+      if (customer == null || customer.estimateIds.isEmpty) {
+        throw Exception('고객 정보를 찾을 수 없습니다');
+      }
 
       // Firestore에서 해당 고객의 견적 정보 가져오기
       final customerDoc = await FirebaseFirestore.instance
@@ -122,7 +133,6 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
 
       if (!customerDoc.exists) throw Exception('고객 정보를 찾을 수 없습니다');
 
-      final customer = Customer.fromJson(customerDoc.id, customerDoc.data()!);
       final estimateId = customer.estimateIds[0]; // 첫 번째 견적 ID 사용
 
       // 임시 저장 데이터 생성
@@ -142,6 +152,8 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
         'shippingMethod': _shippingMethod,
         'paymentMethod': _paymentMethod,
         'basicNotes': _additionalNotesController.text,
+        'managerName': userData.data()?['name'] ?? '', // 담당자명 추가
+        'managerPhone': userData.data()?['phoneNumber'] ?? '', // 담당자 번호 추가
       };
 
       // temp_estimates 컬렉션에 저장
@@ -173,13 +185,19 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
       final user = ref.read(UserProvider.currentUserProvider).value;
       if (user == null) throw Exception('로그인이 필요합니다');
 
-      // 고객 정보에서 견적 ID 가져오기
+      final userData = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
       final customer = await ref
           .read(customerDataProvider.notifier)
           .getCustomer(widget.customerId);
       if (customer == null || customer.estimateIds.isEmpty) {
         throw Exception('고객 정보를 찾을 수 없습니다');
       }
+
+      // 고객 정보에서 견적 ID 가져오기
 
       final estimateId = customer.estimateIds[0];
 
@@ -195,6 +213,8 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
         'basicNotes': _additionalNotesController.text,
         'status': EstimateStatus.IN_PROGRESS.toString(),
         'updatedAt': FieldValue.serverTimestamp(),
+        'managerName': userData.data()?['name'] ?? '', // 담당자명 추가
+        'managerPhone': userData.data()?['phoneNumber'] ?? '', // 담당자 번호 추가
       };
 
       // Firestore에 직접 저장
@@ -418,220 +438,222 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
               key: _formKey,
               child:
                   Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                       Container(
-              width: 240,
-              height: MediaQuery.of(context).size.height,
-              decoration: const BoxDecoration(
-                border: Border(right: BorderSide(color: AppColor.line1)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const SizedBox(height: 40),
-                  InkWell(
-                    onTap: () => context.go('/main'),
-                    child: SizedBox(
-                      width: 137,
-                      height: 17,
-                      child: Image.asset('assets/images/logo.png'),
-                    ),
+                Container(
+                  width: 240,
+                  height: MediaQuery.of(context).size.height,
+                  decoration: const BoxDecoration(
+                    border: Border(right: BorderSide(color: AppColor.line1)),
                   ),
-                  const SizedBox(height: 56),
-                  userData.when(
-                    data: (data) {
-                      if (data != null) {
-                        return Column(
-                          children: [
-                            Text(
-                              UserProvider.getUserName(data),
-                              style: const TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.w600,
-                                color: AppColor.font1,
-                              ),
-                            ),
-                          ],
-                        );
-                      }
-                      return const Text('사용자 정보를 불러올 수 없습니다.');
-                    },
-                    loading: () => const CircularProgressIndicator(),
-                    error: (error, stack) => Text('오류: $error'),
-                  ),
-                  const SizedBox(height: 16),
-                  // 정보수정 버튼
-                  Container(
-                    width: 152,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: AppColor.line1),
-                    ),
-                    child: const Center(
-                      child: Text(
-                        '정보수정',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: AppColor.font1,
-                          fontSize: 16,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      const SizedBox(height: 40),
+                      InkWell(
+                        onTap: () => context.go('/main'),
+                        child: SizedBox(
+                          width: 137,
+                          height: 17,
+                          child: Image.asset('assets/images/logo.png'),
                         ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 40),
-                  // 메뉴 버튼들
-                  InkWell(
-                    onTap: () => context.go('/main'),
-                    child: Container(
-                        width: 200,
+                      const SizedBox(height: 56),
+                      userData.when(
+                        data: (data) {
+                          if (data != null) {
+                            return Column(
+                              children: [
+                                Text(
+                                  UserProvider.getUserName(data),
+                                  style: const TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColor.font1,
+                                  ),
+                                ),
+                              ],
+                            );
+                          }
+                          return const Text('사용자 정보를 불러올 수 없습니다.');
+                        },
+                        loading: () => const CircularProgressIndicator(),
+                        error: (error, stack) => Text('오류: $error'),
+                      ),
+                      const SizedBox(height: 16),
+                      // 정보수정 버튼
+                      Container(
+                        width: 152,
                         height: 48,
-                        color: const Color(0xffB18E72),
-                        child: Row(
-                          children: [
-                            const SizedBox(
-                              width: 17.87,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: AppColor.line1),
+                        ),
+                        child: const Center(
+                          child: Text(
+                            '정보수정',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: AppColor.font1,
+                              fontSize: 16,
                             ),
-                            SizedBox(
-                                width: 16.25,
-                                height: 16.25,
-                                child: Image.asset(
-                                  'assets/images/user.png',
-                                  color: Colors.white,
-                                )),
-                            const SizedBox(
-                              width: 3.85,
-                            ),
-                            const Text(
-                              '담당 고객정보',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white,
-                                  fontSize: 16),
-                            ),
-                          ],
-                        )),
-                  ),
-                  InkWell(
-                    onTap: () => context.go('/all-customers'),
-                    child: Container(
-                        width: 200,
-                        height: 48,
-                        color: Colors.transparent,
-                        child: Row(
-                          children: [
-                            const SizedBox(
-                              width: 17.87,
-                            ),
-                            SizedBox(
-                                width: 16.25,
-                                height: 16.25,
-                                child: Image.asset('assets/images/group.png')),
-                            const SizedBox(
-                              width: 3.85,
-                            ),
-                            const Text(
-                              '전체 고객정보',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColor.font1,
-                                  fontSize: 16),
-                            ),
-                          ],
-                        )),
-                  ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 40),
+                      // 메뉴 버튼들
+                      InkWell(
+                        onTap: () => context.go('/main'),
+                        child: Container(
+                            width: 200,
+                            height: 48,
+                            color: const Color(0xffB18E72),
+                            child: Row(
+                              children: [
+                                const SizedBox(
+                                  width: 17.87,
+                                ),
+                                SizedBox(
+                                    width: 16.25,
+                                    height: 16.25,
+                                    child: Image.asset(
+                                      'assets/images/user.png',
+                                      color: Colors.white,
+                                    )),
+                                const SizedBox(
+                                  width: 3.85,
+                                ),
+                                const Text(
+                                  '담당 고객정보',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                      fontSize: 16),
+                                ),
+                              ],
+                            )),
+                      ),
+                      InkWell(
+                        onTap: () => context.go('/all-customers'),
+                        child: Container(
+                            width: 200,
+                            height: 48,
+                            color: Colors.transparent,
+                            child: Row(
+                              children: [
+                                const SizedBox(
+                                  width: 17.87,
+                                ),
+                                SizedBox(
+                                    width: 16.25,
+                                    height: 16.25,
+                                    child:
+                                        Image.asset('assets/images/group.png')),
+                                const SizedBox(
+                                  width: 3.85,
+                                ),
+                                const Text(
+                                  '전체 고객정보',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColor.font1,
+                                      fontSize: 16),
+                                ),
+                              ],
+                            )),
+                      ),
 
-                  const SizedBox(
-                    height: 48,
-                  ),
-                  InkWell(
-                    onTap: () {},
-                    child: Container(
-                        width: 200,
+                      const SizedBox(
                         height: 48,
-                        color: Colors.transparent,
-                        child: Row(
-                          children: [
-                            const SizedBox(
-                              width: 17.87,
-                            ),
-                            SizedBox(
-                                width: 16.25,
-                                height: 16.25,
-                                child: Image.asset('assets/images/as.png')),
-                            const SizedBox(
-                              width: 3.85,
-                            ),
-                            const Text(
-                              '교환',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColor.font1,
-                                  fontSize: 16),
-                            ),
-                          ],
-                        )),
-                  ),
-                  InkWell(
-                    onTap: () {},
-                    child: Container(
-                        width: 200,
+                      ),
+                      InkWell(
+                        onTap: () {},
+                        child: Container(
+                            width: 200,
+                            height: 48,
+                            color: Colors.transparent,
+                            child: Row(
+                              children: [
+                                const SizedBox(
+                                  width: 17.87,
+                                ),
+                                SizedBox(
+                                    width: 16.25,
+                                    height: 16.25,
+                                    child: Image.asset('assets/images/as.png')),
+                                const SizedBox(
+                                  width: 3.85,
+                                ),
+                                const Text(
+                                  '교환',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColor.font1,
+                                      fontSize: 16),
+                                ),
+                              ],
+                            )),
+                      ),
+                      InkWell(
+                        onTap: () {},
+                        child: Container(
+                            width: 200,
+                            height: 48,
+                            color: Colors.transparent,
+                            child: Row(
+                              children: [
+                                const SizedBox(
+                                  width: 17.87,
+                                ),
+                                SizedBox(
+                                    width: 16.25,
+                                    height: 16.25,
+                                    child: Image.asset('assets/images/as.png')),
+                                const SizedBox(
+                                  width: 3.85,
+                                ),
+                                const Text(
+                                  '반품',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColor.font1,
+                                      fontSize: 16),
+                                ),
+                              ],
+                            )),
+                      ),
+                      const SizedBox(
                         height: 48,
-                        color: Colors.transparent,
-                        child: Row(
-                          children: [
-                            const SizedBox(
-                              width: 17.87,
-                            ),
-                            SizedBox(
-                                width: 16.25,
-                                height: 16.25,
-                                child: Image.asset('assets/images/as.png')),
-                            const SizedBox(
-                              width: 3.85,
-                            ),
-                            const Text(
-                              '반품',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColor.font1,
-                                  fontSize: 16),
-                            ),
-                          ],
-                        )),
+                      ),
+                      InkWell(
+                        onTap: () => context.go('/temp'),
+                        child: Container(
+                            width: 200,
+                            height: 48,
+                            color: Colors.transparent,
+                            child: Row(
+                              children: [
+                                const SizedBox(
+                                  width: 17.87,
+                                ),
+                                SizedBox(
+                                    width: 16.25,
+                                    height: 16.25,
+                                    child:
+                                        Image.asset('assets/images/draft.png')),
+                                const SizedBox(
+                                  width: 3.85,
+                                ),
+                                const Text(
+                                  '임시저장',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColor.font1,
+                                      fontSize: 16),
+                                ),
+                              ],
+                            )),
+                      ),
+                    ],
                   ),
-                  const SizedBox(
-                    height: 48,
-                  ),
-                  InkWell(
-                    onTap: () => context.go('/temp'),
-                    child: Container(
-                        width: 200,
-                        height: 48,
-                        color: Colors.transparent,
-                        child: Row(
-                          children: [
-                            const SizedBox(
-                              width: 17.87,
-                            ),
-                            SizedBox(
-                                width: 16.25,
-                                height: 16.25,
-                                child: Image.asset('assets/images/draft.png')),
-                            const SizedBox(
-                              width: 3.85,
-                            ),
-                            const Text(
-                              '임시저장',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColor.font1,
-                                  fontSize: 16),
-                            ),
-                          ],
-                        )),
-                  ),
-                ],
-              ),
-            ),
+                ),
                 const SizedBox(
                   width: 48,
                 ),
@@ -650,12 +672,25 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(
-                                  '${DateTime.now().year}년 ${DateTime.now().month}월 ${DateTime.now().day}일',
-                                  style: const TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColor.font1),
+                                InkWell(
+                                  onTap: () {
+                                    context.pop();
+                                  },
+                                  child: const Row(
+                                    children: [
+                                      Icon(Icons.arrow_back_ios),
+                                      SizedBox(
+                                        width: 4,
+                                      ),
+                                      Text(
+                                        '이전',
+                                        style: TextStyle(
+                                            color: Colors.black,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600),
+                                      )
+                                    ],
+                                  ),
                                 ),
                                 const Row(
                                   children: [

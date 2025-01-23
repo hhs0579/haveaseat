@@ -781,7 +781,7 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
 
 // PDF 담당자 정보 섹션
   pw.Widget _buildPDFManagerSection(
-      Map<String, dynamic>? userData, pw.Font ttf, pw.Font ttfBold) {
+      Map<String, dynamic>? estimate, pw.Font ttf, pw.Font ttfBold) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
@@ -804,8 +804,8 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
           },
           children: [
             pw.TableRow(children: [
-              _buildPDFInfoCell('담당자 성함', userData?['name'] ?? '', ttf),
-              _buildPDFInfoCell('담당자 성함', userData?['phoneNumber'] ?? '', ttf),
+              _buildPDFInfoCell('담당자 성함', estimate?['managerName'] ?? '', ttf),
+              _buildPDFInfoCell('담당자 성함', estimate?['managerPhone'] ?? '', ttf),
               pw.Container(), // 빈 셀
             ]),
           ],
@@ -1325,12 +1325,24 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                                     mainAxisAlignment:
                                         MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Text(
-                                        '${DateTime.now().year}년 ${DateTime.now().month}월 ${DateTime.now().day}일',
-                                        style: const TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w600,
-                                          color: AppColor.font1,
+                                      InkWell(
+                                        onTap: () {
+                                          context.pop();
+                                        },
+                                        child: const Row(
+                                          children: [
+                                            Icon(Icons.arrow_back_ios),
+                                            SizedBox(
+                                              width: 4,
+                                            ),
+                                            Text(
+                                              '이전',
+                                              style: TextStyle(
+                                                  color: Colors.black,
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w600),
+                                            )
+                                          ],
                                         ),
                                       ),
                                       const Row(

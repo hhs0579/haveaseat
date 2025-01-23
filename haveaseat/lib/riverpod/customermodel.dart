@@ -115,6 +115,9 @@ class Estimate {
   final DateTime createdAt;
   final DateTime updatedAt;
   final EstimateStatus status;
+  final String managerName; // 담당자 성함 추가
+  final String managerPhone; // 담당자 연락처 추가
+
   // 공간 기본 정보
   final String siteAddress;
   final DateTime openingDate;
@@ -142,6 +145,8 @@ class Estimate {
     required this.createdAt,
     required this.updatedAt,
     required this.status,
+    required this.managerName, // 생성자에 추가
+    required this.managerPhone, // 생성자에 추가
     required this.siteAddress,
     required this.openingDate,
     required this.recipient,
@@ -172,6 +177,8 @@ class Estimate {
         (e) => e.toString() == json['status'],
         orElse: () => EstimateStatus.IN_PROGRESS,
       ),
+      managerName: json['managerName'] ?? '',
+      managerPhone: json['managerPhone'] ?? '',
       // 공간 기본 정보
       siteAddress: json['siteAddress'] ?? '',
       openingDate:
@@ -205,6 +212,8 @@ class Estimate {
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
       'status': status.toString(),
+      'managerName': managerName,
+      'managerPhone': managerPhone,
       // 공간 기본 정보
       'siteAddress': siteAddress,
       'openingDate': Timestamp.fromDate(openingDate),
@@ -236,6 +245,8 @@ class Estimate {
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
       status: EstimateStatus.IN_PROGRESS,
+      managerName: '',
+      managerPhone: '',
       // 공간 기본 정보
       siteAddress: '',
       openingDate: DateTime.now(),
@@ -265,6 +276,8 @@ class Estimate {
     DateTime? createdAt,
     DateTime? updatedAt,
     EstimateStatus? status,
+    String? managerName, // 담당자 성함 추가
+    String? managerPhone, // 담당자 연락처 추가
     String? siteAddress,
     DateTime? openingDate,
     String? recipient,
@@ -289,6 +302,8 @@ class Estimate {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       status: status ?? this.status,
+      managerName: managerName ?? this.managerName,
+      managerPhone: managerPhone ?? this.managerPhone,
       siteAddress: siteAddress ?? this.siteAddress,
       openingDate: openingDate ?? this.openingDate,
       recipient: recipient ?? this.recipient,
@@ -519,6 +534,51 @@ class EstimatesNotifier extends StateNotifier<List<Estimate>> {
     } catch (e) {
       print('Error updating space detail info: $e');
       rethrow;
+    }
+// 견적서 데이터 가져오기
+    Future<List<Map<String, dynamic>>> fetchEstimates(String customerId) async {
+      try {
+        final snapshot = await FirebaseFirestore.instance
+            .collection('estimates')
+            .where('customerId', isEqualTo: customerId)
+            .get();
+
+        return snapshot.docs.map((doc) {
+          final data = doc.data();
+          final furnitureList = data['furnitureList'] as List<dynamic>? ?? [];
+
+          // 전체 금액 및 상품명 계산
+          double totalAmount = 0;
+          List<String> productNames = [];
+
+          for (var furniture in furnitureList) {
+            totalAmount +=
+                (furniture['price'] ?? 0) * (furniture['quantity'] ?? 0);
+            productNames
+                .add('${furniture['name']} (${furniture['quantity']}개)');
+          }
+
+          return {
+            'estimateId': doc.id,
+            'status': CustomerStatus.values
+                .firstWhere(
+                  (e) => e.name == (data['status'] ?? ''),
+                  orElse: () => CustomerStatus.ESTIMATE_IN_PROGRESS,
+                )
+                .label,
+            'type': data['type'] ?? '견적',
+            'productName': productNames.join(', '),
+            'orderDate': data['createdAt'] ?? Timestamp.now(),
+            'amount': totalAmount,
+            'deliveryAddress': data['siteAddress'] ?? '',
+            'managerName': data['managerName'] ?? '',
+            'note': data['detailNotes'] ?? '',
+          };
+        }).toList();
+      } catch (e) {
+        print('Error fetching estimates: $e');
+        return [];
+      }
     }
   }
 

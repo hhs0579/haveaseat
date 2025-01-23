@@ -412,7 +412,7 @@ class _furniturePageState extends ConsumerState<furniturePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // 사이드바
-               Container(
+            Container(
               width: 240,
               height: MediaQuery.of(context).size.height,
               decoration: const BoxDecoration(
@@ -646,18 +646,31 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 // 상단 영역 (날짜 및 아이콘)
+
                                 SizedBox(
                                   width: availableWidth,
                                   child: Row(
                                     mainAxisAlignment:
                                         MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Text(
-                                        '${DateTime.now().year}년 ${DateTime.now().month}월 ${DateTime.now().day}일',
-                                        style: const TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w600,
-                                          color: AppColor.font1,
+                                      InkWell(
+                                        onTap: () {
+                                          context.pop();
+                                        },
+                                        child: const Row(
+                                          children: [
+                                            Icon(Icons.arrow_back_ios),
+                                            SizedBox(
+                                              width: 4,
+                                            ),
+                                            Text(
+                                              '이전',
+                                              style: TextStyle(
+                                                  color: Colors.black,
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w600),
+                                            )
+                                          ],
                                         ),
                                       ),
                                       const Row(
