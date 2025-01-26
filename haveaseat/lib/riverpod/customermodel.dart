@@ -89,7 +89,7 @@ class Customer {
     );
   }
 
-// Customer 클래스의 toJson 메서드도 수정
+  // Customer 클래스의 toJson 메서드도 수정
   Map<String, dynamic> toJson() {
     return {
       'name': name,
@@ -465,7 +465,7 @@ class EstimatesNotifier extends StateNotifier<List<Estimate>> {
       rethrow;
     }
   }
-// spacemodel.dart의 EstimatesNotifier 클래스에서 updateSpaceDetailInfo 수정
+  // spacemodel.dart의 EstimatesNotifier 클래스에서 updateSpaceDetailInfo 수정
 
   Future<void> updateSpaceDetailInfo({
     required String estimateId,
@@ -535,7 +535,7 @@ class EstimatesNotifier extends StateNotifier<List<Estimate>> {
       print('Error updating space detail info: $e');
       rethrow;
     }
-// 견적서 데이터 가져오기
+    // 견적서 데이터 가져오기
     Future<List<Map<String, dynamic>>> fetchEstimates(String customerId) async {
       try {
         final snapshot = await FirebaseFirestore.instance
@@ -547,16 +547,35 @@ class EstimatesNotifier extends StateNotifier<List<Estimate>> {
           final data = doc.data();
           final furnitureList = data['furnitureList'] as List<dynamic>? ?? [];
 
-          // 전체 금액 및 상품명 계산
-          double totalAmount = 0;
-          List<String> productNames = [];
-
-          for (var furniture in furnitureList) {
-            totalAmount +=
-                (furniture['price'] ?? 0) * (furniture['quantity'] ?? 0);
-            productNames
-                .add('${furniture['name']} (${furniture['quantity']}개)');
+          if (furnitureList.isEmpty) {
+            return {
+              'estimateId': doc.id,
+              'status': CustomerStatus.values
+                  .firstWhere(
+                    (e) => e.name == (data['status'] ?? ''),
+                    orElse: () => CustomerStatus.ESTIMATE_IN_PROGRESS,
+                  )
+                  .label,
+              'type': data['type'] ?? '견적',
+              'productName': '',
+              'orderDate': data['createdAt'] ?? Timestamp.now(),
+              'amount': 0.0,
+              'deliveryAddress': data['siteAddress'] ?? '',
+              'managerName': data['managerName'] ?? '',
+              'note': data['detailNotes'] ?? ''
+            };
           }
+
+          // 총 금액 계산
+          double totalAmount = furnitureList.fold(0, (sum, furniture) {
+            return sum +
+                ((furniture['price'] ?? 0) * (furniture['quantity'] ?? 0));
+          });
+
+          // 상품명 표시 로직
+          String productName = furnitureList.length > 1
+              ? '${furnitureList[0]['name']} 외 ${furnitureList.length - 1}건'
+              : furnitureList[0]['name'];
 
           return {
             'estimateId': doc.id,
@@ -567,12 +586,12 @@ class EstimatesNotifier extends StateNotifier<List<Estimate>> {
                 )
                 .label,
             'type': data['type'] ?? '견적',
-            'productName': productNames.join(', '),
+            'productName': productName,
             'orderDate': data['createdAt'] ?? Timestamp.now(),
             'amount': totalAmount,
             'deliveryAddress': data['siteAddress'] ?? '',
             'managerName': data['managerName'] ?? '',
-            'note': data['detailNotes'] ?? '',
+            'note': data['detailNotes'] ?? ''
           };
         }).toList();
       } catch (e) {
