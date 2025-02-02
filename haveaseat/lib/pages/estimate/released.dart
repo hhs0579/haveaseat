@@ -467,7 +467,6 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
                 ),
                 child: Row(
                   children: [
-                    const SizedBox(width: 24),
                     Expanded(
                       child: Container(
                         height: 48,
@@ -558,6 +557,7 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
     );
   }
 
+  // _buildPDFEstimateSection 함수 수정
   pw.Widget _buildPDFEstimateSection(
       Map<String, dynamic> estimate, pw.Font ttf, pw.Font ttfBold) {
     final furnitureList = (estimate['furnitureList'] as List<dynamic>?) ?? [];
@@ -573,12 +573,8 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
         pw.SizedBox(height: 12),
         pw.Container(
           width: double.infinity,
-          decoration: pw.BoxDecoration(
-            border: pw.Border(
-              bottom:
-                  pw.BorderSide(color: PdfColor.fromHex('000000'), width: 2),
-            ),
-          ),
+          height: 2,
+          color: PdfColor.fromHex('000000'),
         ),
         pw.SizedBox(height: 16),
         pw.Container(
@@ -649,7 +645,8 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
                   ),
                 );
               }).toList(),
-              // 합산금액 행 (견적일자와 총금액)
+              // 견적일자와 총금액을 Column으로 변경
+              // Row를 사용하여 견적일자와 총금액을 표시하는 부분만 수정
               pw.Container(
                 decoration: pw.BoxDecoration(
                   border: pw.Border(
@@ -659,10 +656,10 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
                 ),
                 child: pw.Row(
                   children: [
-                    pw.Expanded(flex: 3, child: pw.SizedBox()),
+                    // 견적일자
                     pw.Expanded(
                       child: pw.Container(
-                        padding: const pw.EdgeInsets.all(12),
+                        padding: const pw.EdgeInsets.all(16),
                         decoration: pw.BoxDecoration(
                           border: pw.Border(
                             bottom: pw.BorderSide(
@@ -672,10 +669,10 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
                         child: pw.Row(
                           children: [
                             pw.Container(
-                              width: 200,
+                              width: 100, // 너비 조정
                               color: PdfColor.fromHex('F7F7FB'),
-                              padding:
-                                  const pw.EdgeInsets.symmetric(horizontal: 8),
+                              padding: const pw.EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 14),
                               child: pw.Text(
                                 '견적일자',
                                 style: pw.TextStyle(fontSize: 14, font: ttf),
@@ -684,7 +681,7 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
                             pw.Expanded(
                               child: pw.Padding(
                                 padding: const pw.EdgeInsets.symmetric(
-                                    horizontal: 8),
+                                    horizontal: 12),
                                 child: pw.Text(
                                   _formatDate(estimate['updatedAt']),
                                   style: pw.TextStyle(fontSize: 14, font: ttf),
@@ -695,9 +692,11 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
                         ),
                       ),
                     ),
+                    pw.SizedBox(width: 16), // 간격 추가
+                    // 총금액
                     pw.Expanded(
                       child: pw.Container(
-                        padding: const pw.EdgeInsets.all(12),
+                        padding: const pw.EdgeInsets.all(16),
                         decoration: pw.BoxDecoration(
                           border: pw.Border(
                             bottom: pw.BorderSide(
@@ -707,10 +706,10 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
                         child: pw.Row(
                           children: [
                             pw.Container(
-                              width: 200,
+                              width: 100, // 너비 조정
                               color: PdfColor.fromHex('F7F7FB'),
-                              padding:
-                                  const pw.EdgeInsets.symmetric(horizontal: 8),
+                              padding: const pw.EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 14),
                               child: pw.Text(
                                 '총금액',
                                 style: pw.TextStyle(fontSize: 14, font: ttf),
@@ -719,7 +718,7 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
                             pw.Expanded(
                               child: pw.Padding(
                                 padding: const pw.EdgeInsets.symmetric(
-                                    horizontal: 8),
+                                    horizontal: 12),
                                 child: pw.Text(
                                   '${_formatNumber(_calculateTotal(furnitureList))}원',
                                   style: pw.TextStyle(fontSize: 14, font: ttf),
@@ -729,7 +728,7 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
                           ],
                         ),
                       ),
-                    )
+                    ),
                   ],
                 ),
               ),
@@ -841,6 +840,7 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
     return '';
   }
 
+// PDF 생성 함수 수정
   Future<void> generatePDF(Map<String, dynamic> data) async {
     try {
       final regularFont = await rootBundle.load(
@@ -853,18 +853,50 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
 
       final pdf = pw.Document();
 
-      // 넓은 페이지 크기 설정 (A4 너비의 두 배, 높이는 자동)
+      // PDF 페이지 설정
       final pageFormat = PdfPageFormat(
-        PdfPageFormat.a4.width * 1.5, // 너비를 1.5배로
-        PdfPageFormat.a4.height * 2, // 높이를 2배로 (필요에 따라 조정)
+        PdfPageFormat.a4.width * 1.5,
+        PdfPageFormat.a4.height * 2,
         marginAll: 40,
       );
+
+      // Customer 데이터를 estimate에 추가
+      final Customer customer = data['customer'];
+      final Map<String, dynamic> estimateWithCustomer = {
+        ...data['estimate'] as Map<String, dynamic>,
+        'customerName': customer.name,
+        'customerPhone': customer.phone,
+        'customerEmail': customer.email,
+        'customerAddress': customer.address,
+        'businessLicenseUrl': customer.businessLicenseUrl,
+        'otherDocumentUrls': customer.otherDocumentUrls,
+        'note': customer.note,
+      };
 
       pdf.addPage(
         pw.Page(
           pageFormat: pageFormat,
           build: (pw.Context context) {
-            return _buildPDFContent(data, ttf, ttfBold);
+            return pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                _buildPDFHeader(ttfBold),
+                pw.SizedBox(height: 56),
+                pw.Text(
+                  '견적서',
+                  style: pw.TextStyle(
+                      fontSize: 24,
+                      font: ttfBold,
+                      color: PdfColor.fromHex('1A1A1A')),
+                ),
+                pw.SizedBox(height: 32),
+                _buildPDFCustomerSection(estimateWithCustomer, ttf, ttfBold),
+                pw.SizedBox(height: 48),
+                _buildPDFEstimateSection(estimateWithCustomer, ttf, ttfBold),
+                pw.SizedBox(height: 48),
+                _buildPDFManagerSection(data['userData'], ttf, ttfBold),
+              ],
+            );
           },
         ),
       );
@@ -902,7 +934,7 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
         estimateId.length > 8 ? estimateId.substring(0, 8) : estimateId;
 
     // 파일명 생성
-    return '견적서_${customerName}_${dateStr}_$shortEstimateId.pdf';
+    return '출고증_${customerName}_${dateStr}_$shortEstimateId.pdf';
   }
 
   pw.Widget _buildPDFContent(
@@ -921,12 +953,12 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
               fontSize: 24, font: ttfBold, color: PdfColor.fromHex('1A1A1A')),
         ),
         pw.SizedBox(height: 32),
+        _buildPDFCustomerSection(data['estimate'], ttf, ttfBold),
 
+        pw.SizedBox(height: 48),
         // 각 섹션
         _buildPDFEstimateSection(data['estimate'], ttf, ttfBold),
 
-        pw.SizedBox(height: 48),
-        _buildPDFSpaceSection(data['estimate'], ttf, ttfBold),
         pw.SizedBox(height: 48),
 
         _buildPDFManagerSection(data['userData'], ttf, ttfBold),
@@ -952,8 +984,9 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
   }
 
 // PDF 고객 정보 섹션
+  // _buildPDFCustomerSection 함수를 Map<String, dynamic> 타입을 받도록 수정
   pw.Widget _buildPDFCustomerSection(
-      Customer customer, pw.Font ttf, pw.Font ttfBold) {
+      Map<String, dynamic> estimate, pw.Font ttf, pw.Font ttfBold) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
@@ -976,30 +1009,33 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
           },
           children: [
             pw.TableRow(children: [
-              _buildPDFInfoCell('고객명', customer.name, ttf),
-              _buildPDFInfoCell('연락처', customer.phone, ttf),
+              _buildPDFInfoCell('고객명', estimate['customerName'] ?? '', ttf),
+              _buildPDFInfoCell('연락처', estimate['customerPhone'] ?? '', ttf),
             ]),
             pw.TableRow(children: [
-              _buildPDFInfoCell('이메일주소', customer.email, ttf),
-              _buildPDFInfoCell('배송지주소', customer.address, ttf),
+              _buildPDFInfoCell('이메일주소', estimate['customerEmail'] ?? '', ttf),
+              _buildPDFInfoCell(
+                  '배송지주소', estimate['customerAddress'] ?? '', ttf),
             ]),
             pw.TableRow(children: [
               _buildPDFInfoCell(
                   '사업자등록증',
-                  customer.businessLicenseUrl.isEmpty
+                  estimate['businessLicenseUrl']?.isEmpty ?? true
                       ? '미첨부'
-                      : getFileName(customer.businessLicenseUrl),
+                      : getFileName(estimate['businessLicenseUrl']),
                   ttf),
               _buildPDFInfoCell(
                   '기타서류',
-                  customer.otherDocumentUrls.isEmpty
+                  (estimate['otherDocumentUrls'] as List?)?.isEmpty ?? true
                       ? '미첨부'
-                      : getFileName(customer.otherDocumentUrls.first),
+                      : getFileName((estimate['otherDocumentUrls'] as List)
+                          .first
+                          .toString()),
                   ttf),
             ]),
           ],
         ),
-        _buildPDFFullWidthCell('기타입력사항', customer.note, ttf),
+        _buildPDFFullWidthCell('기타입력사항', estimate['note'] ?? '', ttf),
       ],
     );
   }
