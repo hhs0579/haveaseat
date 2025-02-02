@@ -383,10 +383,10 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
             width: totalWidth * 0.07,
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: TextButton(
-              onPressed: () => print('견적서 상세보기: ${estimate['estimateId']}'
-              
-              
-              ),
+              onPressed: () {
+                context.go(
+                    '/main/customer/${widget.customerId}/estimate/${estimate['estimateId']}');
+              },
               child: const Text('상세보기',
                   style: TextStyle(fontSize: 14, color: AppColor.primary)),
             ),
@@ -395,7 +395,8 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
             width: totalWidth * 0.07,
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: TextButton(
-              onPressed: () => print('발주서 상세보기: ${estimate['orderId']}'),
+              onPressed: () => context.go(
+                  '/main/customer/${widget.customerId}/estimate/${estimate['estimateId']}/order'),
               child: const Text('상세보기',
                   style: TextStyle(fontSize: 14, color: AppColor.primary)),
             ),
@@ -404,7 +405,8 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
             width: totalWidth * 0.07,
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: TextButton(
-              onPressed: () => print('출고증 상세보기: ${estimate['deliveryId']}'),
+              onPressed: () => context.go(
+                  '/main/customer/${widget.customerId}/estimate/${estimate['estimateId']}/release'),
               child: const Text('상세보기',
                   style: TextStyle(fontSize: 14, color: AppColor.primary)),
             ),

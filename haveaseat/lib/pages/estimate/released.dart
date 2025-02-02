@@ -26,17 +26,23 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
-class EstimatePage extends ConsumerStatefulWidget {
+class ReleaseEstimatePage extends ConsumerStatefulWidget {
   final String customerId;
+  final String estimateId;
 
-  const EstimatePage({super.key, required this.customerId});
+  const ReleaseEstimatePage({
+    super.key,
+    required this.customerId,
+    required this.estimateId,
+  });
 
   @override
-  ConsumerState<EstimatePage> createState() => _EstimatePageState();
+  ConsumerState<ReleaseEstimatePage> createState() =>
+      _ReleaseEstimatePageState();
 }
 
-class _EstimatePageState extends ConsumerState<EstimatePage> {
-  // EstimatePage의 _EstimatePageState 클래스 내부에 추가할 코드
+class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
+  final screenshotController = ScreenshotController();
 
   Future<Map<String, dynamic>> _loadEstimateData() async {
     try {
@@ -397,7 +403,7 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          '견적 정보',
+          '단가 정보',
           style: TextStyle(
               fontWeight: FontWeight.w600, fontSize: 18, color: Colors.black),
         ),
@@ -420,37 +426,39 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                 color: AppColor.back2,
                 child: Row(
                   children: [
-                    _buildTableHeader('견적종류', 2),
-                    _buildTableHeader('가구명', 3),
-                    _buildTableHeader('수량', 1),
-                    _buildTableHeader('견적일자', 2),
-                    _buildTableHeader('가격', 2),
+                    _buildTableHeader('제품명', 3),
+                    _buildTableHeader('단가', 2),
+                    _buildTableHeader('수량', 2),
+                    _buildTableHeader('금액', 2),
                   ],
                 ),
               ),
               // 테이블 내용
-              ...furnitureList
-                  .map((furniture) => Container(
-                        decoration: const BoxDecoration(
-                          border: Border(
-                            top: BorderSide(color: AppColor.line1),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            _buildTableCell('기존가구', 2),
-                            _buildTableCell(furniture['name'] ?? '', 3),
-                            _buildTableCell(
-                                furniture['quantity']?.toString() ?? '', 1),
-                            _buildTableCell(
-                                _formatDate(estimate['updatedAt']), 2),
-                            _buildTableCell(
-                                '${_formatNumber(furniture['price'])}원', 2),
-                          ],
-                        ),
-                      ))
-                  .toList(),
-              // 총 합계
+              ...furnitureList.map((furniture) {
+                final quantity = (furniture['quantity'] as int?) ?? 0;
+                final unitPrice =
+                    ((furniture['unitPrice'] ?? furniture['price']) as num?)
+                            ?.toInt() ??
+                        0;
+                final totalPrice = quantity * unitPrice;
+
+                return Container(
+                  decoration: const BoxDecoration(
+                    border: Border(
+                      top: BorderSide(color: AppColor.line1),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      _buildTableCell(furniture['name'] ?? '', 3),
+                      _buildTableCell('${_formatNumber(unitPrice)}원', 2),
+                      _buildTableCell(quantity.toString(), 2),
+                      _buildTableCell('${_formatNumber(totalPrice)}원', 2),
+                    ],
+                  ),
+                );
+              }).toList(),
+              // 합산금액 행 (견적일자와 총금액)
               Container(
                 decoration: const BoxDecoration(
                   border: Border(
@@ -459,13 +467,87 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                 ),
                 child: Row(
                   children: [
-                    const Spacer(flex: 8),
-                    _buildTableCell('총 합계', 1, isHeader: true),
-                    _buildTableCell(
-                      '${_formatNumber(_calculateTotal(furnitureList))}원',
-                      1,
-                      textAlign: TextAlign.right,
+                    const SizedBox(width: 24),
+                    Expanded(
+                      child: Container(
+                        height: 48,
+                        decoration: const BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(color: AppColor.line1, width: 1),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 200,
+                              color: AppColor.back2,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 14),
+                              child: const Text(
+                                '견적일자',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w400,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: Container(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 16),
+                                child: Text(
+                                  _formatDate(estimate['updatedAt']),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w400,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
+                    Expanded(
+                      child: Container(
+                        height: 48,
+                        decoration: const BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(color: AppColor.line1, width: 1),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 200,
+                              color: AppColor.back2,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 14),
+                              child: const Text(
+                                '총금액',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w400,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: Container(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 16),
+                                child: Text(
+                                  '${_formatNumber(_calculateTotal(furnitureList))}원',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w400,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
                   ],
                 ),
               ),
@@ -474,6 +556,198 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
         ),
       ],
     );
+  }
+
+  pw.Widget _buildPDFEstimateSection(
+      Map<String, dynamic> estimate, pw.Font ttf, pw.Font ttfBold) {
+    final furnitureList = (estimate['furnitureList'] as List<dynamic>?) ?? [];
+
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(
+          '단가 정보',
+          style: pw.TextStyle(
+              fontSize: 18, font: ttfBold, color: PdfColor.fromHex('1A1A1A')),
+        ),
+        pw.SizedBox(height: 12),
+        pw.Container(
+          width: double.infinity,
+          decoration: pw.BoxDecoration(
+            border: pw.Border(
+              bottom:
+                  pw.BorderSide(color: PdfColor.fromHex('000000'), width: 2),
+            ),
+          ),
+        ),
+        pw.SizedBox(height: 16),
+        pw.Container(
+          decoration: pw.BoxDecoration(
+            border: pw.Border.all(color: PdfColor.fromHex('EAEAEC')),
+          ),
+          child: pw.Column(
+            children: [
+              // 테이블 헤더
+              pw.Container(
+                color: PdfColor.fromHex('F7F7FB'),
+                padding: const pw.EdgeInsets.all(16),
+                child: pw.Row(
+                  children: [
+                    pw.Expanded(
+                        flex: 3,
+                        child:
+                            pw.Text('제품명', style: pw.TextStyle(font: ttfBold))),
+                    pw.Expanded(
+                        flex: 2,
+                        child:
+                            pw.Text('단가', style: pw.TextStyle(font: ttfBold))),
+                    pw.Expanded(
+                        flex: 2,
+                        child:
+                            pw.Text('수량', style: pw.TextStyle(font: ttfBold))),
+                    pw.Expanded(
+                        flex: 2,
+                        child:
+                            pw.Text('금액', style: pw.TextStyle(font: ttfBold))),
+                  ],
+                ),
+              ),
+              ...furnitureList.map((furniture) {
+                final quantity = (furniture['quantity'] as int?) ?? 0;
+                final unitPrice =
+                    ((furniture['unitPrice'] ?? furniture['price']) as num?)
+                            ?.toInt() ??
+                        0;
+                final totalPrice = quantity * unitPrice;
+
+                return pw.Container(
+                  decoration: pw.BoxDecoration(
+                    border: pw.Border(
+                      top: pw.BorderSide(color: PdfColor.fromHex('EAEAEC')),
+                    ),
+                  ),
+                  padding: const pw.EdgeInsets.all(16),
+                  child: pw.Row(
+                    children: [
+                      pw.Expanded(
+                          flex: 3,
+                          child: pw.Text(furniture['name'] ?? '',
+                              style: pw.TextStyle(font: ttf))),
+                      pw.Expanded(
+                          flex: 2,
+                          child: pw.Text('${_formatNumber(unitPrice)}원',
+                              style: pw.TextStyle(font: ttf))),
+                      pw.Expanded(
+                          flex: 2,
+                          child: pw.Text(quantity.toString(),
+                              style: pw.TextStyle(font: ttf))),
+                      pw.Expanded(
+                          flex: 2,
+                          child: pw.Text('${_formatNumber(totalPrice)}원',
+                              style: pw.TextStyle(font: ttf))),
+                    ],
+                  ),
+                );
+              }).toList(),
+              // 합산금액 행 (견적일자와 총금액)
+              pw.Container(
+                decoration: pw.BoxDecoration(
+                  border: pw.Border(
+                    top: pw.BorderSide(
+                        color: PdfColor.fromHex('000000'), width: 2),
+                  ),
+                ),
+                child: pw.Row(
+                  children: [
+                    pw.Expanded(flex: 3, child: pw.SizedBox()),
+                    pw.Expanded(
+                      child: pw.Container(
+                        padding: const pw.EdgeInsets.all(12),
+                        decoration: pw.BoxDecoration(
+                          border: pw.Border(
+                            bottom: pw.BorderSide(
+                                color: PdfColor.fromHex('EAEAEC')),
+                          ),
+                        ),
+                        child: pw.Row(
+                          children: [
+                            pw.Container(
+                              width: 200,
+                              color: PdfColor.fromHex('F7F7FB'),
+                              padding:
+                                  const pw.EdgeInsets.symmetric(horizontal: 8),
+                              child: pw.Text(
+                                '견적일자',
+                                style: pw.TextStyle(fontSize: 14, font: ttf),
+                              ),
+                            ),
+                            pw.Expanded(
+                              child: pw.Padding(
+                                padding: const pw.EdgeInsets.symmetric(
+                                    horizontal: 8),
+                                child: pw.Text(
+                                  _formatDate(estimate['updatedAt']),
+                                  style: pw.TextStyle(fontSize: 14, font: ttf),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    pw.Expanded(
+                      child: pw.Container(
+                        padding: const pw.EdgeInsets.all(12),
+                        decoration: pw.BoxDecoration(
+                          border: pw.Border(
+                            bottom: pw.BorderSide(
+                                color: PdfColor.fromHex('EAEAEC')),
+                          ),
+                        ),
+                        child: pw.Row(
+                          children: [
+                            pw.Container(
+                              width: 200,
+                              color: PdfColor.fromHex('F7F7FB'),
+                              padding:
+                                  const pw.EdgeInsets.symmetric(horizontal: 8),
+                              child: pw.Text(
+                                '총금액',
+                                style: pw.TextStyle(fontSize: 14, font: ttf),
+                              ),
+                            ),
+                            pw.Expanded(
+                              child: pw.Padding(
+                                padding: const pw.EdgeInsets.symmetric(
+                                    horizontal: 8),
+                                child: pw.Text(
+                                  '${_formatNumber(_calculateTotal(furnitureList))}원',
+                                  style: pw.TextStyle(fontSize: 14, font: ttf),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  int _calculateTotal(List<dynamic> furnitureList) {
+    return furnitureList.fold<int>(0, (total, furniture) {
+      final quantity = (furniture['quantity'] as int?) ?? 0;
+      final unitPrice =
+          ((furniture['unitPrice'] ?? furniture['price']) as num?)?.toInt() ??
+              0;
+      return total + (quantity * unitPrice);
+    });
   }
 
   Widget _buildManagerSection(Map<String, dynamic> data) {
@@ -558,14 +832,6 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
         RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},');
   }
 
-  int _calculateTotal(List<dynamic> furnitureList) {
-    return furnitureList.fold(0, (total, furniture) {
-      return total +
-          ((furniture['quantity'] as int?) ?? 0) *
-              ((furniture['price'] as int?) ?? 0);
-    });
-  }
-
   String _formatDate(dynamic date) {
     if (date == null) return '';
     if (date is Timestamp) {
@@ -574,8 +840,6 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
     }
     return '';
   }
-
-  final screenshotController = ScreenshotController();
 
   Future<void> generatePDF(Map<String, dynamic> data) async {
     try {
@@ -659,12 +923,12 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
         pw.SizedBox(height: 32),
 
         // 각 섹션
-        _buildPDFCustomerSection(data['customer'], ttf, ttfBold),
+        _buildPDFEstimateSection(data['estimate'], ttf, ttfBold),
+
         pw.SizedBox(height: 48),
         _buildPDFSpaceSection(data['estimate'], ttf, ttfBold),
         pw.SizedBox(height: 48),
-        _buildPDFEstimateSection(data['estimate'], ttf, ttfBold),
-        pw.SizedBox(height: 48),
+
         _buildPDFManagerSection(data['userData'], ttf, ttfBold),
       ],
     );
@@ -1050,105 +1314,6 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
     );
   }
 
-  pw.Widget _buildPDFEstimateSection(
-      Map<String, dynamic> estimate, pw.Font ttf, pw.Font ttfBold) {
-    final furnitureList = (estimate['furnitureList'] as List<dynamic>?) ?? [];
-
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        pw.Text(
-          '견적 정보',
-          style: pw.TextStyle(
-              fontSize: 18, font: ttfBold, color: PdfColor.fromHex('1A1A1A')),
-        ),
-        pw.SizedBox(height: 12),
-        pw.Container(
-          width: double.infinity,
-          decoration: pw.BoxDecoration(
-            border: pw.Border(
-              bottom:
-                  pw.BorderSide(color: PdfColor.fromHex('000000'), width: 2),
-            ),
-          ),
-        ),
-        pw.SizedBox(height: 16),
-        pw.Container(
-          decoration: pw.BoxDecoration(
-            border: pw.Border.all(color: PdfColor.fromHex('EAEAEC')),
-          ),
-          child: pw.Column(
-            children: [
-              // 테이블 헤더
-              pw.Container(
-                color: PdfColor.fromHex('F7F7FB'),
-                padding: const pw.EdgeInsets.all(16),
-                child: pw.Row(
-                  children: [
-                    pw.Expanded(
-                        flex: 2,
-                        child: pw.Text('견적종류',
-                            style: pw.TextStyle(font: ttfBold))),
-                    pw.Expanded(
-                        flex: 3,
-                        child:
-                            pw.Text('가구명', style: pw.TextStyle(font: ttfBold))),
-                    pw.Expanded(
-                        flex: 1,
-                        child:
-                            pw.Text('수량', style: pw.TextStyle(font: ttfBold))),
-                    pw.Expanded(
-                        flex: 2,
-                        child: pw.Text('견적일자',
-                            style: pw.TextStyle(font: ttfBold))),
-                    pw.Expanded(
-                        flex: 2,
-                        child:
-                            pw.Text('가격', style: pw.TextStyle(font: ttfBold))),
-                  ],
-                ),
-              ),
-              ...furnitureList.map((furniture) => pw.Container(
-                    decoration: pw.BoxDecoration(
-                      border: pw.Border(
-                        top: pw.BorderSide(color: PdfColor.fromHex('EAEAEC')),
-                      ),
-                    ),
-                    padding: const pw.EdgeInsets.all(16),
-                    child: pw.Row(
-                      children: [
-                        pw.Expanded(
-                            flex: 2,
-                            child: pw.Text('기존가구',
-                                style: pw.TextStyle(font: ttf))),
-                        pw.Expanded(
-                            flex: 3,
-                            child: pw.Text(furniture['name'] ?? '',
-                                style: pw.TextStyle(font: ttf))),
-                        pw.Expanded(
-                            flex: 1,
-                            child: pw.Text(
-                                furniture['quantity']?.toString() ?? '',
-                                style: pw.TextStyle(font: ttf))),
-                        pw.Expanded(
-                            flex: 2,
-                            child: pw.Text(_formatDate(estimate['updatedAt']),
-                                style: pw.TextStyle(font: ttf))),
-                        pw.Expanded(
-                            flex: 2,
-                            child: pw.Text(
-                                '${_formatNumber(furniture['price'])}원',
-                                style: pw.TextStyle(font: ttf))),
-                      ],
-                    ),
-                  )),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
   // PDF 테이블 셀 생성 헬퍼 함수
   pw.Widget _buildPDFTableCell(String text, {bool header = false}) {
     return pw.Container(
@@ -1457,7 +1622,7 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                                   ),
                                   const SizedBox(height: 56),
                                   const Text(
-                                    '견적서',
+                                    '출고증',
                                     style: TextStyle(
                                       fontSize: 24,
                                       fontWeight: FontWeight.w600,
@@ -1467,8 +1632,6 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                                   const SizedBox(height: 32),
                                   _buildCustomerSection(snapshot.data!),
                                   const SizedBox(height: 48),
-                                  _buildSpaceSection(snapshot.data!),
-                                  const SizedBox(height: 48),
                                   _buildEstimateSection(snapshot.data!),
                                   const SizedBox(height: 48),
                                   _buildManagerSection(snapshot.data!),
@@ -1477,7 +1640,7 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                                     onPressed: () =>
                                         generatePDF(snapshot.data!),
                                     icon: const Icon(Icons.picture_as_pdf),
-                                    label: const Text('PDF 다운로드'),
+                                    label: const Text('출고증 다운로드'),
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: AppColor.primary,
                                       foregroundColor: Colors.white,

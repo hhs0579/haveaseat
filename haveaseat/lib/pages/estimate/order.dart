@@ -26,17 +26,22 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
-class EstimatePage extends ConsumerStatefulWidget {
+class OrderEstimatePage extends ConsumerStatefulWidget {
   final String customerId;
+  final String estimateId;
 
-  const EstimatePage({super.key, required this.customerId});
+  const OrderEstimatePage({
+    super.key,
+    required this.customerId,
+    required this.estimateId,
+  });
 
   @override
-  ConsumerState<EstimatePage> createState() => _EstimatePageState();
+  ConsumerState<OrderEstimatePage> createState() => _OrderEstimatePageState();
 }
 
-class _EstimatePageState extends ConsumerState<EstimatePage> {
-  // EstimatePage의 _EstimatePageState 클래스 내부에 추가할 코드
+class _OrderEstimatePageState extends ConsumerState<OrderEstimatePage> {
+  final screenshotController = ScreenshotController();
 
   Future<Map<String, dynamic>> _loadEstimateData() async {
     try {
@@ -517,6 +522,340 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
     );
   }
 
+  Widget _buildOrderSection(Map<String, dynamic> data) {
+    final estimate = data['estimate'] as Map<String, dynamic>;
+    final furnitureList = (estimate['furnitureList'] as List<dynamic>?) ?? [];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          '발주 정보',
+          style: TextStyle(
+              fontWeight: FontWeight.w600, fontSize: 18, color: Colors.black),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 48),
+          width: double.infinity,
+          height: 2,
+          color: Colors.black,
+        ),
+        const SizedBox(height: 24),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final cellWidth = (constraints.maxWidth - 48) / 2;
+            return Column(
+              children: furnitureList.map((furniture) {
+                int index = furnitureList.indexOf(furniture);
+                return Column(
+                  children: [
+                    Row(
+                      children: [
+                        SizedBox(
+                          width: cellWidth,
+                          child: Container(
+                            height: 48,
+                            decoration: const BoxDecoration(
+                              border: Border(
+                                bottom:
+                                    BorderSide(color: AppColor.line1, width: 1),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 120,
+                                  color: AppColor.back2,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 14),
+                                  child: const Text(
+                                    '제품명',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w400,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16),
+                                    alignment: Alignment.centerLeft,
+                                    child: Text(
+                                      furniture['name'] ?? '',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w400,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        SizedBox(
+                          width: cellWidth,
+                          child: Container(
+                            height: 48,
+                            decoration: const BoxDecoration(
+                              border: Border(
+                                bottom:
+                                    BorderSide(color: AppColor.line1, width: 1),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 120,
+                                  color: AppColor.back2,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 14),
+                                  child: const Text(
+                                    '발주상태',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w400,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16),
+                                    child: DropdownButtonHideUnderline(
+                                      child: DropdownButton<String>(
+                                        value:
+                                            furniture['orderStatus'] ?? '발주 신청',
+                                        items: const [
+                                          DropdownMenuItem(
+                                              value: '발주 신청',
+                                              child: Text(
+                                                '발주 신청',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.w400,
+                                                  fontSize: 14,
+                                                ),
+                                              )),
+                                          DropdownMenuItem(
+                                              value: '발주 진행',
+                                              child: Text(
+                                                '발주 진행',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.w400,
+                                                  fontSize: 14,
+                                                ),
+                                              )),
+                                          DropdownMenuItem(
+                                              value: '발주 완료',
+                                              child: Text(
+                                                '발주 완료',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.w400,
+                                                  fontSize: 14,
+                                                ),
+                                              )),
+                                        ],
+                                        onChanged: (String? newValue) async {
+                                          if (newValue != null) {
+                                            final updatedList =
+                                                List<Map<String, dynamic>>.from(
+                                                    furnitureList);
+                                            updatedList[index] = {
+                                              ...updatedList[index],
+                                              'orderStatus': newValue,
+                                            };
+                                            await FirebaseFirestore.instance
+                                                .collection('estimates')
+                                                .doc(widget.estimateId)
+                                                .update({
+                                              'furnitureList': updatedList,
+                                            });
+                                            setState(() {});
+                                          }
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        SizedBox(
+                          width: cellWidth,
+                          child: Container(
+                            height: 48,
+                            decoration: const BoxDecoration(
+                              border: Border(
+                                bottom:
+                                    BorderSide(color: AppColor.line1, width: 1),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 120,
+                                  color: AppColor.back2,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 14),
+                                  child: const Text(
+                                    '입고상태',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w400,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16),
+                                    child: DropdownButtonHideUnderline(
+                                      child: DropdownButton<String>(
+                                        value: furniture['receivingStatus'] ??
+                                            '미입고',
+                                        items: const [
+                                          DropdownMenuItem(
+                                              value: '미입고',
+                                              child: Text(
+                                                '미입고',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.w400,
+                                                  fontSize: 14,
+                                                ),
+                                              )),
+                                          DropdownMenuItem(
+                                              value: '입고',
+                                              child: Text(
+                                                '입고',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.w400,
+                                                  fontSize: 14,
+                                                ),
+                                              )),
+                                        ],
+                                        onChanged: (String? newValue) async {
+                                          if (newValue != null) {
+                                            final updatedList =
+                                                List<Map<String, dynamic>>.from(
+                                                    furnitureList);
+                                            updatedList[index] = {
+                                              ...updatedList[index],
+                                              'receivingStatus': newValue,
+                                            };
+                                            await FirebaseFirestore.instance
+                                                .collection('estimates')
+                                                .doc(widget.estimateId)
+                                                .update({
+                                              'furnitureList': updatedList,
+                                            });
+                                            setState(() {});
+                                          }
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        SizedBox(
+                          width: cellWidth,
+                          child: Container(
+                            height: 48,
+                            decoration: const BoxDecoration(
+                              border: Border(
+                                bottom:
+                                    BorderSide(color: AppColor.line1, width: 1),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 120,
+                                  color: AppColor.back2,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 14),
+                                  child: const Text(
+                                    '입고예정일',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w400,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: InkWell(
+                                    onTap: () async {
+                                      final DateTime? picked =
+                                          await showDatePicker(
+                                        context: context,
+                                        initialDate: DateTime.now(),
+                                        firstDate: DateTime(2000),
+                                        lastDate: DateTime(2100),
+                                      );
+                                      if (picked != null) {
+                                        final updatedList =
+                                            List<Map<String, dynamic>>.from(
+                                                furnitureList);
+                                        updatedList[index] = {
+                                          ...updatedList[index],
+                                          'expectedDate':
+                                              Timestamp.fromDate(picked),
+                                        };
+
+                                        await FirebaseFirestore.instance
+                                            .collection('estimates')
+                                            .doc(widget.estimateId)
+                                            .update({
+                                          'furnitureList': updatedList,
+                                        });
+
+                                        setState(() {});
+                                      }
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 16),
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        furniture['expectedDate'] != null
+                                            ? _formatDate(
+                                                furniture['expectedDate'])
+                                            : '날짜 선택',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w400,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (index < furnitureList.length - 1)
+                      const SizedBox(height: 24),
+                  ],
+                );
+              }).toList(),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
 // 유틸리티 함수들
   Widget _buildTableHeader(String text, int flex) {
     return Expanded(
@@ -532,6 +871,55 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
         ),
       ),
     );
+  }
+
+  Future<void> _saveOrderStatus() async {
+    try {
+      final estimateDoc = await FirebaseFirestore.instance
+          .collection('estimates')
+          .doc(widget.estimateId)
+          .get();
+
+      if (!estimateDoc.exists) {
+        throw Exception('견적서를 찾을 수 없습니다');
+      }
+
+      final furnitureList =
+          (estimateDoc.data()?['furnitureList'] as List<dynamic>?) ?? [];
+
+      // 업데이트할 가구 목록
+      List<Map<String, dynamic>> updatedFurnitureList =
+          furnitureList.map((furniture) {
+        return {
+          ...furniture as Map<String, dynamic>,
+          'orderStatus': furniture['orderStatus'] ?? '발주 신청',
+          'receivingStatus': furniture['receivingStatus'] ?? '미입고',
+          'expectedDate': furniture['expectedDate'],
+        };
+      }).toList();
+
+      // Firestore 업데이트
+      await FirebaseFirestore.instance
+          .collection('estimates')
+          .doc(widget.estimateId)
+          .update({
+        'furnitureList': updatedFurnitureList,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('저장되었습니다')),
+        );
+      }
+    } catch (e) {
+      print('Error saving order status: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('저장 중 오류가 발생했습니다: $e')),
+        );
+      }
+    }
   }
 
   Widget _buildTableCell(String text, int flex,
@@ -574,8 +962,6 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
     }
     return '';
   }
-
-  final screenshotController = ScreenshotController();
 
   Future<void> generatePDF(Map<String, dynamic> data) async {
     try {
@@ -621,6 +1007,35 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
     }
   }
 
+  pw.Widget _buildPDFContent(
+      Map<String, dynamic> data, pw.Font ttf, pw.Font ttfBold) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        // 헤더
+        _buildPDFHeader(ttfBold),
+        pw.SizedBox(height: 56),
+
+        // 제목
+        pw.Text(
+          '발주서',
+          style: pw.TextStyle(
+              fontSize: 24, font: ttfBold, color: PdfColor.fromHex('1A1A1A')),
+        ),
+        pw.SizedBox(height: 32),
+
+        // 각 섹션
+        _buildPDFEstimateSection(data['estimate'], ttf, ttfBold),
+
+        pw.SizedBox(height: 48),
+        _buildPDFOrderSection(data['estimate'], ttf, ttfBold),
+        pw.SizedBox(height: 48),
+
+        _buildPDFManagerSection(data['userData'], ttf, ttfBold),
+      ],
+    );
+  }
+
   String _generateFileName(Map<String, dynamic> data) {
     // 현재 날짜 가져오기
     final now = DateTime.now();
@@ -638,36 +1053,7 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
         estimateId.length > 8 ? estimateId.substring(0, 8) : estimateId;
 
     // 파일명 생성
-    return '견적서_${customerName}_${dateStr}_$shortEstimateId.pdf';
-  }
-
-  pw.Widget _buildPDFContent(
-      Map<String, dynamic> data, pw.Font ttf, pw.Font ttfBold) {
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        // 헤더
-        _buildPDFHeader(ttfBold),
-        pw.SizedBox(height: 56),
-
-        // 제목
-        pw.Text(
-          '견적서',
-          style: pw.TextStyle(
-              fontSize: 24, font: ttfBold, color: PdfColor.fromHex('1A1A1A')),
-        ),
-        pw.SizedBox(height: 32),
-
-        // 각 섹션
-        _buildPDFCustomerSection(data['customer'], ttf, ttfBold),
-        pw.SizedBox(height: 48),
-        _buildPDFSpaceSection(data['estimate'], ttf, ttfBold),
-        pw.SizedBox(height: 48),
-        _buildPDFEstimateSection(data['estimate'], ttf, ttfBold),
-        pw.SizedBox(height: 48),
-        _buildPDFManagerSection(data['userData'], ttf, ttfBold),
-      ],
-    );
+    return '발주서_${customerName}_${dateStr}_$shortEstimateId.pdf';
   }
 
 // PDF 헤더 위젯
@@ -683,6 +1069,136 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
             color: PdfColor.fromHex('1A1A1A'),
           ),
         ),
+      ],
+    );
+  }
+
+  pw.Widget _buildPDFOrderSection(
+      Map<String, dynamic> estimate, pw.Font ttf, pw.Font ttfBold) {
+    final furnitureList = (estimate['furnitureList'] as List<dynamic>?) ?? [];
+
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        // 섹션 제목
+        pw.Text(
+          '발주 정보',
+          style: pw.TextStyle(
+              fontSize: 18, font: ttfBold, color: PdfColor.fromHex('1A1A1A')),
+        ),
+        pw.SizedBox(height: 12),
+
+        // 구분선
+        pw.Container(
+          width: double.infinity,
+          height: 2,
+          color: PdfColor.fromHex('000000'),
+        ),
+        pw.SizedBox(height: 24),
+
+        // 테이블 컨테이너
+        pw.Container(
+          decoration: pw.BoxDecoration(
+            border: pw.Border.all(color: PdfColor.fromHex('EAEAEC')),
+          ),
+          child: pw.Column(
+            children: [
+              // 테이블 헤더
+              pw.Container(
+                color: PdfColor.fromHex('F7F7FB'),
+                padding: const pw.EdgeInsets.all(16),
+                child: pw.Row(
+                  children: [
+                    pw.Expanded(
+                        flex: 3,
+                        child:
+                            pw.Text('제품명', style: pw.TextStyle(font: ttfBold))),
+                    pw.Expanded(
+                        flex: 2,
+                        child: pw.Text('발주상태',
+                            style: pw.TextStyle(font: ttfBold))),
+                    pw.Expanded(
+                        flex: 2,
+                        child: pw.Text('입고상태',
+                            style: pw.TextStyle(font: ttfBold))),
+                    pw.Expanded(
+                        flex: 3,
+                        child: pw.Text('입고예정일',
+                            style: pw.TextStyle(font: ttfBold))),
+                  ],
+                ),
+              ),
+
+              // 테이블 내용
+              ...furnitureList
+                  .map((furniture) => pw.Container(
+                        decoration: pw.BoxDecoration(
+                          border: pw.Border(
+                            top: pw.BorderSide(
+                                color: PdfColor.fromHex('EAEAEC')),
+                          ),
+                        ),
+                        padding: const pw.EdgeInsets.all(16),
+                        child: pw.Row(
+                          children: [
+                            pw.Expanded(
+                              flex: 3,
+                              child: pw.Text(
+                                furniture['name'] ?? '',
+                                style: pw.TextStyle(font: ttf),
+                              ),
+                            ),
+                            pw.Expanded(
+                              flex: 2,
+                              child: pw.Text(
+                                furniture['orderStatus'] ?? '발주 신청',
+                                style: pw.TextStyle(font: ttf),
+                              ),
+                            ),
+                            pw.Expanded(
+                              flex: 2,
+                              child: pw.Text(
+                                furniture['receivingStatus'] ?? '미입고',
+                                style: pw.TextStyle(font: ttf),
+                              ),
+                            ),
+                            pw.Expanded(
+                              flex: 3,
+                              child: pw.Text(
+                                furniture['expectedDate'] != null
+                                    ? _formatDate(furniture['expectedDate'])
+                                    : '-',
+                                style: pw.TextStyle(font: ttf),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ))
+                  .toList(),
+            ],
+          ),
+        ),
+
+        // 참고 사항 (옵션)
+        if (estimate['orderNotes'] != null &&
+            estimate['orderNotes'].toString().isNotEmpty)
+          pw.Container(
+            margin: const pw.EdgeInsets.only(top: 16),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(
+                  '참고사항',
+                  style: pw.TextStyle(font: ttfBold, fontSize: 14),
+                ),
+                pw.SizedBox(height: 8),
+                pw.Text(
+                  estimate['orderNotes'].toString(),
+                  style: pw.TextStyle(font: ttf, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }
@@ -976,6 +1492,62 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
         ],
       ),
     );
+  }
+
+  Future<void> _generateOrderPDF(Map<String, dynamic> data) async {
+    try {
+      final regularFont = await rootBundle.load(
+          'assets/fonts/notosans/Noto_Sans_KR/static/NotoSansKR-Regular.ttf');
+      final boldFont = await rootBundle.load(
+          'assets/fonts/notosans/Noto_Sans_KR/static/NotoSansKR-Bold.ttf');
+
+      final ttf = pw.Font.ttf(regularFont);
+      final ttfBold = pw.Font.ttf(boldFont);
+
+      final pdf = pw.Document();
+      final pageFormat = PdfPageFormat(
+        PdfPageFormat.a4.width * 1.5,
+        PdfPageFormat.a4.height * 2,
+        marginAll: 40,
+      );
+
+      pdf.addPage(
+        pw.Page(
+          pageFormat: pageFormat,
+          build: (pw.Context context) {
+            return pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(
+                  '발주서',
+                  style: pw.TextStyle(fontSize: 24, font: ttfBold),
+                ),
+                pw.SizedBox(height: 32),
+                _buildPDFEstimateSection(data['estimate'], ttf, ttfBold),
+                pw.SizedBox(height: 48),
+                _buildPDFOrderSection(data['estimate'], ttf, ttfBold),
+                pw.SizedBox(height: 48),
+                _buildPDFManagerSection(data['userData'], ttf, ttfBold),
+              ],
+            );
+          },
+        ),
+      );
+
+      final bytes = await pdf.save();
+      final blob = html.Blob([bytes], 'application/pdf');
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      final anchor = html.AnchorElement()
+        ..href = url
+        ..style.display = 'none'
+        ..download = 'order.pdf';
+      html.document.body?.children.add(anchor);
+      anchor.click();
+      html.document.body?.children.remove(anchor);
+      html.Url.revokeObjectUrl(url);
+    } catch (e) {
+      print('Error generating PDF: $e');
+    }
   }
 
   String getFileName(String url) {
@@ -1457,7 +2029,7 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                                   ),
                                   const SizedBox(height: 56),
                                   const Text(
-                                    '견적서',
+                                    '발주서',
                                     style: TextStyle(
                                       fontSize: 24,
                                       fontWeight: FontWeight.w600,
@@ -1465,23 +2037,53 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                                     ),
                                   ),
                                   const SizedBox(height: 32),
-                                  _buildCustomerSection(snapshot.data!),
-                                  const SizedBox(height: 48),
-                                  _buildSpaceSection(snapshot.data!),
-                                  const SizedBox(height: 48),
                                   _buildEstimateSection(snapshot.data!),
+                                  const SizedBox(height: 48),
+                                  _buildOrderSection(snapshot.data!), // 여기에 추가
                                   const SizedBox(height: 48),
                                   _buildManagerSection(snapshot.data!),
                                   const SizedBox(height: 48),
-                                  ElevatedButton.icon(
-                                    onPressed: () =>
-                                        generatePDF(snapshot.data!),
-                                    icon: const Icon(Icons.picture_as_pdf),
-                                    label: const Text('PDF 다운로드'),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppColor.primary,
-                                      foregroundColor: Colors.white,
-                                    ),
+                                  Row(
+                                    children: [
+                                      InkWell(
+                                        onTap: () {
+                                          _saveOrderStatus();
+                                        },
+                                        child: Container(
+                                          height: 48,
+                                          width: 87,
+                                          color: Colors.black,
+                                          child: const Center(
+                                            child: Text(
+                                              '저장하기',
+                                              style: TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: Colors.white),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      InkWell(
+                                        onTap: () {
+                                          generatePDF(snapshot.data!);
+                                        },
+                                        child: Container(
+                                          height: 48,
+                                          width: 131,
+                                          color: Colors.transparent,
+                                          child: const Center(
+                                            child: Text(
+                                              '발주서 다운로드',
+                                              style: TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: Colors.black),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ]);
                           }))),

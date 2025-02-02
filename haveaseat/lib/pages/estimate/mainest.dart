@@ -26,17 +26,23 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
-class EstimatePage extends ConsumerStatefulWidget {
+class CustomerEstimatePage extends ConsumerStatefulWidget {
   final String customerId;
+  final String estimateId;
 
-  const EstimatePage({super.key, required this.customerId});
+  const CustomerEstimatePage({
+    super.key,
+    required this.customerId,
+    required this.estimateId,
+  });
 
   @override
-  ConsumerState<EstimatePage> createState() => _EstimatePageState();
+  ConsumerState<CustomerEstimatePage> createState() =>
+      _CustomerEstimatePageState();
 }
 
-class _EstimatePageState extends ConsumerState<EstimatePage> {
-  // EstimatePage의 _EstimatePageState 클래스 내부에 추가할 코드
+class _CustomerEstimatePageState extends ConsumerState<CustomerEstimatePage> {
+  final screenshotController = ScreenshotController();
 
   Future<Map<String, dynamic>> _loadEstimateData() async {
     try {
@@ -575,8 +581,6 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
     return '';
   }
 
-  final screenshotController = ScreenshotController();
-
   Future<void> generatePDF(Map<String, dynamic> data) async {
     try {
       final regularFont = await rootBundle.load(
@@ -620,7 +624,6 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
       print('Error generating PDF: $e');
     }
   }
-
   String _generateFileName(Map<String, dynamic> data) {
     // 현재 날짜 가져오기
     final now = DateTime.now();
@@ -659,12 +662,12 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
         pw.SizedBox(height: 32),
 
         // 각 섹션
-        _buildPDFCustomerSection(data['customer'], ttf, ttfBold),
+        _buildPDFEstimateSection(data['estimate'], ttf, ttfBold),
+
         pw.SizedBox(height: 48),
         _buildPDFSpaceSection(data['estimate'], ttf, ttfBold),
         pw.SizedBox(height: 48),
-        _buildPDFEstimateSection(data['estimate'], ttf, ttfBold),
-        pw.SizedBox(height: 48),
+
         _buildPDFManagerSection(data['userData'], ttf, ttfBold),
       ],
     );
@@ -1465,11 +1468,9 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                                     ),
                                   ),
                                   const SizedBox(height: 32),
-                                  _buildCustomerSection(snapshot.data!),
+                                  _buildEstimateSection(snapshot.data!),
                                   const SizedBox(height: 48),
                                   _buildSpaceSection(snapshot.data!),
-                                  const SizedBox(height: 48),
-                                  _buildEstimateSection(snapshot.data!),
                                   const SizedBox(height: 48),
                                   _buildManagerSection(snapshot.data!),
                                   const SizedBox(height: 48),
@@ -1477,7 +1478,7 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                                     onPressed: () =>
                                         generatePDF(snapshot.data!),
                                     icon: const Icon(Icons.picture_as_pdf),
-                                    label: const Text('PDF 다운로드'),
+                                    label: const Text('견적서 다운로드'),
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: AppColor.primary,
                                       foregroundColor: Colors.white,

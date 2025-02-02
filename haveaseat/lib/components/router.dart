@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:haveaseat/pages/estimate/mainest.dart';
+import 'package:haveaseat/pages/estimate/order.dart';
+import 'package:haveaseat/pages/estimate/released.dart';
 import 'package:haveaseat/pages/info/%20furniture.dart';
 import 'package:haveaseat/pages/info/addcustomer.dart';
 import 'package:haveaseat/pages/allcustomer.dart';
@@ -103,6 +106,29 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => CustomerDetailPage(
               customerId: state.pathParameters['id']!,
             ),
+            routes: [
+              GoRoute(
+                path: 'estimate/:estimateId',
+                builder: (context, state) => CustomerEstimatePage(
+                  customerId: state.pathParameters['id']!,
+                  estimateId: state.pathParameters['estimateId']!,
+                ),
+              ),
+              GoRoute(
+                path: 'estimate/:estimateId/order', // 'order' 경로 추가
+                builder: (context, state) => OrderEstimatePage(
+                  customerId: state.pathParameters['id']!,
+                  estimateId: state.pathParameters['estimateId']!,
+                ),
+              ),
+              GoRoute(
+                path: 'estimate/:estimateId/release', // 'order' 경로 추가
+                builder: (context, state) => ReleaseEstimatePage(
+                  customerId: state.pathParameters['id']!,
+                  estimateId: state.pathParameters['estimateId']!,
+                ),
+              ),
+            ],
           ),
         ],
       ),
