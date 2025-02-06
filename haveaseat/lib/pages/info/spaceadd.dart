@@ -64,7 +64,19 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
     super.initState();
     _loadTempEstimate();
   }
-
+  Future<void> _handleLogout() async {
+    try {
+      await FirebaseAuth.instance.signOut();
+      context.go('/login'); // 로그인 페이지로 이동
+    } catch (e) {
+      print('Error during logout: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('로그아웃 중 오류가 발생했습니다')),
+        );
+      }
+    }
+  }
   Future<void> _loadTempEstimate() async {
     try {
       final customer = await ref
@@ -648,9 +660,41 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                                       color: AppColor.font1,
                                       fontSize: 16),
                                 ),
+              
                               ],
                             )),
                       ),
+                                           const Spacer(),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 24.0),
+                    child: InkWell(
+                      onTap: _handleLogout,
+                      child: Container(
+                        width: 200,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.red.shade300),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.logout,
+                                color: Colors.red.shade300, size: 20),
+                            const SizedBox(width: 8),
+                            Text(
+                              '로그아웃',
+                              style: TextStyle(
+                                color: Colors.red.shade300,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                     ],
                   ),
                 ),

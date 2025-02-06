@@ -77,6 +77,20 @@ class _CustomerEstimatePageState extends ConsumerState<CustomerEstimatePage> {
     }
   }
 
+  Future<void> _handleLogout() async {
+    try {
+      await FirebaseAuth.instance.signOut();
+      context.go('/login'); // 로그인 페이지로 이동
+    } catch (e) {
+      print('Error during logout: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('로그아웃 중 오류가 발생했습니다')),
+        );
+      }
+    }
+  }
+
   Widget _buildInfoCell(String label, String value) {
     return Container(
       width: 396, // 화면 비율에 맞게 조정할 예정
@@ -624,6 +638,7 @@ class _CustomerEstimatePageState extends ConsumerState<CustomerEstimatePage> {
       print('Error generating PDF: $e');
     }
   }
+
   String _generateFileName(Map<String, dynamic> data) {
     // 현재 날짜 가져오기
     final now = DateTime.now();
@@ -1387,6 +1402,37 @@ class _CustomerEstimatePageState extends ConsumerState<CustomerEstimatePage> {
                             ),
                           ],
                         )),
+                  ),
+                  const Spacer(),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 24.0),
+                    child: InkWell(
+                      onTap: _handleLogout,
+                      child: Container(
+                        width: 200,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.red.shade300),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.logout,
+                                color: Colors.red.shade300, size: 20),
+                            const SizedBox(width: 8),
+                            Text(
+                              '로그아웃',
+                              style: TextStyle(
+                                color: Colors.red.shade300,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
