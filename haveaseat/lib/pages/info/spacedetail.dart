@@ -102,6 +102,7 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
       ),
     );
   }
+
   Future<void> _handleLogout() async {
     try {
       await FirebaseAuth.instance.signOut();
@@ -115,6 +116,7 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
       }
     }
   }
+
   Widget _buildAgeRangeButton(String text) {
     bool isSelected = selectedAgeRange == text;
 
@@ -294,6 +296,8 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('임시 저장되었습니다')),
         );
+        context.go(
+            '/main/addpage/spaceadd/${widget.customerId}/space-detail/furniture');
       }
     } catch (e) {
       print('Error saving temp data: $e');
@@ -648,41 +652,40 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
                                         color: AppColor.font1,
                                         fontSize: 16),
                                   ),
-               
                                 ],
                               )),
                         ),
-                                              const Spacer(),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 24.0),
-                    child: InkWell(
-                      onTap: _handleLogout,
-                      child: Container(
-                        width: 200,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.red.shade300),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.logout,
-                                color: Colors.red.shade300, size: 20),
-                            const SizedBox(width: 8),
-                            Text(
-                              '로그아웃',
-                              style: TextStyle(
-                                color: Colors.red.shade300,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
+                        const Spacer(),
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 24.0),
+                          child: InkWell(
+                            onTap: _handleLogout,
+                            child: Container(
+                              width: 200,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.red.shade300),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.logout,
+                                      color: Colors.red.shade300, size: 20),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    '로그아웃',
+                                    style: TextStyle(
+                                      color: Colors.red.shade300,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ],
+                          ),
                         ),
-                      ),
-                    ),
-                  ),
                       ],
                     ),
                   ),

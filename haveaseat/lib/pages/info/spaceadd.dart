@@ -64,6 +64,7 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
     super.initState();
     _loadTempEstimate();
   }
+
   Future<void> _handleLogout() async {
     try {
       await FirebaseAuth.instance.signOut();
@@ -77,6 +78,7 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
       }
     }
   }
+
   Future<void> _loadTempEstimate() async {
     try {
       final customer = await ref
@@ -178,6 +180,7 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('임시 저장되었습니다')),
         );
+        context.go('/main/addpage/spaceadd/${widget.customerId}/space-detail');
       }
     } catch (e) {
       print('임시 저장 중 오류: $e');
@@ -660,41 +663,40 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                                       color: AppColor.font1,
                                       fontSize: 16),
                                 ),
-              
                               ],
                             )),
                       ),
-                                           const Spacer(),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 24.0),
-                    child: InkWell(
-                      onTap: _handleLogout,
-                      child: Container(
-                        width: 200,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.red.shade300),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.logout,
-                                color: Colors.red.shade300, size: 20),
-                            const SizedBox(width: 8),
-                            Text(
-                              '로그아웃',
-                              style: TextStyle(
-                                color: Colors.red.shade300,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
+                      const Spacer(),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 24.0),
+                        child: InkWell(
+                          onTap: _handleLogout,
+                          child: Container(
+                            width: 200,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.red.shade300),
+                              borderRadius: BorderRadius.circular(4),
                             ),
-                          ],
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.logout,
+                                    color: Colors.red.shade300, size: 20),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '로그아웃',
+                                  style: TextStyle(
+                                    color: Colors.red.shade300,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ),
                     ],
                   ),
                 ),

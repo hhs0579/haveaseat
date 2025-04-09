@@ -108,15 +108,15 @@ class Customer {
   }
 }
 
-// 견적서 모델
+// 견적서 모델// Estimate 클래스 수정 - memo 필드 추가
 class Estimate {
   final String id;
   final String customerId;
   final DateTime createdAt;
   final DateTime updatedAt;
   final EstimateStatus status;
-  final String managerName; // 담당자 성함 추가
-  final String managerPhone; // 담당자 연락처 추가
+  final String managerName;
+  final String managerPhone;
 
   // 공간 기본 정보
   final String siteAddress;
@@ -132,12 +132,14 @@ class Estimate {
   final double spaceArea;
   final List<String> targetAgeGroups;
   final String businessType;
-  final List<String> concept; // String에서 List<String>으로 변경
-  final String spaceUnit; // 면적 단위 추가
+  final List<String> concept;
+  final String spaceUnit;
   final String detailNotes;
   final List<String> designFileUrls;
   // 가구 정보
   final List<ExistingFurniture> furnitureList;
+  // 메모 필드 추가
+  final String memo;
 
   Estimate({
     required this.id,
@@ -145,8 +147,8 @@ class Estimate {
     required this.createdAt,
     required this.updatedAt,
     required this.status,
-    required this.managerName, // 생성자에 추가
-    required this.managerPhone, // 생성자에 추가
+    required this.managerName,
+    required this.managerPhone,
     required this.siteAddress,
     required this.openingDate,
     required this.recipient,
@@ -160,11 +162,11 @@ class Estimate {
     required this.targetAgeGroups,
     required this.businessType,
     required this.concept,
-    required this.spaceUnit, // 단위 파라미터 추가
-
+    required this.spaceUnit,
     required this.detailNotes,
     required this.designFileUrls,
     required this.furnitureList,
+    this.memo = '', // memo에 기본값 설정
   });
 
   factory Estimate.fromJson(String id, Map<String, dynamic> json) {
@@ -194,7 +196,7 @@ class Estimate {
       spaceArea: (json['spaceArea'] ?? 0).toDouble(),
       targetAgeGroups: List<String>.from(json['targetAgeGroups'] ?? []),
       businessType: json['businessType'] ?? '',
-      concept: List<String>.from(json['concept'] ?? []), // List로 변환
+      concept: List<String>.from(json['concept'] ?? []),
       spaceUnit: json['spaceUnit'] ?? '평',
       detailNotes: json['detailNotes'] ?? '',
       designFileUrls: List<String>.from(json['designFileUrls'] ?? []),
@@ -203,6 +205,8 @@ class Estimate {
               ?.map((e) => ExistingFurniture.fromJson(e))
               .toList() ??
           [],
+      // 메모 추가
+      memo: json['memo'] ?? '',
     );
   }
 
@@ -228,16 +232,18 @@ class Estimate {
       'spaceArea': spaceArea,
       'targetAgeGroups': targetAgeGroups,
       'businessType': businessType,
-      'concept': concept, // List 그대로 저장
-      'spaceUnit': spaceUnit, // 단위 저장
+      'concept': concept,
+      'spaceUnit': spaceUnit,
       'detailNotes': detailNotes,
       'designFileUrls': designFileUrls,
       // 가구 정보
       'furnitureList': furnitureList.map((e) => e.toJson()).toList(),
+      // 메모 추가
+      'memo': memo,
     };
   }
 
-  // 빈 견적 생성을 위한 팩토리 메서드
+  // 빈 견적 생성을 위한 팩토리 메서드 수정
   factory Estimate.empty(String customerId) {
     return Estimate(
       id: '',
@@ -267,17 +273,20 @@ class Estimate {
       designFileUrls: [],
       // 가구 정보
       furnitureList: [],
+      // 메모 추가
+      memo: '',
     );
   }
 
+  // copyWith 메서드에 memo 추가
   Estimate copyWith({
     String? id,
     String? customerId,
     DateTime? createdAt,
     DateTime? updatedAt,
     EstimateStatus? status,
-    String? managerName, // 담당자 성함 추가
-    String? managerPhone, // 담당자 연락처 추가
+    String? managerName,
+    String? managerPhone,
     String? siteAddress,
     DateTime? openingDate,
     String? recipient,
@@ -290,11 +299,12 @@ class Estimate {
     double? spaceArea,
     List<String>? targetAgeGroups,
     String? businessType,
-    List<String>? concept, // String에서 List<String>으로 변경
-    String? spaceUnit, // 면적 단위 추가
+    List<String>? concept,
+    String? spaceUnit,
     String? detailNotes,
     List<String>? designFileUrls,
     List<ExistingFurniture>? furnitureList,
+    String? memo,
   }) {
     return Estimate(
       id: id ?? this.id,
@@ -321,6 +331,7 @@ class Estimate {
       detailNotes: detailNotes ?? this.detailNotes,
       designFileUrls: designFileUrls ?? this.designFileUrls,
       furnitureList: furnitureList ?? this.furnitureList,
+      memo: memo ?? this.memo,
     );
   }
 

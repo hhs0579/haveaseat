@@ -406,6 +406,7 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
   Widget _buildEstimateSection(Map<String, dynamic> data) {
     final estimate = data['estimate'] as Map<String, dynamic>;
     final furnitureList = (estimate['furnitureList'] as List<dynamic>?) ?? [];
+    final memo = estimate['memo'] as String? ?? ''; // 메모 필드 가져오기
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -423,7 +424,6 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
           color: Colors.black,
         ),
         Container(
-          margin: const EdgeInsets.symmetric(vertical: 16),
           decoration: BoxDecoration(
             border: Border.all(color: AppColor.line1),
           ),
@@ -434,53 +434,162 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                 color: AppColor.back2,
                 child: Row(
                   children: [
-                    _buildTableHeader('견적종류', 2),
-                    _buildTableHeader('가구명', 3),
+                    _buildTableHeader('가구명', 4),
+                    _buildTableHeader('단가', 2),
                     _buildTableHeader('수량', 1),
-                    _buildTableHeader('견적일자', 2),
-                    _buildTableHeader('가격', 2),
+                    _buildTableHeader('금액', 2),
                   ],
                 ),
               ),
               // 테이블 내용
-              ...furnitureList
-                  .map((furniture) => Container(
-                        decoration: const BoxDecoration(
-                          border: Border(
-                            top: BorderSide(color: AppColor.line1),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            _buildTableCell('기존가구', 2),
-                            _buildTableCell(furniture['name'] ?? '', 3),
-                            _buildTableCell(
-                                furniture['quantity']?.toString() ?? '', 1),
-                            _buildTableCell(
-                                _formatDate(estimate['updatedAt']), 2),
-                            _buildTableCell(
-                                '${_formatNumber(furniture['price'])}원', 2),
-                          ],
-                        ),
-                      ))
-                  .toList(),
-              // 총 합계
-              Container(
-                decoration: const BoxDecoration(
-                  border: Border(
-                    top: BorderSide(color: AppColor.line1, width: 2),
+              ...furnitureList.map((furniture) {
+                final price = furniture['price'] ?? 0;
+                final quantity = furniture['quantity'] ?? 0;
+                final totalAmount = price * quantity;
+
+                return Container(
+                  decoration: const BoxDecoration(
+                    border: Border(
+                      top: BorderSide(color: AppColor.line1),
+                    ),
                   ),
+                  child: Row(
+                    children: [
+                      _buildTableCell(furniture['name'] ?? '', 4),
+                      _buildTableCell('${_formatNumber(price)}원', 2),
+                      _buildTableCell(quantity.toString(), 1),
+                      _buildTableCell('${_formatNumber(totalAmount)}원', 2),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ],
+          ),
+        ),
+
+        // 견적일자와 총 합계를 별도의 컨테이너로 분리
+        Row(
+          children: [
+            // 견적일자 - 왼쪽 절반 차지
+            Expanded(
+              child: Container(
+                height: 48,
+                margin: const EdgeInsets.only(),
+                decoration: BoxDecoration(
+                  border: Border.all(color: AppColor.line1),
                 ),
                 child: Row(
                   children: [
-                    const Spacer(flex: 8),
-                    _buildTableCell('총 합계', 1, isHeader: true),
-                    _buildTableCell(
-                      '${_formatNumber(_calculateTotal(furnitureList))}원',
-                      1,
-                      textAlign: TextAlign.right,
+                    Container(
+                      width: 120,
+                      color: AppColor.back2, // 견적일자 레이블 배경색
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      alignment: Alignment.center,
+                      child: const Text(
+                        '견적일자',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w400,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Container(
+                        color: Colors.transparent, // 값 부분 흰색 배경
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          _formatDate(estimate['updatedAt']),
+                          style: const TextStyle(
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
                     ),
                   ],
+                ),
+              ),
+            ),
+
+            // 총 합계 - 오른쪽 절반 차지
+            Expanded(
+              child: Container(
+                height: 48,
+                decoration: BoxDecoration(
+                  border: Border.all(color: AppColor.line1),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 120,
+                      color: AppColor.back2, // 총 합계 레이블 배경색
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      alignment: Alignment.center,
+                      child: const Text(
+                        '총 합계',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w400,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Container(
+                        color: Colors.transparent, // 값 부분 흰색 배경
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          '${_formatNumber(_calculateTotal(furnitureList))}원',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w400,
+                            fontSize: 14,
+                            color: AppColor.primary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+
+        // 메모 섹션 - 전체 너비 사용
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            border: Border.all(color: AppColor.line1),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 120,
+                color: AppColor.back2,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                child: const Text(
+                  '메모',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w400,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Container(
+                  color: Colors.transparent, // 메모 내용 부분도 흰색 배경
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  child: Text(
+                    memo.isEmpty ? '등록된 메모가 없습니다.' : memo,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w400,
+                      fontSize: 14,
+                      color: memo.isEmpty ? AppColor.font2 : AppColor.font1,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -591,8 +700,10 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
 
   final screenshotController = ScreenshotController();
 
+  // 먼저 PDF 생성 함수 부분에 로고 이미지 로드 로직 추가
   Future<void> generatePDF(Map<String, dynamic> data) async {
     try {
+      // 폰트 로드
       final regularFont = await rootBundle.load(
           'assets/fonts/notosans/Noto_Sans_KR/static/NotoSansKR-Regular.ttf');
       final boldFont = await rootBundle.load(
@@ -600,6 +711,11 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
 
       final ttf = pw.Font.ttf(regularFont);
       final ttfBold = pw.Font.ttf(boldFont);
+
+      // 로고 이미지 로드
+      final logoImageData = await rootBundle.load('assets/images/logo.png');
+      final logoUint8List = logoImageData.buffer.asUint8List();
+      final logoImage = pw.MemoryImage(logoUint8List);
 
       final pdf = pw.Document();
 
@@ -614,7 +730,7 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
         pw.Page(
           pageFormat: pageFormat,
           build: (pw.Context context) {
-            return _buildPDFContent(data, ttf, ttfBold);
+            return _buildPDFContent(data, ttf, ttfBold, logoImage);
           },
         ),
       );
@@ -635,33 +751,14 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
     }
   }
 
-  String _generateFileName(Map<String, dynamic> data) {
-    // 현재 날짜 가져오기
-    final now = DateTime.now();
-    final dateStr =
-        '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
-
-    // 고객 정보 가져오기
-    final customer = data['customer'] as Customer;
-    final customerName = customer.name.replaceAll(' ', '_'); // 공백을 언더스코어로 변경
-
-    // 발주번호나 견적번호가 있다면 사용
-    final estimateId =
-        customer.estimateIds.isNotEmpty ? customer.estimateIds[0] : '';
-    final shortEstimateId =
-        estimateId.length > 8 ? estimateId.substring(0, 8) : estimateId;
-
-    // 파일명 생성
-    return '견적서_${customerName}_${dateStr}_$shortEstimateId.pdf';
-  }
-
-  pw.Widget _buildPDFContent(
-      Map<String, dynamic> data, pw.Font ttf, pw.Font ttfBold) {
+// PDF 콘텐츠 빌드 함수에 로고 이미지 매개변수 추가
+  pw.Widget _buildPDFContent(Map<String, dynamic> data, pw.Font ttf,
+      pw.Font ttfBold, pw.ImageProvider logoImage) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        // 헤더
-        _buildPDFHeader(ttfBold),
+        // 헤더 - 로고 이미지 전달
+        _buildPDFHeader(ttfBold, logoImage),
         pw.SizedBox(height: 56),
 
         // 제목
@@ -684,11 +781,18 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
     );
   }
 
-// PDF 헤더 위젯
-  pw.Widget _buildPDFHeader(pw.Font ttfBold) {
+// PDF 헤더 위젯 수정 - 로고 추가
+  pw.Widget _buildPDFHeader(pw.Font ttfBold, pw.ImageProvider logoImage) {
     return pw.Row(
       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
       children: [
+        // 로고 이미지
+        pw.Image(
+          logoImage,
+          width: 137,
+          height: 17,
+        ),
+        // 날짜
         pw.Text(
           '${DateTime.now().year}년 ${DateTime.now().month}월 ${DateTime.now().day}일',
           style: pw.TextStyle(
@@ -699,6 +803,26 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
         ),
       ],
     );
+  }
+
+  String _generateFileName(Map<String, dynamic> data) {
+    // 현재 날짜 가져오기
+    final now = DateTime.now();
+    final dateStr =
+        '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
+
+    // 고객 정보 가져오기
+    final customer = data['customer'] as Customer;
+    final customerName = customer.name.replaceAll(' ', '_'); // 공백을 언더스코어로 변경
+
+    // 발주번호나 견적번호가 있다면 사용
+    final estimateId =
+        customer.estimateIds.isNotEmpty ? customer.estimateIds[0] : '';
+    final shortEstimateId =
+        estimateId.length > 8 ? estimateId.substring(0, 8) : estimateId;
+
+    // 파일명 생성
+    return '견적서_${customerName}_${dateStr}_$shortEstimateId.pdf';
   }
 
 // PDF 고객 정보 섹션
@@ -1133,7 +1257,7 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                       children: [
                         pw.Expanded(
                             flex: 2,
-                            child: pw.Text('기존가구',
+                            child: pw.Text('수입 상품',
                                 style: pw.TextStyle(font: ttf))),
                         pw.Expanded(
                             flex: 3,
