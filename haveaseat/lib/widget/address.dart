@@ -9,11 +9,18 @@ class AddressSearchField extends StatefulWidget {
   final TextEditingController controller;
   final TextEditingController detailController;
   final String labelText;
+  final FocusNode? focusNode; // FocusNode 추가
+  final FocusNode? detailFocusNode; // 상세주소 FocusNode 추가
+  final FocusNode? nextFocusNode; // 다음 필드로 이동할 FocusNode 추가
+
   const AddressSearchField({
     Key? key,
     required this.controller,
     required this.detailController,
     this.labelText = '배송지 주소',
+    this.focusNode, // 생성자에 추가
+    this.detailFocusNode, // 생성자에 추가
+    this.nextFocusNode, // 생성자에 추가
   }) : super(key: key);
 
   @override
@@ -34,6 +41,11 @@ class _AddressSearchFieldState extends State<AddressSearchField> {
               // mounted 체크 추가
               setState(() {
                 widget.controller.text = data['address'];
+
+                // 주소가 입력되면 상세주소 필드로 포커스 이동
+                if (widget.detailFocusNode != null) {
+                  FocusScope.of(context).requestFocus(widget.detailFocusNode);
+                }
               });
             } else {
               widget.controller.text = data['address'];
@@ -82,6 +94,8 @@ class _AddressSearchFieldState extends State<AddressSearchField> {
               ),
               child: TextFormField(
                 controller: widget.controller,
+                focusNode: widget.focusNode, // FocusNode 사용
+                textInputAction: TextInputAction.next, // 다음 필드로 이동 액션 추가
                 readOnly: true,
                 decoration: const InputDecoration(
                   isDense: true,
@@ -96,6 +110,12 @@ class _AddressSearchFieldState extends State<AddressSearchField> {
                     fontSize: 14,
                   ),
                 ),
+                onTap: searchAddress, // 텍스트필드 클릭시 주소 검색 실행
+                onFieldSubmitted: (_) {
+                  if (widget.detailFocusNode != null) {
+                    FocusScope.of(context).requestFocus(widget.detailFocusNode);
+                  }
+                },
               ),
             ),
             const SizedBox(width: 12),
@@ -131,6 +151,8 @@ class _AddressSearchFieldState extends State<AddressSearchField> {
           ),
           child: TextFormField(
             controller: widget.detailController,
+            focusNode: widget.detailFocusNode, // 상세주소 FocusNode 사용
+            textInputAction: TextInputAction.next, // 다음 필드로 이동 액션 추가
             decoration: const InputDecoration(
               isDense: true,
               contentPadding: EdgeInsets.symmetric(
@@ -144,6 +166,12 @@ class _AddressSearchFieldState extends State<AddressSearchField> {
                 fontSize: 14,
               ),
             ),
+            onFieldSubmitted: (_) {
+              // 다음 필드로 포커스 이동
+              if (widget.nextFocusNode != null) {
+                FocusScope.of(context).requestFocus(widget.nextFocusNode);
+              }
+            },
           ),
         ),
       ],
