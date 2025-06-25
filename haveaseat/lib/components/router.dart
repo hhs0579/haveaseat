@@ -10,6 +10,8 @@ import 'package:haveaseat/pages/info/addcustomer.dart';
 import 'package:haveaseat/pages/allcustomer.dart';
 import 'package:haveaseat/pages/customer.dart';
 import 'package:haveaseat/pages/info/estimate.dart';
+import 'package:haveaseat/pages/login/findlogin.dart';
+import 'package:haveaseat/pages/login/findpassword.dart';
 import 'package:haveaseat/pages/login/login.dart';
 
 import 'package:haveaseat/pages/mainpage.dart';
@@ -28,15 +30,24 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isLoggedIn = FirebaseAuth.instance.currentUser != null;
       final isLoginRoute = state.fullPath == '/login';
       final isSignUpRoute = state.fullPath == '/signup';
+      final isFindIdRoute = state.fullPath == '/find-id'; // 추가
+      final isFindPasswordRoute = state.fullPath == '/find-password'; // 추가
 
       if (!isLoggedIn) {
-        if (isLoginRoute || isSignUpRoute) {
+        if (isLoginRoute ||
+            isSignUpRoute ||
+            isFindIdRoute ||
+            isFindPasswordRoute) {
           return null;
         }
         return '/login';
       }
 
-      if (isLoggedIn && (isLoginRoute || isSignUpRoute)) {
+      if (isLoggedIn &&
+          (isLoginRoute ||
+              isSignUpRoute ||
+              isFindIdRoute ||
+              isFindPasswordRoute)) {
         return '/main';
       }
 
@@ -52,6 +63,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => signUp(),
       ),
       GoRoute(
+        path: '/find-id', // 추가
+        builder: (context, state) => const FindIdPage(),
+      ),
+      GoRoute(
+        path: '/find-password', // 추가
+        builder: (context, state) => const FindPasswordPage(),
+      ),
+      GoRoute(
         path: '/main',
         builder: (context, state) => const MainPage(),
         routes: [
@@ -61,7 +80,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: 'spaceadd/:customerId',
-                name: 'mainSpaceAdd', // 이름 변경
+                name: 'mainSpaceAdd',
                 builder: (context, state) {
                   final customerId = state.pathParameters['customerId']!;
                   return SpaceAddPage(customerId: customerId);
@@ -69,7 +88,7 @@ final routerProvider = Provider<GoRouter>((ref) {
                 routes: [
                   GoRoute(
                     path: 'space-detail',
-                    name: 'mainSpaceDetail', // 이름 변경
+                    name: 'mainSpaceDetail',
                     builder: (context, state) {
                       final customerId = state.pathParameters['customerId']!;
                       return SpaceDetailPage(customerId: customerId);
@@ -77,7 +96,7 @@ final routerProvider = Provider<GoRouter>((ref) {
                     routes: [
                       GoRoute(
                         path: 'furniture',
-                        name: 'furniture', // 이름 변경
+                        name: 'furniture',
                         builder: (context, state) {
                           final customerId =
                               state.pathParameters['customerId']!;
@@ -86,7 +105,7 @@ final routerProvider = Provider<GoRouter>((ref) {
                         routes: [
                           GoRoute(
                             path: 'estimate',
-                            name: 'estimate', // 이름 변경
+                            name: 'estimate',
                             builder: (context, state) {
                               final customerId =
                                   state.pathParameters['customerId']!;
@@ -115,14 +134,14 @@ final routerProvider = Provider<GoRouter>((ref) {
                 ),
               ),
               GoRoute(
-                path: 'estimate/:estimateId/order', // 'order' 경로 추가
+                path: 'estimate/:estimateId/order',
                 builder: (context, state) => OrderEstimatePage(
                   customerId: state.pathParameters['id']!,
                   estimateId: state.pathParameters['estimateId']!,
                 ),
               ),
               GoRoute(
-                path: 'estimate/:estimateId/release', // 'order' 경로 추가
+                path: 'estimate/:estimateId/release',
                 builder: (context, state) => ReleaseEstimatePage(
                   customerId: state.pathParameters['id']!,
                   estimateId: state.pathParameters['estimateId']!,
@@ -142,7 +161,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: 'spaceadd/:customerId',
-                name: 'allCustomersSpaceAdd', // 이름 변경
+                name: 'allCustomersSpaceAdd',
                 builder: (context, state) {
                   final customerId = state.pathParameters['customerId']!;
                   return SpaceAddPage(customerId: customerId);
@@ -150,7 +169,7 @@ final routerProvider = Provider<GoRouter>((ref) {
                 routes: [
                   GoRoute(
                     path: 'space-detail',
-                    name: 'allCustomersSpaceDetail', // 이름 변경
+                    name: 'allCustomersSpaceDetail',
                     builder: (context, state) {
                       final customerId = state.pathParameters['customerId']!;
                       return SpaceDetailPage(customerId: customerId);
@@ -158,7 +177,7 @@ final routerProvider = Provider<GoRouter>((ref) {
                     routes: [
                       GoRoute(
                         path: 'furniture',
-                        name: 'allCustomerfurniture', // 이름 변경
+                        name: 'allCustomerfurniture',
                         builder: (context, state) {
                           final customerId =
                               state.pathParameters['customerId']!;
@@ -167,7 +186,7 @@ final routerProvider = Provider<GoRouter>((ref) {
                         routes: [
                           GoRoute(
                             path: 'estimate',
-                            name: 'allCustomerestimate', // 이름 변경
+                            name: 'allCustomerestimate',
                             builder: (context, state) {
                               final customerId =
                                   state.pathParameters['customerId']!;

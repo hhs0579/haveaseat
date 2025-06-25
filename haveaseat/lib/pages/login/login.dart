@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:haveaseat/components/colors.dart';
 import 'package:haveaseat/components/screensize.dart';
-import 'package:go_router/go_router.dart'; // 이 줄 추가
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class login extends ConsumerStatefulWidget {
-  // StatelessWidget에서 ConsumerStatefulWidget으로 변경
   const login({super.key});
 
   @override
@@ -32,7 +31,7 @@ class _loginState extends ConsumerState<login> {
         );
 
         if (context.mounted) {
-          context.go('/main'); // 로그인 성공 시 메인 페이지로 이동
+          context.go('/main');
         }
       } on FirebaseAuthException catch (e) {
         String errorMessage = '';
@@ -83,12 +82,10 @@ class _loginState extends ConsumerState<login> {
                 child: Padding(
                   padding: const EdgeInsets.only(bottom: 100, top: 100),
                   child: Form(
-                      // Form 위젯 추가
                       key: _formKey,
                       child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            // ... 로고와 타이틀 부분은 동일
                             SizedBox(
                               width: 249,
                               height: 31,
@@ -110,7 +107,7 @@ class _loginState extends ConsumerState<login> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   const Text(
-                                    '이메일', // '아이디' 대신 '이메일'로 변경
+                                    '이메일',
                                     style: TextStyle(
                                       color: AppColor.font1,
                                       fontWeight: FontWeight.w600,
@@ -155,13 +152,7 @@ class _loginState extends ConsumerState<login> {
                                         horizontal: 16,
                                         vertical: 12,
                                       ),
-                                      errorStyle: const TextStyle(
-                                          height: 0), // 에러 메시지 공간 제거
-                                      // 또는
-                                      // errorStyle: const TextStyle(
-                                      //   height: 0.5,
-                                      //   fontSize: 12,
-                                      // ),
+                                      errorStyle: const TextStyle(height: 0),
                                     ),
                                   ),
                                   const SizedBox(height: 24),
@@ -176,13 +167,11 @@ class _loginState extends ConsumerState<login> {
                                   const SizedBox(height: 12),
                                   TextFormField(
                                     controller: _passwordController,
-                                    obscureText: true, // 패스워드 숨김 처리
+                                    obscureText: true,
                                     validator: (value) {
                                       if (value?.isEmpty ?? true) {
                                         return '비밀번호를 입력해주세요';
                                       }
-                                      // 필요한 경우 비밀번호 유효성 검사 추가
-                                      // 예: 최소 길이, 특수문자 포함 등
                                       return null;
                                     },
                                     decoration: const InputDecoration(
@@ -207,13 +196,7 @@ class _loginState extends ConsumerState<login> {
                                         horizontal: 16,
                                         vertical: 12,
                                       ),
-                                      errorStyle:
-                                          TextStyle(height: 0), // 에러 메시지 공간 제거
-                                      // 또는
-                                      // errorStyle: const TextStyle(
-                                      //   height: 0.5,
-                                      //   fontSize: 12,
-                                      // ),
+                                      errorStyle: TextStyle(height: 0),
                                     ),
                                   ),
                                   const SizedBox(height: 36),
@@ -248,16 +231,13 @@ class _loginState extends ConsumerState<login> {
                                             ),
                                     ),
                                   ),
-                                  // ... 나머지 UI 부분 동일
                                   const SizedBox(height: 16),
-                                  // 회원가입, 아이디/비밀번호 찾기
                                   Row(
                                       mainAxisAlignment:
                                           MainAxisAlignment.spaceBetween,
                                       children: [
                                         InkWell(
                                           onTap: () {
-                                            // 회원가입 처리
                                             context.go('/signup');
                                           },
                                           child: const Text(
@@ -272,7 +252,7 @@ class _loginState extends ConsumerState<login> {
                                           children: [
                                             InkWell(
                                               onTap: () {
-                                                // 아이디 찾기
+                                                context.go('/find-id');
                                               },
                                               child: const Text(
                                                 '아이디 찾기',
@@ -292,7 +272,7 @@ class _loginState extends ConsumerState<login> {
                                             ),
                                             InkWell(
                                               onTap: () {
-                                                // 비밀번호 찾기
+                                                context.go('/find-password');
                                               },
                                               child: const Text(
                                                 '비밀번호 찾기',
