@@ -77,6 +77,55 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
     }
   }
 
+  Future<void> _saveReleaseStatus() async {
+    try {
+      final estimateDoc = await FirebaseFirestore.instance
+          .collection('estimates')
+          .doc(widget.estimateId)
+          .get();
+
+      if (!estimateDoc.exists) {
+        throw Exception('견적서를 찾을 수 없습니다');
+      }
+
+      final furnitureList =
+          (estimateDoc.data()?['furnitureList'] as List<dynamic>?) ?? [];
+
+      // 업데이트할 가구 목록 (출고증은 출고 상태 관련 필드들을 관리)
+      List<Map<String, dynamic>> updatedFurnitureList =
+          furnitureList.map((furniture) {
+        return {
+          ...furniture as Map<String, dynamic>,
+          'releaseStatus': furniture['releaseStatus'] ?? '출고 준비', // 출고 상태
+          'releaseDate': furniture['releaseDate'], // 출고일
+          'trackingNumber': furniture['trackingNumber'] ?? '', // 송장번호
+        };
+      }).toList();
+
+      // Firestore 업데이트
+      await FirebaseFirestore.instance
+          .collection('estimates')
+          .doc(widget.estimateId)
+          .update({
+        'furnitureList': updatedFurnitureList,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('저장되었습니다')),
+        );
+      }
+    } catch (e) {
+      print('Error saving release status: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('저장 중 오류가 발생했습니다: $e')),
+        );
+      }
+    }
+  }
+
   Widget _buildInfoCell(String label, String value) {
     return Container(
       width: 396, // 화면 비율에 맞게 조정할 예정
@@ -175,6 +224,7 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
       ),
     );
   }
+
   Future<void> _handleLogout() async {
     try {
       await FirebaseAuth.instance.signOut();
@@ -188,6 +238,7 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
       }
     }
   }
+
   Widget _buildFullWidthCell(String label, String value) {
     return Container(
       height: 48,
@@ -1595,11 +1646,10 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
                                   color: AppColor.font1,
                                   fontSize: 16),
                             ),
-         
                           ],
                         )),
                   ),
-                                        const Spacer(),
+                  const Spacer(),
                   Padding(
                     padding: const EdgeInsets.only(bottom: 24.0),
                     child: InkWell(
@@ -1716,15 +1766,34 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
                                   const SizedBox(height: 48),
                                   _buildManagerSection(snapshot.data!),
                                   const SizedBox(height: 48),
-                                  ElevatedButton.icon(
-                                    onPressed: () =>
-                                        generatePDF(snapshot.data!),
-                                    icon: const Icon(Icons.picture_as_pdf),
-                                    label: const Text('출고증 다운로드'),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppColor.primary,
-                                      foregroundColor: Colors.white,
-                                    ),
+                                  // 기존의 ElevatedButton.icon을 다음 코드로 교체하세요:
+
+                                  Row(
+                                    children: [
+                                      InkWell(
+                                        onTap: () {
+                                          generatePDF(snapshot.data!);
+                                        },
+                                        child: Container(
+                                          height: 48,
+                                          width: 131,
+                                          decoration: BoxDecoration(
+                                              color: Colors.transparent,
+                                              border: Border.all(
+                                                  color: AppColor.line1,
+                                                  width: 1)),
+                                          child: const Center(
+                                            child: Text(
+                                              '출고증 다운로드',
+                                              style: TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: Colors.black),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ]);
                           }))),

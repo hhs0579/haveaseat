@@ -1126,6 +1126,7 @@ class _CustomerEstimatePageState extends ConsumerState<CustomerEstimatePage> {
                   ],
                 ),
               ),
+              // 테이블 내용
               ...furnitureList.map((furniture) => pw.Container(
                     decoration: pw.BoxDecoration(
                       border: pw.Border(
@@ -1160,6 +1161,40 @@ class _CustomerEstimatePageState extends ConsumerState<CustomerEstimatePage> {
                       ],
                     ),
                   )),
+              // 총 합계 행 추가
+              pw.Container(
+                decoration: pw.BoxDecoration(
+                  border: pw.Border(
+                    top: pw.BorderSide(
+                        color: PdfColor.fromHex('000000'), width: 2),
+                  ),
+                ),
+                padding: const pw.EdgeInsets.all(16),
+                child: pw.Row(
+                  children: [
+                    // 빈 공간 (8개 flex 만큼)
+                    pw.Expanded(flex: 8, child: pw.Container()),
+                    // 총 합계 레이블
+                    pw.Expanded(
+                      flex: 1,
+                      child: pw.Text(
+                        '총 합계',
+                        style: pw.TextStyle(font: ttfBold, fontSize: 14),
+                        textAlign: pw.TextAlign.center,
+                      ),
+                    ),
+                    // 총 합계 금액
+                    pw.Expanded(
+                      flex: 1,
+                      child: pw.Text(
+                        '${_formatNumber(_calculateTotal(furnitureList))}원',
+                        style: pw.TextStyle(font: ttfBold, fontSize: 14),
+                        textAlign: pw.TextAlign.right,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
@@ -1520,14 +1555,26 @@ class _CustomerEstimatePageState extends ConsumerState<CustomerEstimatePage> {
                                   const SizedBox(height: 48),
                                   _buildManagerSection(snapshot.data!),
                                   const SizedBox(height: 48),
-                                  ElevatedButton.icon(
-                                    onPressed: () =>
-                                        generatePDF(snapshot.data!),
-                                    icon: const Icon(Icons.picture_as_pdf),
-                                    label: const Text('견적서 다운로드'),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppColor.primary,
-                                      foregroundColor: Colors.white,
+                                  InkWell(
+                                    onTap: () {
+                                      generatePDF(snapshot.data!);
+                                    },
+                                    child: Container(
+                                      height: 48,
+                                      width: 131,
+                                      decoration: BoxDecoration(
+                                          color: Colors.transparent,
+                                          border: Border.all(
+                                              color: AppColor.line1, width: 1)),
+                                      child: const Center(
+                                        child: Text(
+                                          '견적서 다운로드',
+                                          style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.black),
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ]);

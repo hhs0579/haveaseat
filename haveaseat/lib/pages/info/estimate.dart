@@ -1415,31 +1415,26 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
   pw.Widget _buildPDFEstimateSection(
       Map<String, dynamic> estimate, pw.Font ttf, pw.Font ttfBold) {
     final furnitureList = (estimate['furnitureList'] as List<dynamic>?) ?? [];
-    final memo = estimate['memo'] as String? ?? '';
-
-    // 소계 계산
-    final subtotal = _calculateTotal(furnitureList);
-    const vatRate = 0.1; // 10% VAT
-    final vatAmount = (subtotal * vatRate).round();
-    final totalAmount = subtotal + vatAmount;
 
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
         pw.Text(
-          '상품 정보',
+          '견적 정보',
           style: pw.TextStyle(
               fontSize: 18, font: ttfBold, color: PdfColor.fromHex('1A1A1A')),
         ),
         pw.SizedBox(height: 12),
         pw.Container(
           width: double.infinity,
-          height: 2,
-          color: PdfColor.fromHex('000000'),
+          decoration: pw.BoxDecoration(
+            border: pw.Border(
+              bottom:
+                  pw.BorderSide(color: PdfColor.fromHex('000000'), width: 2),
+            ),
+          ),
         ),
         pw.SizedBox(height: 16),
-
-        // 상품 테이블
         pw.Container(
           decoration: pw.BoxDecoration(
             border: pw.Border.all(color: PdfColor.fromHex('EAEAEC')),
@@ -1453,168 +1448,100 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                 child: pw.Row(
                   children: [
                     pw.Expanded(
-                        flex: 4,
-                        child:
-                            pw.Text('상품명', style: pw.TextStyle(font: ttfBold))),
-                    pw.Expanded(
                         flex: 2,
+                        child: pw.Text('견적종류',
+                            style: pw.TextStyle(font: ttfBold))),
+                    pw.Expanded(
+                        flex: 3,
                         child:
-                            pw.Text('단가', style: pw.TextStyle(font: ttfBold))),
+                            pw.Text('가구명', style: pw.TextStyle(font: ttfBold))),
                     pw.Expanded(
                         flex: 1,
                         child:
                             pw.Text('수량', style: pw.TextStyle(font: ttfBold))),
                     pw.Expanded(
                         flex: 2,
+                        child: pw.Text('견적일자',
+                            style: pw.TextStyle(font: ttfBold))),
+                    pw.Expanded(
+                        flex: 2,
                         child:
-                            pw.Text('금액', style: pw.TextStyle(font: ttfBold))),
+                            pw.Text('가격', style: pw.TextStyle(font: ttfBold))),
                   ],
                 ),
               ),
-              // 상품 목록
-              ...furnitureList.map((furniture) {
-                final price = furniture['price'] ?? 0;
-                final quantity = furniture['quantity'] ?? 0;
-                final itemTotal = price * quantity;
-
-                return pw.Container(
-                  decoration: pw.BoxDecoration(
-                    border: pw.Border(
-                      top: pw.BorderSide(color: PdfColor.fromHex('EAEAEC')),
+              // 테이블 내용
+              ...furnitureList.map((furniture) => pw.Container(
+                    decoration: pw.BoxDecoration(
+                      border: pw.Border(
+                        top: pw.BorderSide(color: PdfColor.fromHex('EAEAEC')),
+                      ),
                     ),
-                  ),
-                  padding: const pw.EdgeInsets.all(16),
-                  child: pw.Row(
-                    children: [
-                      pw.Expanded(
-                          flex: 4,
-                          child: pw.Text(furniture['name'] ?? '',
-                              style: pw.TextStyle(font: ttf))),
-                      pw.Expanded(
-                          flex: 2,
-                          child: pw.Text('${_formatNumber(price)}원',
-                              style: pw.TextStyle(font: ttf))),
-                      pw.Expanded(
-                          flex: 1,
-                          child: pw.Text(quantity.toString(),
-                              style: pw.TextStyle(font: ttf))),
-                      pw.Expanded(
-                          flex: 2,
-                          child: pw.Text('${_formatNumber(itemTotal)}원',
-                              style: pw.TextStyle(font: ttf))),
-                    ],
-                  ),
-                );
-              }),
-            ],
-          ),
-        ),
-
-        pw.SizedBox(height: 16),
-
-        // 소계, VAT, 총계 테이블
-        pw.Container(
-          decoration: pw.BoxDecoration(
-            border: pw.Border.all(color: PdfColor.fromHex('EAEAEC')),
-          ),
-          child: pw.Column(
-            children: [
-              // 소계
+                    padding: const pw.EdgeInsets.all(16),
+                    child: pw.Row(
+                      children: [
+                        pw.Expanded(
+                            flex: 2,
+                            child: pw.Text('기존가구',
+                                style: pw.TextStyle(font: ttf))),
+                        pw.Expanded(
+                            flex: 3,
+                            child: pw.Text(furniture['name'] ?? '',
+                                style: pw.TextStyle(font: ttf))),
+                        pw.Expanded(
+                            flex: 1,
+                            child: pw.Text(
+                                furniture['quantity']?.toString() ?? '',
+                                style: pw.TextStyle(font: ttf))),
+                        pw.Expanded(
+                            flex: 2,
+                            child: pw.Text(_formatDate(estimate['updatedAt']),
+                                style: pw.TextStyle(font: ttf))),
+                        pw.Expanded(
+                            flex: 2,
+                            child: pw.Text(
+                                '${_formatNumber(furniture['price'])}원',
+                                style: pw.TextStyle(font: ttf))),
+                      ],
+                    ),
+                  )),
+              // 총 합계 행 추가
               pw.Container(
-                padding:
-                    const pw.EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: pw.BoxDecoration(
                   border: pw.Border(
-                      bottom: pw.BorderSide(color: PdfColor.fromHex('EAEAEC'))),
+                    top: pw.BorderSide(
+                        color: PdfColor.fromHex('000000'), width: 2),
+                  ),
                 ),
+                padding: const pw.EdgeInsets.all(16),
                 child: pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
-                    pw.Text('소계', style: pw.TextStyle(font: ttfBold)),
-                    pw.Text('${_formatNumber(subtotal)}원',
-                        style: pw.TextStyle(font: ttf)),
-                  ],
-                ),
-              ),
-              // VAT
-              pw.Container(
-                padding:
-                    const pw.EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: pw.BoxDecoration(
-                  border: pw.Border(
-                      bottom: pw.BorderSide(color: PdfColor.fromHex('EAEAEC'))),
-                ),
-                child: pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text('VAT (10%)', style: pw.TextStyle(font: ttfBold)),
-                    pw.Text('${_formatNumber(vatAmount)}원',
-                        style: pw.TextStyle(font: ttf)),
-                  ],
-                ),
-              ),
-              // 총계
-              pw.Container(
-                padding:
-                    const pw.EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                color: PdfColor.fromHex('B18E72'), // AppColor.primary와 동일
-                child: pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text('총계',
-                        style: pw.TextStyle(
-                            font: ttfBold, color: PdfColors.white)),
-                    pw.Text('${_formatNumber(totalAmount)}원',
-                        style: pw.TextStyle(
-                            font: ttfBold, color: PdfColors.white)),
+                    // 빈 공간 (8개 flex 만큼)
+                    pw.Expanded(flex: 8, child: pw.Container()),
+                    // 총 합계 레이블
+                    pw.Expanded(
+                      flex: 1,
+                      child: pw.Text(
+                        '총 합계',
+                        style: pw.TextStyle(font: ttfBold, fontSize: 14),
+                        textAlign: pw.TextAlign.center,
+                      ),
+                    ),
+                    // 총 합계 금액
+                    pw.Expanded(
+                      flex: 1,
+                      child: pw.Text(
+                        '${_formatNumber(_calculateTotal(furnitureList))}원',
+                        style: pw.TextStyle(font: ttfBold, fontSize: 14),
+                        textAlign: pw.TextAlign.right,
+                      ),
+                    ),
                   ],
                 ),
               ),
             ],
           ),
         ),
-
-        pw.SizedBox(height: 16),
-
-        // 견적일자
-        pw.Container(
-          padding: const pw.EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: pw.BoxDecoration(
-            border: pw.Border.all(color: PdfColor.fromHex('EAEAEC')),
-          ),
-          child: pw.Row(
-            children: [
-              pw.Container(
-                width: 120,
-                child: pw.Text('견적일자', style: pw.TextStyle(font: ttfBold)),
-              ),
-              pw.Expanded(
-                child: pw.Text(_formatDate(estimate['updatedAt']),
-                    style: pw.TextStyle(font: ttf)),
-              ),
-            ],
-          ),
-        ),
-
-        // 메모
-        if (memo.isNotEmpty) ...[
-          pw.SizedBox(height: 16),
-          pw.Container(
-            width: double.infinity,
-            padding: const pw.EdgeInsets.all(16),
-            decoration: pw.BoxDecoration(
-              border: pw.Border.all(color: PdfColor.fromHex('EAEAEC')),
-            ),
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Text('메모', style: pw.TextStyle(font: ttfBold)),
-                pw.SizedBox(height: 8),
-                pw.Text(memo, style: pw.TextStyle(font: ttf)),
-              ],
-            ),
-          ),
-        ],
       ],
     );
   }

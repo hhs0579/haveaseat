@@ -40,8 +40,18 @@ class OrderEstimatePage extends ConsumerStatefulWidget {
   ConsumerState<OrderEstimatePage> createState() => _OrderEstimatePageState();
 }
 
+final TextEditingController _memoController = TextEditingController();
+
 class _OrderEstimatePageState extends ConsumerState<OrderEstimatePage> {
+  // dispose 함수도 추가:
+  @override
+  void dispose() {
+    _memoController.dispose();
+    super.dispose();
+  }
+
   final screenshotController = ScreenshotController();
+  final String _orderMemo = '';
 
   Future<Map<String, dynamic>> _loadEstimateData() async {
     try {
@@ -918,6 +928,7 @@ class _OrderEstimatePageState extends ConsumerState<OrderEstimatePage> {
           .doc(widget.estimateId)
           .update({
         'furnitureList': updatedFurnitureList,
+        'orderMemo': _orderMemo, // 메모 필드 추가
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
@@ -1213,6 +1224,38 @@ class _OrderEstimatePageState extends ConsumerState<OrderEstimatePage> {
               ],
             ),
           ),
+        pw.Container(
+          margin: const pw.EdgeInsets.only(top: 16),
+          decoration: pw.BoxDecoration(
+            border: pw.Border.all(color: PdfColor.fromHex('EAEAEC')),
+          ),
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              // 메모 헤더
+              pw.Container(
+                width: double.infinity,
+                color: PdfColor.fromHex('F7F7FB'),
+                padding:
+                    const pw.EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: pw.Text(
+                  '메모',
+                  style: pw.TextStyle(font: ttfBold, fontSize: 14),
+                ),
+              ),
+              // 메모 내용
+              pw.Container(
+                width: double.infinity,
+                constraints: const pw.BoxConstraints(minHeight: 100),
+                padding: const pw.EdgeInsets.all(16),
+                child: pw.Text(
+                  _memoController.text.isEmpty ? '메모 없음' : _memoController.text,
+                  style: pw.TextStyle(font: ttf, fontSize: 12),
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -1694,6 +1737,7 @@ class _OrderEstimatePageState extends ConsumerState<OrderEstimatePage> {
                   ],
                 ),
               ),
+              // 테이블 내용
               ...furnitureList.map((furniture) => pw.Container(
                     decoration: pw.BoxDecoration(
                       border: pw.Border(
@@ -1728,6 +1772,40 @@ class _OrderEstimatePageState extends ConsumerState<OrderEstimatePage> {
                       ],
                     ),
                   )),
+              // 총 합계 행 추가
+              pw.Container(
+                decoration: pw.BoxDecoration(
+                  border: pw.Border(
+                    top: pw.BorderSide(
+                        color: PdfColor.fromHex('000000'), width: 2),
+                  ),
+                ),
+                padding: const pw.EdgeInsets.all(16),
+                child: pw.Row(
+                  children: [
+                    // 빈 공간 (8개 flex 만큼)
+                    pw.Expanded(flex: 8, child: pw.Container()),
+                    // 총 합계 레이블
+                    pw.Expanded(
+                      flex: 1,
+                      child: pw.Text(
+                        '총 합계',
+                        style: pw.TextStyle(font: ttfBold, fontSize: 14),
+                        textAlign: pw.TextAlign.center,
+                      ),
+                    ),
+                    // 총 합계 금액
+                    pw.Expanded(
+                      flex: 1,
+                      child: pw.Text(
+                        '${_formatNumber(_calculateTotal(furnitureList))}원',
+                        style: pw.TextStyle(font: ttfBold, fontSize: 14),
+                        textAlign: pw.TextAlign.right,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
@@ -1968,42 +2046,40 @@ class _OrderEstimatePageState extends ConsumerState<OrderEstimatePage> {
                                   color: AppColor.font1,
                                   fontSize: 16),
                             ),
-                    
                           ],
                         )),
                   ),
-                          const Spacer(),
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 24.0),
-                              child: InkWell(
-                                onTap: _handleLogout,
-                                child: Container(
-                                  width: 200,
-                                  height: 48,
-                                  decoration: BoxDecoration(
-                                    border:
-                                        Border.all(color: Colors.red.shade300),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.logout,
-                                          color: Colors.red.shade300, size: 20),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        '로그아웃',
-                                        style: TextStyle(
-                                          color: Colors.red.shade300,
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
+                  const Spacer(),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 24.0),
+                    child: InkWell(
+                      onTap: _handleLogout,
+                      child: Container(
+                        width: 200,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.red.shade300),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.logout,
+                                color: Colors.red.shade300, size: 20),
+                            const SizedBox(width: 8),
+                            Text(
+                              '로그아웃',
+                              style: TextStyle(
+                                color: Colors.red.shade300,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -2087,6 +2163,83 @@ class _OrderEstimatePageState extends ConsumerState<OrderEstimatePage> {
                                   _buildEstimateSection(snapshot.data!),
                                   const SizedBox(height: 48),
                                   _buildOrderSection(snapshot.data!), // 여기에 추가
+                                  const SizedBox(height: 24),
+
+// 메모 섹션
+                                  Container(
+                                    width: double.infinity,
+                                    height: 200,
+                                    decoration: BoxDecoration(
+                                      border: Border.all(
+                                          color: AppColor.line1, width: 1),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        // 메모 헤더
+                                        Container(
+                                          width: double.infinity,
+                                          height: 198,
+                                          decoration: BoxDecoration(
+                                            border: Border.all(
+                                                color: AppColor.line1,
+                                                width: 1),
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              // 메모 헤더
+                                              Container(
+                                                width: double.infinity,
+                                                height: 40,
+                                                color: AppColor.back2,
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 16,
+                                                        vertical: 12),
+                                                child: const Text(
+                                                  '메모',
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.w600,
+                                                    fontSize: 14,
+                                                  ),
+                                                ),
+                                              ),
+                                              // 메모 입력 영역
+                                              Expanded(
+                                                child: Container(
+                                                  padding:
+                                                      const EdgeInsets.all(16),
+                                                  child: TextField(
+                                                    controller: _memoController,
+                                                    maxLines: null,
+                                                    expands: true,
+                                                    decoration:
+                                                        const InputDecoration(
+                                                      border: InputBorder.none,
+                                                      hintText: '메모를 입력하세요...',
+                                                      hintStyle: TextStyle(
+                                                        color: Colors.grey,
+                                                        fontSize: 14,
+                                                      ),
+                                                    ),
+                                                    style: const TextStyle(
+                                                      fontSize: 14,
+                                                      fontWeight:
+                                                          FontWeight.w400,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+
                                   const SizedBox(height: 48),
                                   _buildManagerSection(snapshot.data!),
                                   const SizedBox(height: 48),
@@ -2099,7 +2252,7 @@ class _OrderEstimatePageState extends ConsumerState<OrderEstimatePage> {
                                         child: Container(
                                           height: 48,
                                           width: 87,
-                                          color: Colors.black,
+                                          color: AppColor.main,
                                           child: const Center(
                                             child: Text(
                                               '저장하기',
@@ -2111,6 +2264,9 @@ class _OrderEstimatePageState extends ConsumerState<OrderEstimatePage> {
                                           ),
                                         ),
                                       ),
+                                      const SizedBox(
+                                        width: 8,
+                                      ),
                                       InkWell(
                                         onTap: () {
                                           generatePDF(snapshot.data!);
@@ -2118,7 +2274,11 @@ class _OrderEstimatePageState extends ConsumerState<OrderEstimatePage> {
                                         child: Container(
                                           height: 48,
                                           width: 131,
-                                          color: Colors.transparent,
+                                          decoration: BoxDecoration(
+                                              color: Colors.transparent,
+                                              border: Border.all(
+                                                  color: AppColor.line1,
+                                                  width: 1)),
                                           child: const Center(
                                             child: Text(
                                               '발주서 다운로드',
