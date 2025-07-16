@@ -502,67 +502,6 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
                           height: 48,
                         ),
                         InkWell(
-                          onTap: () {},
-                          child: Container(
-                              width: 200,
-                              height: 48,
-                              color: Colors.transparent,
-                              child: Row(
-                                children: [
-                                  const SizedBox(
-                                    width: 17.87,
-                                  ),
-                                  SizedBox(
-                                      width: 16.25,
-                                      height: 16.25,
-                                      child:
-                                          Image.asset('assets/images/as.png')),
-                                  const SizedBox(
-                                    width: 3.85,
-                                  ),
-                                  const Text(
-                                    '교환',
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColor.font1,
-                                        fontSize: 16),
-                                  ),
-                                ],
-                              )),
-                        ),
-                        InkWell(
-                          onTap: () {},
-                          child: Container(
-                              width: 200,
-                              height: 48,
-                              color: Colors.transparent,
-                              child: Row(
-                                children: [
-                                  const SizedBox(
-                                    width: 17.87,
-                                  ),
-                                  SizedBox(
-                                      width: 16.25,
-                                      height: 16.25,
-                                      child:
-                                          Image.asset('assets/images/as.png')),
-                                  const SizedBox(
-                                    width: 3.85,
-                                  ),
-                                  const Text(
-                                    '반품',
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColor.font1,
-                                        fontSize: 16),
-                                  ),
-                                ],
-                              )),
-                        ),
-                        const SizedBox(
-                          height: 48,
-                        ),
-                        InkWell(
                           onTap: () => context.go('/temp'),
                           child: Container(
                               width: 200,
@@ -902,7 +841,7 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
                               height: 40,
                             ),
                             const Text(
-                              '배송 정보',
+                              '회사 주소',
                               style: TextStyle(
                                   fontSize: 18,
                                   color: AppColor.font1,

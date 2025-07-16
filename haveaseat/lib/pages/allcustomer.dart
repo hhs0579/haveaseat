@@ -58,6 +58,7 @@ class _AllCustomerPageState extends ConsumerState<AllCustomerPage> {
       }
     }
   }
+
   String getCustomerStatus(String? status) {
     return status ?? statusOptions[0];
   }
@@ -637,65 +638,6 @@ class _AllCustomerPageState extends ConsumerState<AllCustomerPage> {
                             SizedBox(
                                 width: 16.25,
                                 height: 16.25,
-                                child: Image.asset('assets/images/as.png')),
-                            const SizedBox(
-                              width: 3.85,
-                            ),
-                            const Text(
-                              '교환',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColor.font1,
-                                  fontSize: 16),
-                            ),
-                          ],
-                        )),
-                  ),
-                  InkWell(
-                    onTap: () {},
-                    child: Container(
-                        width: 200,
-                        height: 48,
-                        color: Colors.transparent,
-                        child: Row(
-                          children: [
-                            const SizedBox(
-                              width: 17.87,
-                            ),
-                            SizedBox(
-                                width: 16.25,
-                                height: 16.25,
-                                child: Image.asset('assets/images/as.png')),
-                            const SizedBox(
-                              width: 3.85,
-                            ),
-                            const Text(
-                              '반품',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColor.font1,
-                                  fontSize: 16),
-                            ),
-                          ],
-                        )),
-                  ),
-                  const SizedBox(
-                    height: 48,
-                  ),
-                  InkWell(
-                    onTap: () {},
-                    child: Container(
-                        width: 200,
-                        height: 48,
-                        color: Colors.transparent,
-                        child: Row(
-                          children: [
-                            const SizedBox(
-                              width: 17.87,
-                            ),
-                            SizedBox(
-                                width: 16.25,
-                                height: 16.25,
                                 child: Image.asset('assets/images/draft.png')),
                             const SizedBox(
                               width: 3.85,
@@ -707,11 +649,10 @@ class _AllCustomerPageState extends ConsumerState<AllCustomerPage> {
                                   color: AppColor.font1,
                                   fontSize: 16),
                             ),
-                
                           ],
                         )),
                   ),
-                                 const Spacer(),
+                  const Spacer(),
                   Padding(
                     padding: const EdgeInsets.only(bottom: 24.0),
                     child: InkWell(

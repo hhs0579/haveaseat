@@ -28,8 +28,8 @@ import 'package:printing/printing.dart';
 
 class EstimatePage extends ConsumerStatefulWidget {
   final String customerId;
-
-  const EstimatePage({super.key, required this.customerId});
+ final String? estimateId;
+  const EstimatePage({super.key, required this.customerId,  this.estimateId, });
 
   @override
   ConsumerState<EstimatePage> createState() => _EstimatePageState();
@@ -1692,65 +1692,6 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                         )),
                   ),
 
-                  const SizedBox(
-                    height: 48,
-                  ),
-                  InkWell(
-                    onTap: () {},
-                    child: Container(
-                        width: 200,
-                        height: 48,
-                        color: Colors.transparent,
-                        child: Row(
-                          children: [
-                            const SizedBox(
-                              width: 17.87,
-                            ),
-                            SizedBox(
-                                width: 16.25,
-                                height: 16.25,
-                                child: Image.asset('assets/images/as.png')),
-                            const SizedBox(
-                              width: 3.85,
-                            ),
-                            const Text(
-                              '교환',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColor.font1,
-                                  fontSize: 16),
-                            ),
-                          ],
-                        )),
-                  ),
-                  InkWell(
-                    onTap: () {},
-                    child: Container(
-                        width: 200,
-                        height: 48,
-                        color: Colors.transparent,
-                        child: Row(
-                          children: [
-                            const SizedBox(
-                              width: 17.87,
-                            ),
-                            SizedBox(
-                                width: 16.25,
-                                height: 16.25,
-                                child: Image.asset('assets/images/as.png')),
-                            const SizedBox(
-                              width: 3.85,
-                            ),
-                            const Text(
-                              '반품',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColor.font1,
-                                  fontSize: 16),
-                            ),
-                          ],
-                        )),
-                  ),
                   const SizedBox(
                     height: 48,
                   ),

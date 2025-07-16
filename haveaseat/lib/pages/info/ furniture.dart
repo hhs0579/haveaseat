@@ -19,8 +19,12 @@ enum FurnitureType { existing, custom }
 
 class furniturePage extends ConsumerStatefulWidget {
   final String customerId;
-
-  const furniturePage({super.key, required this.customerId});
+  final String? estimateId;
+  const furniturePage({
+    super.key,
+    required this.customerId,
+    this.estimateId,
+  });
 
   @override
   ConsumerState<furniturePage> createState() => _furniturePageState();
@@ -849,7 +853,8 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                               SizedBox(
                                   width: 16.25,
                                   height: 16.25,
-                                  child: Image.asset('assets/images/group.png')),
+                                  child:
+                                      Image.asset('assets/images/group.png')),
                               const SizedBox(
                                 width: 3.85,
                               ),
@@ -863,66 +868,7 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                             ],
                           )),
                     ),
-              
-                    const SizedBox(
-                      height: 48,
-                    ),
-                    InkWell(
-                      onTap: () {},
-                      child: Container(
-                          width: 200,
-                          height: 48,
-                          color: Colors.transparent,
-                          child: Row(
-                            children: [
-                              const SizedBox(
-                                width: 17.87,
-                              ),
-                              SizedBox(
-                                  width: 16.25,
-                                  height: 16.25,
-                                  child: Image.asset('assets/images/as.png')),
-                              const SizedBox(
-                                width: 3.85,
-                              ),
-                              const Text(
-                                '교환',
-                                style: TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColor.font1,
-                                    fontSize: 16),
-                              ),
-                            ],
-                          )),
-                    ),
-                    InkWell(
-                      onTap: () => context.go('/return'),
-                      child: Container(
-                          width: 200,
-                          height: 48,
-                          color: Colors.transparent,
-                          child: Row(
-                            children: [
-                              const SizedBox(
-                                width: 17.87,
-                              ),
-                              SizedBox(
-                                  width: 16.25,
-                                  height: 16.25,
-                                  child: Image.asset('assets/images/as.png')),
-                              const SizedBox(
-                                width: 3.85,
-                              ),
-                              const Text(
-                                '반품',
-                                style: TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColor.font1,
-                                    fontSize: 16),
-                              ),
-                            ],
-                          )),
-                    ),
+
                     const SizedBox(
                       height: 48,
                     ),
@@ -940,7 +886,8 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                               SizedBox(
                                   width: 16.25,
                                   height: 16.25,
-                                  child: Image.asset('assets/images/draft.png')),
+                                  child:
+                                      Image.asset('assets/images/draft.png')),
                               const SizedBox(
                                 width: 3.85,
                               ),

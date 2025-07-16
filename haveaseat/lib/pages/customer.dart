@@ -81,6 +81,7 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
       }
     }
   }
+
   String getCustomerStatus(String? status) {
     return status ?? statusOptions[0];
   }
@@ -218,6 +219,75 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
               overflow: TextOverflow.ellipsis,
             ),
     );
+  }
+
+  Future<void> _addNewEstimateToExistingCustomer() async {
+    try {
+      final now = DateTime.now();
+      final estimateRef =
+          FirebaseFirestore.instance.collection('estimates').doc();
+
+      // 직접 Firestore에 저장할 데이터 생성 (Timestamp 형식으로)
+      final estimateData = {
+        'customerId': widget.customerId,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+        'status': EstimateStatus.IN_PROGRESS.toString(),
+        'managerName': '',
+        'managerPhone': '',
+        // 공간 기본 정보
+        'siteAddress': '',
+        'openingDate': FieldValue.serverTimestamp(),
+        'recipient': '',
+        'contactNumber': '',
+        'shippingMethod': '',
+        'paymentMethod': '',
+        'basicNotes': '',
+        // 공간 상세 정보
+        'minBudget': 0,
+        'maxBudget': 0,
+        'spaceArea': 0,
+        'targetAgeGroups': [],
+        'businessType': '',
+        'concept': [],
+        'spaceUnit': '평',
+        'detailNotes': '',
+        'designFileUrls': [],
+        // 가구 정보
+        'furnitureList': [],
+        // 메모 추가
+        'memo': '',
+      };
+
+      // Firestore에 견적 저장
+      await estimateRef.set(estimateData);
+
+      // 고객 문서에 견적 ID 추가
+      await FirebaseFirestore.instance
+          .collection('customers')
+          .doc(widget.customerId)
+          .update({
+        'estimateIds': FieldValue.arrayUnion([estimateRef.id]),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('새로운 견적이 추가되었습니다')),
+        );
+
+        // 견적 편집 페이지로 이동
+        context.go(
+            '/main/customer/${widget.customerId}/estimate/${estimateRef.id}/edit');
+      }
+    } catch (e) {
+      print('Error adding new estimate: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('견적 추가 중 오류가 발생했습니다')),
+        );
+      }
+    }
   }
 
   Widget buildHeaderCell(String text, double width) {
@@ -619,8 +689,24 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
                     child: Text('미첨부', style: TextStyle(color: Colors.red)))
                 : Center(
                     child: TextButton(
-                      onPressed: () {
-                        html.window.open(customer.businessLicenseUrl, '_blank');
+                      onPressed: () async {
+                        try {
+                          if (customer.businessLicenseUrl
+                              .contains('firebasestorage.googleapis.com')) {
+                            final ref = FirebaseStorage.instance
+                                .refFromURL(customer.businessLicenseUrl);
+                            final downloadUrl = await ref.getDownloadURL();
+                            html.window.open(downloadUrl, '_blank');
+                          } else {
+                            html.window
+                                .open(customer.businessLicenseUrl, '_blank');
+                          }
+                        } catch (e) {
+                          print('Download error: $e');
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('파일 다운로드 중 오류가 발생했습니다: $e')),
+                          );
+                        }
                       },
                       child: const Icon(Icons.download, color: AppColor.font1),
                     ),
@@ -788,65 +874,7 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
                           ],
                         )),
                   ),
-                  const SizedBox(
-                    height: 48,
-                  ),
-                  InkWell(
-                    onTap: () {},
-                    child: Container(
-                        width: 200,
-                        height: 48,
-                        color: Colors.transparent,
-                        child: Row(
-                          children: [
-                            const SizedBox(
-                              width: 17.87,
-                            ),
-                            SizedBox(
-                                width: 16.25,
-                                height: 16.25,
-                                child: Image.asset('assets/images/as.png')),
-                            const SizedBox(
-                              width: 3.85,
-                            ),
-                            const Text(
-                              '교환',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColor.font1,
-                                  fontSize: 16),
-                            ),
-                          ],
-                        )),
-                  ),
-                  InkWell(
-                    onTap: () {},
-                    child: Container(
-                        width: 200,
-                        height: 48,
-                        color: Colors.transparent,
-                        child: Row(
-                          children: [
-                            const SizedBox(
-                              width: 17.87,
-                            ),
-                            SizedBox(
-                                width: 16.25,
-                                height: 16.25,
-                                child: Image.asset('assets/images/as.png')),
-                            const SizedBox(
-                              width: 3.85,
-                            ),
-                            const Text(
-                              '반품',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColor.font1,
-                                  fontSize: 16),
-                            ),
-                          ],
-                        )),
-                  ),
+
                   const SizedBox(
                     height: 48,
                   ),
@@ -875,11 +903,10 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
                                   color: AppColor.font1,
                                   fontSize: 16),
                             ),
-                 
                           ],
                         )),
                   ),
-                                const Spacer(),
+                  const Spacer(),
                   Padding(
                     padding: const EdgeInsets.only(bottom: 24.0),
                     child: InkWell(
@@ -1000,12 +1027,28 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
                                         ),
                                       ),
                                       const SizedBox(height: 48),
-                                      const Text(
-                                        '고객 정보',
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.w600,
-                                            fontSize: 18,
-                                            color: Colors.black),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          const Text(
+                                            '고객 정보',
+                                            style: TextStyle(
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 18,
+                                                color: Colors.black),
+                                          ),
+                                          InkWell(
+                                            onTap: () {},
+                                            child: const Text(
+                                              '수정하기',
+                                              style: TextStyle(
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w400,
+                                                  color: Color(0xff757575)),
+                                            ),
+                                          )
+                                        ],
                                       ),
                                       const SizedBox(
                                         height: 12,
@@ -1032,7 +1075,7 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
                                                     SizedBox(
                                                       width: cellWidth,
                                                       child: _buildInfoCell(
-                                                          '고객명', customer.name),
+                                                          '회사명', customer.name),
                                                     ),
                                                     SizedBox(
                                                       width: cellWidth,
@@ -1329,57 +1372,55 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
                                                               ),
                                                               const SizedBox(
                                                                   width: 8),
-                                                              InkWell(
-                                                                onTap: () =>
-                                                                    context.go(
-                                                                        '/main/addpage'),
-                                                                child:
-                                                                    Container(
-                                                                  color: AppColor
-                                                                      .primary,
-                                                                  width: 141,
-                                                                  height: 44,
-                                                                  padding: const EdgeInsets
-                                                                      .symmetric(
-                                                                      vertical:
-                                                                          10,
-                                                                      horizontal:
-                                                                          16),
-                                                                  child: Row(
-                                                                    mainAxisAlignment:
-                                                                        MainAxisAlignment
-                                                                            .spaceBetween,
-                                                                    children: [
-                                                                      const Text(
-                                                                        '고객정보입력',
-                                                                        style:
-                                                                            TextStyle(
-                                                                          fontSize:
-                                                                              14,
-                                                                          fontWeight:
-                                                                              FontWeight.w600,
-                                                                          color:
-                                                                              Colors.white,
-                                                                        ),
-                                                                      ),
-                                                                      SizedBox(
-                                                                          width:
-                                                                              13,
-                                                                          height:
-                                                                              13,
-                                                                          child:
-                                                                              Image.asset(
-                                                                            'assets/images/plus.png',
-                                                                            color:
-                                                                                Colors.white,
-                                                                          ))
-                                                                    ],
-                                                                  ),
-                                                                ),
-                                                              ),
                                                             ],
                                                           ),
-                                                        )
+                                                        ),
+                                                        InkWell(
+                                                          onTap:
+                                                              _addNewEstimateToExistingCustomer, // 함수 호출 변경
+                                                          child: Container(
+                                                            color:
+                                                                AppColor.main,
+                                                            width: 141,
+                                                            height: 44,
+                                                            padding:
+                                                                const EdgeInsets
+                                                                    .symmetric(
+                                                                    vertical:
+                                                                        10,
+                                                                    horizontal:
+                                                                        16),
+                                                            child: const Row(
+                                                              mainAxisAlignment:
+                                                                  MainAxisAlignment
+                                                                      .spaceBetween,
+                                                              crossAxisAlignment:
+                                                                  CrossAxisAlignment
+                                                                      .center,
+                                                              children: [
+                                                                Text(
+                                                                  '견적 내역 추가',
+                                                                  style:
+                                                                      TextStyle(
+                                                                    fontSize:
+                                                                        14,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .w600,
+                                                                    color: Colors
+                                                                        .white,
+                                                                  ),
+                                                                ),
+                                                                Icon(
+                                                                  Icons.add,
+                                                                  color: Colors
+                                                                      .white,
+                                                                  size: 16,
+                                                                ),
+                                                              ],
+                                                            ),
+                                                          ),
+                                                        ),
                                                       ],
                                                     ),
                                                     const SizedBox(height: 24),
@@ -1607,6 +1648,32 @@ Widget _buildFileCell(String label, String value) {
     }
   }
 
+  Future<void> downloadFile(String url, BuildContext context) async {
+    try {
+      if (url.contains('firebasestorage.googleapis.com')) {
+        // Firebase Storage Reference 생성
+        final ref = FirebaseStorage.instance.refFromURL(url);
+
+        // 인증된 다운로드 URL 생성 (토큰 포함)
+        final downloadUrl = await ref.getDownloadURL();
+
+        // 새 탭에서 열기
+        html.window.open(downloadUrl, '_blank');
+      } else {
+        // 일반 URL인 경우 바로 열기
+        html.window.open(url, '_blank');
+      }
+    } catch (e) {
+      print('Download error: $e');
+      // 에러 발생 시 사용자에게 알림
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('파일 다운로드 중 오류가 발생했습니다: $e')),
+        );
+      }
+    }
+  }
+
   return Container(
     height: 48,
     decoration: const BoxDecoration(
@@ -1629,23 +1696,24 @@ Widget _buildFileCell(String label, String value) {
           ),
         ),
         Expanded(
-            child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: value.isEmpty
-              ? const Text('미첨부', style: TextStyle(color: Colors.red))
-              : InkWell(
-                  onTap: () {
-                    html.window.open(value, '_blank');
-                  },
-                  child: Text(
-                    getFileName(value),
-                    style: const TextStyle(
-                      color: AppColor.primary,
-                      decoration: TextDecoration.underline,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: value.isEmpty
+                ? const Text('미첨부', style: TextStyle(color: Colors.red))
+                : Builder(
+                    builder: (context) => InkWell(
+                      onTap: () => downloadFile(value, context),
+                      child: Text(
+                        getFileName(value),
+                        style: const TextStyle(
+                          color: AppColor.primary,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
                     ),
                   ),
-                ),
-        ))
+          ),
+        )
       ],
     ),
   );

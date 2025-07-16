@@ -634,65 +634,7 @@ class _MainPageState extends ConsumerState<MainPage> {
                   const SizedBox(
                     height: 48,
                   ),
-                  InkWell(
-                    onTap: () {},
-                    child: Container(
-                        width: 200,
-                        height: 48,
-                        color: Colors.transparent,
-                        child: Row(
-                          children: [
-                            const SizedBox(
-                              width: 17.87,
-                            ),
-                            SizedBox(
-                                width: 16.25,
-                                height: 16.25,
-                                child: Image.asset('assets/images/as.png')),
-                            const SizedBox(
-                              width: 3.85,
-                            ),
-                            const Text(
-                              '교환',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColor.font1,
-                                  fontSize: 16),
-                            ),
-                          ],
-                        )),
-                  ),
-                  InkWell(
-                    onTap: () {},
-                    child: Container(
-                        width: 200,
-                        height: 48,
-                        color: Colors.transparent,
-                        child: Row(
-                          children: [
-                            const SizedBox(
-                              width: 17.87,
-                            ),
-                            SizedBox(
-                                width: 16.25,
-                                height: 16.25,
-                                child: Image.asset('assets/images/as.png')),
-                            const SizedBox(
-                              width: 3.85,
-                            ),
-                            const Text(
-                              '반품',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColor.font1,
-                                  fontSize: 16),
-                            ),
-                          ],
-                        )),
-                  ),
-                  const SizedBox(
-                    height: 48,
-                  ),
+
                   InkWell(
                     onTap: () => context.go('/temp'),
                     child: Container(
@@ -1088,12 +1030,15 @@ class _MainPageState extends ConsumerState<MainPage> {
                                                                 .symmetric(
                                                                 vertical: 10,
                                                                 horizontal: 16),
-                                                        child: Row(
+                                                        child: const Row(
                                                           mainAxisAlignment:
                                                               MainAxisAlignment
                                                                   .spaceBetween,
+                                                          crossAxisAlignment:
+                                                              CrossAxisAlignment
+                                                                  .center, // 추가
                                                           children: [
-                                                            const Text(
+                                                            Text(
                                                               '고객정보입력',
                                                               style: TextStyle(
                                                                 fontSize: 14,
@@ -1104,15 +1049,12 @@ class _MainPageState extends ConsumerState<MainPage> {
                                                                     .white,
                                                               ),
                                                             ),
-                                                            SizedBox(
-                                                                width: 13,
-                                                                height: 13,
-                                                                child:
-                                                                    Image.asset(
-                                                                  'assets/images/plus.png',
-                                                                  color: Colors
-                                                                      .white,
-                                                                ))
+                                                            Icon(
+                                                              Icons.add,
+                                                              color:
+                                                                  Colors.white,
+                                                              size: 16, // 크기 명시
+                                                            ),
                                                           ],
                                                         ),
                                                       ),

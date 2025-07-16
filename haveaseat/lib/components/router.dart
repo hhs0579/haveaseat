@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:haveaseat/pages/estimate/editpage.dart';
 import 'package:haveaseat/pages/estimate/mainest.dart';
 import 'package:haveaseat/pages/estimate/order.dart';
 import 'package:haveaseat/pages/estimate/released.dart';
@@ -120,35 +121,74 @@ final routerProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
-          GoRoute(
-            path: 'customer/:id',
-            builder: (context, state) => CustomerDetailPage(
-              customerId: state.pathParameters['id']!,
+      GoRoute(
+  path: 'customer/:id',
+  builder: (context, state) => CustomerDetailPage(
+    customerId: state.pathParameters['id']!,
+  ),
+  routes: [
+    GoRoute(
+      path: 'estimate/:estimateId',
+      builder: (context, state) => CustomerEstimatePage(
+        customerId: state.pathParameters['id']!,
+        estimateId: state.pathParameters['estimateId']!,
+      ),
+    ),
+    GoRoute(
+      path: 'estimate/:estimateId/order',
+      builder: (context, state) => OrderEstimatePage(
+        customerId: state.pathParameters['id']!,
+        estimateId: state.pathParameters['estimateId']!,
+      ),
+    ),
+    GoRoute(
+      path: 'estimate/:estimateId/release',
+      builder: (context, state) => ReleaseEstimatePage(
+        customerId: state.pathParameters['id']!,
+        estimateId: state.pathParameters['estimateId']!,
+      ),
+    ),
+    // ✅ 기존 견적 편집을 위한 플로우 (estimateId 포함)
+    GoRoute(
+      path: 'estimate/:estimateId/edit',
+      builder: (context, state) {
+        final customerId = state.pathParameters['id']!;
+        final estimateId = state.pathParameters['estimateId']!;
+        return SpaceAddPage(customerId: customerId, estimateId: estimateId);
+      },
+      routes: [
+        GoRoute(
+          path: 'space-detail',
+          builder: (context, state) {
+            final customerId = state.pathParameters['id']!;
+            final estimateId = state.pathParameters['estimateId']!;
+            return SpaceDetailPage(customerId: customerId, estimateId: estimateId);
+          },
+          routes: [
+            GoRoute(
+              path: 'furniture',
+              builder: (context, state) {
+                final customerId = state.pathParameters['id']!;
+                final estimateId = state.pathParameters['estimateId']!;
+                return furniturePage(customerId: customerId, estimateId: estimateId);
+              },
+              routes: [
+                GoRoute(
+                  path: 'estimate',
+                  builder: (context, state) {
+                    final customerId = state.pathParameters['id']!;
+                    final estimateId = state.pathParameters['estimateId']!;
+                    return EstimatePage(customerId: customerId, estimateId: estimateId);
+                  },
+                ),
+              ],
             ),
-            routes: [
-              GoRoute(
-                path: 'estimate/:estimateId',
-                builder: (context, state) => CustomerEstimatePage(
-                  customerId: state.pathParameters['id']!,
-                  estimateId: state.pathParameters['estimateId']!,
-                ),
-              ),
-              GoRoute(
-                path: 'estimate/:estimateId/order',
-                builder: (context, state) => OrderEstimatePage(
-                  customerId: state.pathParameters['id']!,
-                  estimateId: state.pathParameters['estimateId']!,
-                ),
-              ),
-              GoRoute(
-                path: 'estimate/:estimateId/release',
-                builder: (context, state) => ReleaseEstimatePage(
-                  customerId: state.pathParameters['id']!,
-                  estimateId: state.pathParameters['estimateId']!,
-                ),
-              ),
-            ],
-          ),
+          ],
+        ),
+      ],
+    ),
+  ],
+),
         ],
       ),
       GoRoute(

@@ -17,10 +17,12 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 class SpaceAddPage extends ConsumerStatefulWidget {
   // ConsumerWidget을 ConsumerStatefulWidget으로 변경
   final String customerId; // 고객 ID를 받아옴
+  final String? estimateId;
 
   const SpaceAddPage({
     super.key,
     required this.customerId,
+    this.estimateId, 
   });
 
   @override
@@ -193,7 +195,7 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
   }
 
 // spacemodel.dart의 EstimatesNotifier 클래스 내에서 updateSpaceBasicInfo 수정
-  Future<void> _saveSpaceBasicInfo() async {
+   Future<void> _saveSpaceBasicInfo() async {
     if (!_validateInputs()) return;
 
     try {
@@ -205,21 +207,24 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
           .doc(user.uid)
           .get();
 
-      final customer = await ref
-          .read(customerDataProvider.notifier)
-          .getCustomer(widget.customerId);
-      if (customer == null || customer.estimateIds.isEmpty) {
-        throw Exception('고객 정보를 찾을 수 없습니다');
+      String targetEstimateId;
+      
+      // 기존 견적 편집 모드인 경우
+      if (widget.estimateId != null) {
+        targetEstimateId = widget.estimateId!;
+      } else {
+        // 새 견적 모드인 경우
+        final customer = await ref
+            .read(customerDataProvider.notifier)
+            .getCustomer(widget.customerId);
+        if (customer == null || customer.estimateIds.isEmpty) {
+          throw Exception('고객 정보를 찾을 수 없습니다');
+        }
+        targetEstimateId = customer.estimateIds[0];
       }
 
-      // 고객 정보에서 견적 ID 가져오기
-
-      final estimateId = customer.estimateIds[0];
-
-      // 1. estimates 컬렉션에 직접 저장
       final estimateData = {
-        'siteAddress':
-            '${_siteAddressController.text} ${_detailSiteAddressController.text}',
+        'siteAddress': '${_siteAddressController.text} ${_detailSiteAddressController.text}',
         'openingDate': Timestamp.fromDate(_openingDate!),
         'recipient': _recipientController.text,
         'contactNumber': _contactNumberController.text,
@@ -228,40 +233,28 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
         'basicNotes': _additionalNotesController.text,
         'status': EstimateStatus.IN_PROGRESS.toString(),
         'updatedAt': FieldValue.serverTimestamp(),
-        'managerName': userData.data()?['name'] ?? '', // 담당자명 추가
-        'managerPhone': userData.data()?['phoneNumber'] ?? '', // 담당자 번호 추가
+        'managerName': userData.data()?['name'] ?? '',
+        'managerPhone': userData.data()?['phoneNumber'] ?? '',
       };
 
-      // Firestore에 직접 저장
       await FirebaseFirestore.instance
           .collection('estimates')
-          .doc(estimateId)
+          .doc(targetEstimateId)
           .set(estimateData, SetOptions(merge: true));
-
-      // 2. Provider를 통해 상태 업데이트
-      await ref.read(estimatesProvider.notifier).updateSpaceBasicInfo(
-            estimateId: estimateId,
-            siteAddress:
-                '${_siteAddressController.text} ${_detailSiteAddressController.text}',
-            openingDate: _openingDate!,
-            recipient: _recipientController.text,
-            contactNumber: _contactNumberController.text,
-            shippingMethod: _shippingMethod ?? '',
-            paymentMethod: _paymentMethod ?? '',
-            basicNotes: _additionalNotesController.text,
-          );
-
-      // 3. 임시 저장 데이터 삭제
-      await FirebaseFirestore.instance
-          .collection('temp_estimates')
-          .doc(estimateId)
-          .delete();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('저장되었습니다')),
         );
-        context.go('/main/addpage/spaceadd/${widget.customerId}/space-detail');
+        
+        // 다음 페이지로 이동
+        if (widget.estimateId != null) {
+          // 기존 견적 편집 모드
+          context.go('/main/customer/${widget.customerId}/estimate/${widget.estimateId}/edit/space-detail');
+        } else {
+          // 새 견적 모드
+          context.go('/main/addpage/spaceadd/${widget.customerId}/space-detail');
+        }
       }
     } catch (e) {
       print('저장 중 오류: $e');
@@ -560,8 +553,8 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                                   SizedBox(
                                       width: 16.25,
                                       height: 16.25,
-                                      child:
-                                          Image.asset('assets/images/group.png')),
+                                      child: Image.asset(
+                                          'assets/images/group.png')),
                                   const SizedBox(
                                     width: 3.85,
                                   ),
@@ -575,66 +568,7 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                                 ],
                               )),
                         ),
-                  
-                        const SizedBox(
-                          height: 48,
-                        ),
-                        InkWell(
-                          onTap: () {},
-                          child: Container(
-                              width: 200,
-                              height: 48,
-                              color: Colors.transparent,
-                              child: Row(
-                                children: [
-                                  const SizedBox(
-                                    width: 17.87,
-                                  ),
-                                  SizedBox(
-                                      width: 16.25,
-                                      height: 16.25,
-                                      child: Image.asset('assets/images/as.png')),
-                                  const SizedBox(
-                                    width: 3.85,
-                                  ),
-                                  const Text(
-                                    '교환',
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColor.font1,
-                                        fontSize: 16),
-                                  ),
-                                ],
-                              )),
-                        ),
-                        InkWell(
-                          onTap: () {},
-                          child: Container(
-                              width: 200,
-                              height: 48,
-                              color: Colors.transparent,
-                              child: Row(
-                                children: [
-                                  const SizedBox(
-                                    width: 17.87,
-                                  ),
-                                  SizedBox(
-                                      width: 16.25,
-                                      height: 16.25,
-                                      child: Image.asset('assets/images/as.png')),
-                                  const SizedBox(
-                                    width: 3.85,
-                                  ),
-                                  const Text(
-                                    '반품',
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColor.font1,
-                                        fontSize: 16),
-                                  ),
-                                ],
-                              )),
-                        ),
+
                         const SizedBox(
                           height: 48,
                         ),
@@ -652,8 +586,8 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                                   SizedBox(
                                       width: 16.25,
                                       height: 16.25,
-                                      child:
-                                          Image.asset('assets/images/draft.png')),
+                                      child: Image.asset(
+                                          'assets/images/draft.png')),
                                   const SizedBox(
                                     width: 3.85,
                                   ),
