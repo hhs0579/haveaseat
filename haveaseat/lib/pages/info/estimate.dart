@@ -28,8 +28,12 @@ import 'package:printing/printing.dart';
 
 class EstimatePage extends ConsumerStatefulWidget {
   final String customerId;
- final String? estimateId;
-  const EstimatePage({super.key, required this.customerId,  this.estimateId, });
+  final String? estimateId;
+  const EstimatePage({
+    super.key,
+    required this.customerId,
+    this.estimateId,
+  });
 
   @override
   ConsumerState<EstimatePage> createState() => _EstimatePageState();
@@ -40,21 +44,29 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
 
   Future<Map<String, dynamic>> _loadEstimateData() async {
     try {
-      // 고객 정보 가져오기
       final customer = await ref
           .read(customerDataProvider.notifier)
           .getCustomer(widget.customerId);
       if (customer == null) throw Exception('고객 정보를 찾을 수 없습니다');
 
-      // 견적 정보 가져오기
+      String targetEstimateId;
+
+      // 견적 ID 결정
+      if (widget.estimateId != null) {
+        targetEstimateId = widget.estimateId!;
+      } else {
+        if (customer.estimateIds.isEmpty) throw Exception('견적 정보를 찾을 수 없습니다');
+        targetEstimateId = customer.estimateIds[0];
+      }
+
       final estimateDoc = await FirebaseFirestore.instance
           .collection('estimates')
-          .doc(customer.estimateIds[0])
+          .doc(targetEstimateId)
           .get();
 
       if (!estimateDoc.exists) throw Exception('견적 정보를 찾을 수 없습니다');
 
-      // 담당자 정보 가져오기 (assignedTo 필드 사용)
+      // 담당자 정보 가져오기
       final managerDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(customer.assignedTo)
@@ -63,7 +75,7 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
       return {
         'customer': customer,
         'estimate': estimateDoc.data(),
-        'userData': managerDoc.data(), // 담당자 정보 추가
+        'userData': managerDoc.data(),
       };
     } catch (e) {
       print('Error loading estimate data: $e');
@@ -123,6 +135,52 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
         );
       }
     }
+  }
+
+// 세로 구분선 위젯 추가
+  Widget _buildVerticalDivider() {
+    return Container(
+      width: 1,
+      height: 48,
+      color: AppColor.line1,
+    );
+  }
+
+// 테이블 헤더 위젯 수정 - padding 조정
+  Widget _buildTableHeader(String text, int flex) {
+    return Expanded(
+      flex: flex,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        child: Text(
+          text,
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ),
+    );
+  }
+
+// 테이블 셀 위젯 수정 - 텍스트 정렬 옵션 추가
+  Widget _buildTableCell(String text, int flex,
+      {bool isHeader = false, TextAlign textAlign = TextAlign.left}) {
+    return Expanded(
+      flex: flex,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        child: Text(
+          text,
+          style: TextStyle(
+            fontWeight: isHeader ? FontWeight.w600 : FontWeight.w400,
+            fontSize: 14,
+          ),
+          textAlign: textAlign,
+        ),
+      ),
+    );
   }
 
   Widget _buildFileCell(String label, String value) {
@@ -227,6 +285,7 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
 // 각 섹션 위젯들
   Widget _buildCustomerSection(Map<String, dynamic> data) {
     final customer = data['customer'] as Customer;
+    final estimate = data['estimate'] as Map<String, dynamic>;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -265,11 +324,12 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                   children: [
                     SizedBox(
                       width: cellWidth,
-                      child: _buildInfoCell('이메일주소', customer.email),
+                      child: _buildInfoCell('수령자', estimate['recipient'] ?? ''),
                     ),
                     SizedBox(
                       width: cellWidth,
-                      child: _buildInfoCell('회사주소', customer.address),
+                      child: _buildInfoCell(
+                          '수령자 연락처', estimate['contactNumber'] ?? ''),
                     ),
                   ],
                 ),
@@ -278,16 +338,28 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                     SizedBox(
                       width: cellWidth,
                       child:
+                          _buildInfoCell('배송지', estimate['siteAddress'] ?? ''),
+                    ),
+                    SizedBox(
+                      width: cellWidth,
+                      child:
                           _buildFileCell('사업자등록증', customer.businessLicenseUrl),
                     ),
+                  ],
+                ),
+                Row(
+                  children: [
                     SizedBox(
                       width: cellWidth,
                       child: _buildFileCell(
                           '기타서류', customer.otherDocumentUrls.join(', ')),
                     ),
+                    SizedBox(
+                      width: cellWidth,
+                      child: _buildInfoCell('기타입력사항', customer.note),
+                    ),
                   ],
                 ),
-                _buildFullWidthCell('기타입력사항', customer.note),
               ],
             );
           },
@@ -296,6 +368,7 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
     );
   }
 
+// 웹 화면의 현장정보 섹션 수정 - 2열 구성
   Widget _buildSiteSection(Map<String, dynamic> data) {
     final estimate = data['estimate'] as Map<String, dynamic>;
 
@@ -320,6 +393,7 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
 
             return Column(
               children: [
+                // 1행: 현장주소 | 공간오픈일정
                 Row(
                   children: [
                     SizedBox(
@@ -334,6 +408,60 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                     ),
                   ],
                 ),
+                // 2행: 예산 | 공간면적
+                Row(
+                  children: [
+                    SizedBox(
+                      width: cellWidth,
+                      child: _buildInfoCell('예산',
+                          '${_formatNumber(estimate['minBudget'] ?? 0)}원 ~ ${_formatNumber(estimate['maxBudget'] ?? 0)}원'),
+                    ),
+                    SizedBox(
+                      width: cellWidth,
+                      child: _buildInfoCell('공간면적',
+                          '${estimate['spaceArea']?.toString() ?? '0'} ${estimate['spaceUnit'] ?? '평'}'),
+                    ),
+                  ],
+                ),
+                // 3행: 소비자타깃 | 업종
+                Row(
+                  children: [
+                    SizedBox(
+                      width: cellWidth,
+                      child: _buildInfoCell(
+                          '소비자타깃',
+                          (estimate['targetAgeGroups'] as List<dynamic>?)
+                                  ?.join(', ') ??
+                              ''),
+                    ),
+                    SizedBox(
+                      width: cellWidth,
+                      child:
+                          _buildInfoCell('업종', estimate['businessType'] ?? ''),
+                    ),
+                  ],
+                ),
+                // 4행: 공간컨셉 | 공간도면
+                Row(
+                  children: [
+                    SizedBox(
+                      width: cellWidth,
+                      child: _buildInfoCell(
+                          '공간컨셉',
+                          (estimate['concept'] as List<dynamic>?)?.join(', ') ??
+                              ''),
+                    ),
+                    SizedBox(
+                      width: cellWidth,
+                      child: _buildFileCell(
+                          '공간도면',
+                          (estimate['designFileUrls'] as List<dynamic>?)
+                                  ?.join(', ') ??
+                              ''),
+                    ),
+                  ],
+                ),
+                // 5행: 수령자 | 수령자 연락처
                 Row(
                   children: [
                     SizedBox(
@@ -343,10 +471,11 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                     SizedBox(
                       width: cellWidth,
                       child: _buildInfoCell(
-                          '연락처', estimate['contactNumber'] ?? ''),
+                          '수령자 연락처', estimate['contactNumber'] ?? ''),
                     ),
                   ],
                 ),
+                // 6행: 배송방법 | 결제방법
                 Row(
                   children: [
                     SizedBox(
@@ -361,6 +490,8 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                     ),
                   ],
                 ),
+                // 7행: 기타입력사항 (전체 너비)
+                _buildFullWidthCell('기타입력사항', estimate['detailNotes'] ?? ''),
               ],
             );
           },
@@ -476,16 +607,11 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
     );
   }
 
+// 웹 화면의 상품정보 섹션 수정 - 견적일자/총금액 행 색상 분리
   Widget _buildEstimateSection(Map<String, dynamic> data) {
     final estimate = data['estimate'] as Map<String, dynamic>;
     final furnitureList = (estimate['furnitureList'] as List<dynamic>?) ?? [];
     final memo = estimate['memo'] as String? ?? '';
-
-    // 소계 계산
-    final subtotal = _calculateTotal(furnitureList);
-    const vatRate = 0.1; // 10% VAT
-    final vatAmount = (subtotal * vatRate).round();
-    final totalAmount = subtotal + vatAmount;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -502,25 +628,34 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
           height: 2,
           color: Colors.black,
         ),
+        const SizedBox(height: 16),
         Container(
           decoration: BoxDecoration(
             border: Border.all(color: AppColor.line1),
           ),
           child: Column(
             children: [
-              // 테이블 헤더
+              // 테이블 헤더 - 모든 세로 구분선 추가
               Container(
-                color: AppColor.back2,
+                decoration: const BoxDecoration(
+                  color: AppColor.back2,
+                  border: Border(
+                    bottom: BorderSide(color: AppColor.line1),
+                  ),
+                ),
                 child: Row(
                   children: [
                     _buildTableHeader('상품명', 4),
+                    _buildVerticalDivider(),
                     _buildTableHeader('단가', 2),
+                    _buildVerticalDivider(),
                     _buildTableHeader('수량', 1),
+                    _buildVerticalDivider(),
                     _buildTableHeader('금액', 2),
                   ],
                 ),
               ),
-              // 테이블 내용
+              // 테이블 내용 - 모든 행에 구분선 추가
               ...furnitureList.map((furniture) {
                 final price = furniture['price'] ?? 0;
                 final quantity = furniture['quantity'] ?? 0;
@@ -529,207 +664,110 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                 return Container(
                   decoration: const BoxDecoration(
                     border: Border(
-                      top: BorderSide(color: AppColor.line1),
+                      bottom: BorderSide(color: AppColor.line1),
                     ),
                   ),
                   child: Row(
                     children: [
                       _buildTableCell(furniture['name'] ?? '', 4),
-                      _buildTableCell('${_formatNumber(price)}원', 2),
-                      _buildTableCell(quantity.toString(), 1),
-                      _buildTableCell('${_formatNumber(itemTotal)}원', 2),
+                      _buildVerticalDivider(),
+                      _buildTableCell('${_formatNumber(price)}원', 2,
+                          textAlign: TextAlign.center),
+                      _buildVerticalDivider(),
+                      _buildTableCell(quantity.toString(), 1,
+                          textAlign: TextAlign.center),
+                      _buildVerticalDivider(),
+                      _buildTableCell('${_formatNumber(itemTotal)}원', 2,
+                          textAlign: TextAlign.center),
                     ],
                   ),
                 );
               }).toList(),
-            ],
-          ),
-        ),
-
-        // 소계, VAT, 총계 영역
-        Container(
-          decoration: BoxDecoration(
-            border: Border.all(color: AppColor.line1),
-          ),
-          child: Column(
-            children: [
-              // 소계
-              Row(
-                children: [
-                  Expanded(
-                    flex: 7,
-                    child: Container(
-                      height: 48,
-                      alignment: Alignment.centerRight,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      decoration: const BoxDecoration(
-                        color: AppColor.back2,
-                      ),
-                      child: const Text(
-                        '소계',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    flex: 2,
-                    child: Container(
-                      height: 48,
-                      alignment: Alignment.center,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      decoration: const BoxDecoration(
-                        border: Border(
-                          left: BorderSide(color: AppColor.line1),
-                        ),
-                      ),
-                      child: Text(
-                        '${_formatNumber(subtotal)}원',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w400,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              // VAT
-              Row(
-                children: [
-                  Expanded(
-                    flex: 7,
-                    child: Container(
-                      height: 48,
-                      alignment: Alignment.centerRight,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      decoration: const BoxDecoration(
-                        color: AppColor.back2,
-                        border: Border(
-                          top: BorderSide(color: AppColor.line1),
-                        ),
-                      ),
-                      child: const Text(
-                        'VAT (10%)',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    flex: 2,
-                    child: Container(
-                      height: 48,
-                      alignment: Alignment.center,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      decoration: const BoxDecoration(
-                        border: Border(
-                          left: BorderSide(color: AppColor.line1),
-                          top: BorderSide(color: AppColor.line1),
-                        ),
-                      ),
-                      child: Text(
-                        '${_formatNumber(vatAmount)}원',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w400,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              // 총계
-              Row(
-                children: [
-                  Expanded(
-                    flex: 7,
-                    child: Container(
-                      height: 48,
-                      alignment: Alignment.centerRight,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      decoration: const BoxDecoration(
-                        color: AppColor.primary,
-                        border: Border(
-                          top: BorderSide(color: AppColor.line1),
-                        ),
-                      ),
-                      child: const Text(
-                        '총계',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    flex: 2,
-                    child: Container(
-                      height: 48,
-                      alignment: Alignment.center,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      decoration: const BoxDecoration(
-                        color: AppColor.primary,
-                        border: Border(
-                          left: BorderSide(color: AppColor.line1),
-                          top: BorderSide(color: AppColor.line1),
-                        ),
-                      ),
-                      child: Text(
-                        '${_formatNumber(totalAmount)}원',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-
-        // 견적일자
-        Container(
-          height: 48,
-          decoration: BoxDecoration(
-            border: Border.all(color: AppColor.line1),
-          ),
-          child: Row(
-            children: [
+              // 견적일자와 총금액 행 - 색상 분리
               Container(
-                width: 120,
                 decoration: const BoxDecoration(
-                  color: AppColor.back2,
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                alignment: Alignment.center,
-                child: const Text(
-                  '견적일자',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w400,
-                    fontSize: 14,
+                  border: Border(
+                    top: BorderSide(color: Colors.black, width: 2),
+                    bottom: BorderSide(color: AppColor.line1),
                   ),
                 ),
-              ),
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    _formatDate(estimate['updatedAt']),
-                    style: const TextStyle(
-                      fontSize: 14,
+                child: Row(
+                  children: [
+                    // 견적일자 레이블 (회색 배경)
+                    Expanded(
+                      flex: 2,
+                      child: Container(
+                        height: 48,
+                        decoration: const BoxDecoration(
+                          color: AppColor.back2,
+                        ),
+                        alignment: Alignment.center,
+                        child: const Text(
+                          '견적일자',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
+                    // 견적일자 값 (흰색 배경)
+                    Expanded(
+                      flex: 3,
+                      child: Container(
+                        height: 48,
+                        decoration: const BoxDecoration(
+                          color: Colors.transparent,
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          _formatDate(estimate['updatedAt']),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w400,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ),
+                    _buildVerticalDivider(),
+                    // 총금액 레이블 (회색 배경)
+                    Expanded(
+                      flex: 1,
+                      child: Container(
+                        height: 48,
+                        decoration: const BoxDecoration(
+                          color: AppColor.back2,
+                        ),
+                        alignment: Alignment.center,
+                        child: const Text(
+                          '총금액',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ),
+                    _buildVerticalDivider(),
+                    // 총금액 값 (흰색 배경)
+                    Expanded(
+                      flex: 2,
+                      child: Container(
+                        height: 48,
+                        decoration: const BoxDecoration(
+                          color: Colors.transparent,
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          '${_formatNumber(_calculateTotal(furnitureList))}원',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -737,6 +775,7 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
         ),
 
         // 메모 섹션
+        const SizedBox(height: 16),
         Container(
           width: double.infinity,
           decoration: BoxDecoration(
@@ -823,39 +862,6 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
   }
 
 // 유틸리티 함수들
-  Widget _buildTableHeader(String text, int flex) {
-    return Expanded(
-      flex: flex,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        child: Text(
-          text,
-          style: const TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 14,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTableCell(String text, int flex,
-      {bool isHeader = false, TextAlign textAlign = TextAlign.left}) {
-    return Expanded(
-      flex: flex,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        child: Text(
-          text,
-          style: TextStyle(
-            fontWeight: isHeader ? FontWeight.w600 : FontWeight.w400,
-            fontSize: 14,
-          ),
-          textAlign: textAlign,
-        ),
-      ),
-    );
-  }
 
   String _formatNumber(dynamic number) {
     if (number == null) return '0';
@@ -934,6 +940,7 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
   }
 
 // PDF 콘텐츠 빌드 함수에 로고 이미지 매개변수 추가
+// PDF 콘텐츠 빌드 함수 수정 - 공간정보 섹션 제거
   pw.Widget _buildPDFContent(Map<String, dynamic> data, pw.Font ttf,
       pw.Font ttfBold, pw.ImageProvider logoImage) {
     return pw.Column(
@@ -951,11 +958,11 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
         ),
         pw.SizedBox(height: 32),
 
-        // 각 섹션
+        // 각 섹션 - 공간정보 섹션 제거
         _buildPDFCustomerSection(data['customer'], ttf, ttfBold),
         pw.SizedBox(height: 48),
-        _buildPDFSiteSection(data['estimate'], ttf, ttfBold), // 현장정보 섹션
-        pw.SizedBox(height: 48),
+        // _buildPDFSiteSection(data['estimate'], ttf, ttfBold), // 현장정보 섹션만 유지
+        // pw.SizedBox(height: 48),
         _buildPDFEstimateSection(data['estimate'], ttf, ttfBold), // 수정된 상품정보 섹션
         pw.SizedBox(height: 48),
         _buildPDFManagerSection(data['userData'], ttf, ttfBold),
@@ -1081,20 +1088,7 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
               _buildPDFInfoCell('이메일주소', customer.email, ttf),
               _buildPDFInfoCell('회사주소', customer.address, ttf),
             ]),
-            pw.TableRow(children: [
-              _buildPDFInfoCell(
-                  '사업자등록증',
-                  customer.businessLicenseUrl.isEmpty
-                      ? '미첨부'
-                      : getFileName(customer.businessLicenseUrl),
-                  ttf),
-              _buildPDFInfoCell(
-                  '기타서류',
-                  customer.otherDocumentUrls.isEmpty
-                      ? '미첨부'
-                      : getFileName(customer.otherDocumentUrls.first),
-                  ttf),
-            ]),
+            // 사업자등록증/기타서류 행 제거됨
           ],
         ),
         _buildPDFFullWidthCell('기타입력사항', customer.note, ttf),
@@ -1412,6 +1406,7 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
     );
   }
 
+// PDF 견적 정보 섹션 수정 - Container 오류 수정
   pw.Widget _buildPDFEstimateSection(
       Map<String, dynamic> estimate, pw.Font ttf, pw.Font ttfBold) {
     final furnitureList = (estimate['furnitureList'] as List<dynamic>?) ?? [];
@@ -1441,102 +1436,225 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
           ),
           child: pw.Column(
             children: [
-              // 테이블 헤더
+              // 테이블 헤더 - color 제거하고 decoration만 사용
               pw.Container(
-                color: PdfColor.fromHex('F7F7FB'),
+                decoration: pw.BoxDecoration(
+                  color: PdfColor.fromHex('F7F7FB'),
+                  border: pw.Border(
+                    bottom: pw.BorderSide(color: PdfColor.fromHex('EAEAEC')),
+                  ),
+                ),
                 padding: const pw.EdgeInsets.all(16),
                 child: pw.Row(
                   children: [
                     pw.Expanded(
-                        flex: 2,
-                        child: pw.Text('견적종류',
-                            style: pw.TextStyle(font: ttfBold))),
-                    pw.Expanded(
-                        flex: 3,
+                        flex: 4,
                         child:
-                            pw.Text('가구명', style: pw.TextStyle(font: ttfBold))),
+                            pw.Text('상품명', style: pw.TextStyle(font: ttfBold))),
+                    pw.Container(
+                      width: 1,
+                      height: 20,
+                      decoration: pw.BoxDecoration(
+                        color: PdfColor.fromHex('EAEAEC'),
+                      ),
+                    ),
+                    pw.Expanded(
+                        flex: 2,
+                        child: pw.Text('단가',
+                            style: pw.TextStyle(font: ttfBold),
+                            textAlign: pw.TextAlign.center)),
+                    pw.Container(
+                      width: 1,
+                      height: 20,
+                      decoration: pw.BoxDecoration(
+                        color: PdfColor.fromHex('EAEAEC'),
+                      ),
+                    ),
                     pw.Expanded(
                         flex: 1,
-                        child:
-                            pw.Text('수량', style: pw.TextStyle(font: ttfBold))),
+                        child: pw.Text('수량',
+                            style: pw.TextStyle(font: ttfBold),
+                            textAlign: pw.TextAlign.center)),
+                    pw.Container(
+                      width: 1,
+                      height: 20,
+                      decoration: pw.BoxDecoration(
+                        color: PdfColor.fromHex('EAEAEC'),
+                      ),
+                    ),
                     pw.Expanded(
                         flex: 2,
-                        child: pw.Text('견적일자',
-                            style: pw.TextStyle(font: ttfBold))),
-                    pw.Expanded(
-                        flex: 2,
-                        child:
-                            pw.Text('가격', style: pw.TextStyle(font: ttfBold))),
+                        child: pw.Text('금액',
+                            style: pw.TextStyle(font: ttfBold),
+                            textAlign: pw.TextAlign.center)),
                   ],
                 ),
               ),
-              // 테이블 내용
+              // 테이블 내용 - 모든 행에 구분선 추가
               ...furnitureList.map((furniture) => pw.Container(
                     decoration: pw.BoxDecoration(
                       border: pw.Border(
-                        top: pw.BorderSide(color: PdfColor.fromHex('EAEAEC')),
+                        bottom:
+                            pw.BorderSide(color: PdfColor.fromHex('EAEAEC')),
                       ),
                     ),
                     padding: const pw.EdgeInsets.all(16),
                     child: pw.Row(
                       children: [
                         pw.Expanded(
-                            flex: 2,
-                            child: pw.Text('기존가구',
-                                style: pw.TextStyle(font: ttf))),
-                        pw.Expanded(
-                            flex: 3,
+                            flex: 4,
                             child: pw.Text(furniture['name'] ?? '',
                                 style: pw.TextStyle(font: ttf))),
-                        pw.Expanded(
-                            flex: 1,
-                            child: pw.Text(
-                                furniture['quantity']?.toString() ?? '',
-                                style: pw.TextStyle(font: ttf))),
-                        pw.Expanded(
-                            flex: 2,
-                            child: pw.Text(_formatDate(estimate['updatedAt']),
-                                style: pw.TextStyle(font: ttf))),
+                        pw.Container(
+                          width: 1,
+                          height: 20,
+                          decoration: pw.BoxDecoration(
+                            color: PdfColor.fromHex('EAEAEC'),
+                          ),
+                        ),
                         pw.Expanded(
                             flex: 2,
                             child: pw.Text(
                                 '${_formatNumber(furniture['price'])}원',
-                                style: pw.TextStyle(font: ttf))),
+                                style: pw.TextStyle(font: ttf),
+                                textAlign: pw.TextAlign.center)),
+                        pw.Container(
+                          width: 1,
+                          height: 20,
+                          decoration: pw.BoxDecoration(
+                            color: PdfColor.fromHex('EAEAEC'),
+                          ),
+                        ),
+                        pw.Expanded(
+                            flex: 1,
+                            child: pw.Text(
+                                furniture['quantity']?.toString() ?? '',
+                                style: pw.TextStyle(font: ttf),
+                                textAlign: pw.TextAlign.center)),
+                        pw.Container(
+                          width: 1,
+                          height: 20,
+                          decoration: pw.BoxDecoration(
+                            color: PdfColor.fromHex('EAEAEC'),
+                          ),
+                        ),
+                        pw.Expanded(
+                            flex: 2,
+                            child: pw.Text(
+                                '${_formatNumber((furniture['price'] ?? 0) * (furniture['quantity'] ?? 0))}원',
+                                style: pw.TextStyle(font: ttf),
+                                textAlign: pw.TextAlign.center)),
                       ],
                     ),
                   )),
-              // 총 합계 행 추가
+              // 견적일자와 총금액 같은 행 - 헤더와 같은 스타일
               pw.Container(
                 decoration: pw.BoxDecoration(
+                  color: PdfColor.fromHex('F7F7FB'),
                   border: pw.Border(
                     top: pw.BorderSide(
                         color: PdfColor.fromHex('000000'), width: 2),
+                    bottom: pw.BorderSide(color: PdfColor.fromHex('EAEAEC')),
                   ),
                 ),
                 padding: const pw.EdgeInsets.all(16),
                 child: pw.Row(
                   children: [
-                    // 빈 공간 (8개 flex 만큼)
-                    pw.Expanded(flex: 8, child: pw.Container()),
-                    // 총 합계 레이블
+                    // 견적일자 레이블
+                    pw.Expanded(
+                      flex: 2,
+                      child: pw.Text(
+                        '견적일자',
+                        style: pw.TextStyle(font: ttfBold, fontSize: 14),
+                      ),
+                    ),
+                    // 견적일자 값
+                    pw.Expanded(
+                      flex: 3,
+                      child: pw.Text(
+                        _formatDate(estimate['updatedAt']),
+                        style: pw.TextStyle(font: ttf, fontSize: 14),
+                      ),
+                    ),
+                    pw.Container(
+                      width: 1,
+                      height: 20,
+                      decoration: pw.BoxDecoration(
+                        color: PdfColor.fromHex('EAEAEC'),
+                      ),
+                    ),
+                    // 총금액 레이블
                     pw.Expanded(
                       flex: 1,
                       child: pw.Text(
-                        '총 합계',
+                        '총금액',
                         style: pw.TextStyle(font: ttfBold, fontSize: 14),
                         textAlign: pw.TextAlign.center,
                       ),
                     ),
-                    // 총 합계 금액
+                    pw.Container(
+                      width: 1,
+                      height: 20,
+                      decoration: pw.BoxDecoration(
+                        color: PdfColor.fromHex('EAEAEC'),
+                      ),
+                    ),
+                    // 총금액 값
                     pw.Expanded(
-                      flex: 1,
+                      flex: 2,
                       child: pw.Text(
                         '${_formatNumber(_calculateTotal(furnitureList))}원',
                         style: pw.TextStyle(font: ttfBold, fontSize: 14),
-                        textAlign: pw.TextAlign.right,
+                        textAlign: pw.TextAlign.center,
                       ),
                     ),
                   ],
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // 메모 섹션
+        pw.SizedBox(height: 16),
+        pw.Container(
+          width: double.infinity,
+          decoration: pw.BoxDecoration(
+            border: pw.Border.all(color: PdfColor.fromHex('EAEAEC')),
+          ),
+          child: pw.Row(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Container(
+                width: 120,
+                decoration: pw.BoxDecoration(
+                  color: PdfColor.fromHex('F7F7FB'),
+                ),
+                padding:
+                    const pw.EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                child: pw.Text(
+                  '메모',
+                  style: pw.TextStyle(
+                    fontWeight: pw.FontWeight.normal,
+                    fontSize: 14,
+                    font: ttf,
+                  ),
+                ),
+              ),
+              pw.Expanded(
+                child: pw.Container(
+                  padding: const pw.EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 14),
+                  child: pw.Text(
+                    (estimate['memo'] as String?)?.isEmpty ?? true
+                        ? '등록된 메모가 없습니다.'
+                        : estimate['memo'] as String,
+                    style: pw.TextStyle(
+                      fontWeight: pw.FontWeight.normal,
+                      fontSize: 14,
+                      font: ttf,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -1840,15 +1958,57 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                                 const SizedBox(height: 48),
                                 _buildManagerSection(snapshot.data!),
                                 const SizedBox(height: 48),
-                                ElevatedButton.icon(
-                                  onPressed: () => generatePDF(snapshot.data!),
-                                  icon: const Icon(Icons.picture_as_pdf),
-                                  label: const Text('PDF 다운로드'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColor.primary,
-                                    foregroundColor: Colors.white,
-                                  ),
-                                ),
+                                Row(
+                                  children: [
+                                    // PDF 다운로드 버튼
+                                    SizedBox(
+                                      height: 48,
+                                      child: ElevatedButton.icon(
+                                        onPressed: () =>
+                                            generatePDF(snapshot.data!),
+                                        icon: const Icon(Icons.download,
+                                            color: Colors.white, size: 20),
+                                        label: const Text('PDF 다운로드'),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: AppColor.primary,
+                                          foregroundColor: Colors.white,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(4),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+
+                                    const SizedBox(width: 12),
+
+                                    // 확인 버튼
+                                    SizedBox(
+                                      height: 48,
+                                      child: ElevatedButton.icon(
+                                        onPressed: () {
+                                          if (widget.estimateId != null) {
+                                            context.go(
+                                                '/main/customer/${widget.customerId}');
+                                          } else {
+                                            context.go('/main');
+                                          }
+                                        },
+                                        icon: const Icon(Icons.check,
+                                            color: Colors.white, size: 20),
+                                        label: const Text('확인'),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: AppColor.main,
+                                          foregroundColor: Colors.white,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(4),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                )
                               ],
                             );
                           }))),

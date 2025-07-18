@@ -14,6 +14,7 @@ import 'dart:html' as html;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:haveaseat/riverpod/customermodel.dart' as model;
+import 'dart:async';
 
 enum EstimateStatus {
   IN_PROGRESS, // 견적중
@@ -46,8 +47,11 @@ class CustomerDetailPage extends ConsumerStatefulWidget {
 }
 
 class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
+  Timer? _debounceTimer;
   final Set<String> _selectedCustomers = {};
   static const double CHECKBOX_WIDTH = 56;
+
+// 고객 테이블용 기존 상수들 (그대로 유지)
   static const double CUSTOMER_NAME_RATIO = 0.08;
   static const double STATUS_RATIO = 0.08;
   static const double PHONE_RATIO = 0.1;
@@ -56,6 +60,52 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
   static const double LICENSE_RATIO = 0.09;
   static const double BUDGET_RATIO = 0.1;
   static const double NOTE_RATIO = 0.1;
+
+// 견적 테이블용 새로운 상수들 (추가)
+  static const double ESTIMATE_STATUS_RATIO = 0.07;
+  static const double ESTIMATE_TYPE_RATIO = 0.07;
+  static const double ESTIMATE_PRODUCT_RATIO = 0.11;
+  static const double ESTIMATE_DATE_RATIO = 0.09;
+  static const double ESTIMATE_AMOUNT_RATIO = 0.09;
+  static const double ESTIMATE_ADDRESS_RATIO = 0.14;
+  static const double ESTIMATE_DOC_RATIO = 0.06;
+  static const double ESTIMATE_MANAGER_RATIO = 0.07;
+  static const double ESTIMATE_NOTE_RATIO = 0.07;
+  Widget buildEstimateTableHeaderWithData(
+      double totalWidth, List<Map<String, dynamic>> estimates) {
+    // 체크박스를 제외한 사용 가능한 너비 계산
+    final availableWidth = totalWidth - CHECKBOX_WIDTH;
+
+    return Container(
+      width: totalWidth,
+      height: 48,
+      color: const Color(0xffF7F7FB),
+      child: Row(
+        children: [
+          SizedBox(
+            width: CHECKBOX_WIDTH,
+            child: Checkbox(
+              value: _allEstimatesCheck,
+              onChanged: (checked) =>
+                  _toggleAllEstimatesCheck(checked, estimates),
+            ),
+          ),
+          buildHeaderCell('상태', availableWidth * ESTIMATE_STATUS_RATIO),
+          buildHeaderCell('종류', availableWidth * ESTIMATE_TYPE_RATIO),
+          buildHeaderCell('상품명', availableWidth * ESTIMATE_PRODUCT_RATIO),
+          buildHeaderCell('주문일자', availableWidth * ESTIMATE_DATE_RATIO),
+          buildHeaderCell('금액', availableWidth * ESTIMATE_AMOUNT_RATIO),
+          buildHeaderCell('수령지', availableWidth * ESTIMATE_ADDRESS_RATIO),
+          buildHeaderCell('견적서', availableWidth * ESTIMATE_DOC_RATIO),
+          buildHeaderCell('발주서', availableWidth * ESTIMATE_DOC_RATIO),
+          buildHeaderCell('출고증', availableWidth * ESTIMATE_DOC_RATIO),
+          buildHeaderCell('담당자명', availableWidth * ESTIMATE_MANAGER_RATIO),
+          buildHeaderCell('기타', availableWidth * ESTIMATE_NOTE_RATIO),
+        ],
+      ),
+    );
+  }
+
   bool _allCheck = false;
   static const List<String> statusOptions = [
     '견적진행중',
@@ -197,15 +247,15 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
       {bool isClickable = false, VoidCallback? onTap}) {
     return Container(
       width: width,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 4), // 패딩 축소
       child: isClickable
           ? InkWell(
               onTap: onTap,
               child: Text(
                 text,
                 style: const TextStyle(
-                    fontSize: 14,
-                    color: AppColor.primary, // Making clickable text blue
+                    fontSize: 12, // 폰트 크기 축소
+                    color: AppColor.primary,
                     fontWeight: FontWeight.w600),
                 overflow: TextOverflow.ellipsis,
               ),
@@ -213,12 +263,111 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
           : Text(
               text,
               style: const TextStyle(
-                fontSize: 14,
+                fontSize: 12, // 폰트 크기 축소
                 color: AppColor.font1,
               ),
               overflow: TextOverflow.ellipsis,
             ),
     );
+  }
+
+// 1. 견적 체크박스 관련 변수 추가 (클래스 내부 변수로)
+  final Set<String> _selectedEstimates = {}; // 견적 선택용
+  bool _allEstimatesCheck = false; // 전체 견적 선택
+
+// 2. 견적 체크박스 토글 함수들 추가
+  void _toggleAllEstimatesCheck(
+      bool? checked, List<Map<String, dynamic>> estimates) {
+    setState(() {
+      _allEstimatesCheck = checked ?? false;
+      if (_allEstimatesCheck) {
+        _selectedEstimates
+            .addAll(estimates.map((e) => e['estimateId'] as String));
+      } else {
+        _selectedEstimates.clear();
+      }
+    });
+  }
+
+  void _toggleEstimateCheck(bool? checked, String estimateId) {
+    setState(() {
+      if (checked ?? false) {
+        _selectedEstimates.add(estimateId);
+      } else {
+        _selectedEstimates.remove(estimateId);
+      }
+    });
+  }
+
+// 3. 선택된 견적 삭제 함수
+  Future<void> _deleteSelectedEstimates() async {
+    try {
+      if (_selectedEstimates.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('삭제할 견적을 선택해주세요')),
+        );
+        return;
+      }
+
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('견적 삭제'),
+          content: Text('선택한 ${_selectedEstimates.length}개의 견적을 삭제하시겠습니까?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('취소'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('삭제', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        ),
+      );
+
+      if (confirm != true) return;
+
+      await Future.wait(
+        _selectedEstimates.map((estimateId) async {
+          try {
+            await FirebaseFirestore.instance
+                .collection('estimates')
+                .doc(estimateId)
+                .delete();
+
+            // 고객 문서에서 견적 ID 제거
+            await FirebaseFirestore.instance
+                .collection('customers')
+                .doc(widget.customerId)
+                .update({
+              'estimateIds': FieldValue.arrayRemove([estimateId]),
+            });
+          } catch (e) {
+            print('Error deleting estimate $estimateId: $e');
+          }
+        }),
+      );
+
+      setState(() {
+        _selectedEstimates.clear();
+        _allEstimatesCheck = false;
+      });
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('선택한 견적이 삭제되었습니다')),
+        );
+      }
+    } catch (e) {
+      print('Error in _deleteSelectedEstimates: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('견적 삭제 중 오류가 발생했습니다')),
+        );
+      }
+    }
   }
 
   Future<void> _addNewEstimateToExistingCustomer() async {
@@ -293,11 +442,11 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
   Widget buildHeaderCell(String text, double width) {
     return Container(
       width: width,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 4), // 패딩 축소
       child: Text(
         text,
         style: const TextStyle(
-          fontSize: 14,
+          fontSize: 12, // 폰트 크기 축소
           fontWeight: FontWeight.w600,
           color: AppColor.font1,
         ),
@@ -336,29 +485,50 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
       // 검색어 필터링
       if (_searchController.text.isNotEmpty) {
         String searchTerm = _searchController.text.toLowerCase();
-        bool matchesSearch = estimate['상태']
-                    .toString()
-                    .toLowerCase()
-                    .contains(searchTerm) ||
-                estimate['금액'].toString().toLowerCase().contains(searchTerm) ||
-                estimate['견적내용']!
-                    .toString()
-                    .toLowerCase()
-                    .contains(searchTerm) ??
-            false;
+
+        // 견적 데이터에서 검색할 필드들 정의
+        String status = estimate['status']?.toString().toLowerCase() ?? '';
+        String productName =
+            estimate['productName']?.toString().toLowerCase() ?? '';
+        String deliveryAddress =
+            estimate['deliveryAddress']?.toString().toLowerCase() ?? '';
+        String managerName =
+            estimate['managerName']?.toString().toLowerCase() ?? '';
+        String note = estimate['note']?.toString().toLowerCase() ?? '';
+        String amount = estimate['amount']?.toString().toLowerCase() ?? '';
+
+        // 검색어가 포함된 필드가 있는지 확인
+        bool matchesSearch = status.contains(searchTerm) ||
+            productName.contains(searchTerm) ||
+            deliveryAddress.contains(searchTerm) ||
+            managerName.contains(searchTerm) ||
+            note.contains(searchTerm) ||
+            amount.contains(searchTerm);
 
         if (!matchesSearch) return false;
       }
 
       // 날짜 필터링
       if (_startDate != null || _endDate != null) {
-        DateTime estimateDate = (estimate['date'] as Timestamp).toDate();
-        if (_startDate != null && estimateDate.isBefore(_startDate!)) {
-          return false;
+        DateTime? estimateDate;
+
+        // orderDate 필드에서 날짜 추출
+        if (estimate['orderDate'] != null) {
+          if (estimate['orderDate'] is Timestamp) {
+            estimateDate = (estimate['orderDate'] as Timestamp).toDate();
+          } else if (estimate['orderDate'] is DateTime) {
+            estimateDate = estimate['orderDate'] as DateTime;
+          }
         }
-        if (_endDate != null &&
-            estimateDate.isAfter(_endDate!.add(const Duration(days: 1)))) {
-          return false;
+
+        if (estimateDate != null) {
+          if (_startDate != null && estimateDate.isBefore(_startDate!)) {
+            return false;
+          }
+          if (_endDate != null &&
+              estimateDate.isAfter(_endDate!.add(const Duration(days: 1)))) {
+            return false;
+          }
         }
       }
 
@@ -391,6 +561,33 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
   }
 
   Widget buildEstimateRow(Map<String, dynamic> estimate, double totalWidth) {
+    // 체크박스를 제외한 사용 가능한 너비 계산
+    final availableWidth = totalWidth - CHECKBOX_WIDTH;
+
+    // 가구 종류 결정 (기존가구 vs 제작가구)
+    String furnitureType = '기존가구'; // 기본값
+    final furnitureList = estimate['furnitureList'] as List<dynamic>? ?? [];
+
+    if (furnitureList.isNotEmpty) {
+      // 제작가구가 하나라도 있으면 "제작가구"로 표시
+      bool hasCustomFurniture =
+          furnitureList.any((furniture) => furniture['isCustom'] == true);
+
+      if (hasCustomFurniture) {
+        // 기존가구와 제작가구가 혼재되어 있는지 확인
+        bool hasExistingFurniture = furnitureList.any((furniture) =>
+            furniture['isCustom'] == false || furniture['isCustom'] == null);
+
+        if (hasExistingFurniture) {
+          furnitureType = '혼합'; // 기존가구와 제작가구가 모두 있는 경우
+        } else {
+          furnitureType = '제작가구'; // 제작가구만 있는 경우
+        }
+      } else {
+        furnitureType = '기존가구'; // 기존가구만 있는 경우
+      }
+    }
+
     return Container(
       width: totalWidth,
       height: 48,
@@ -399,25 +596,35 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
       ),
       child: Row(
         children: [
+          // 체크박스
           SizedBox(
-            width: totalWidth * 0.08,
+            width: CHECKBOX_WIDTH,
+            child: Checkbox(
+              value: _selectedEstimates.contains(estimate['estimateId']),
+              onChanged: (value) =>
+                  _toggleEstimateCheck(value, estimate['estimateId']),
+            ),
+          ),
+          // 상태 드롭다운
+          SizedBox(
+            width: availableWidth * ESTIMATE_STATUS_RATIO,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 4),
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<String>(
                   value: estimate['status'] ??
                       CustomerStatus.ESTIMATE_IN_PROGRESS.label,
                   isExpanded: true,
-                  icon: const Icon(Icons.arrow_drop_down, size: 20),
+                  icon: const Icon(Icons.arrow_drop_down, size: 16),
+                  style: const TextStyle(fontSize: 12, color: AppColor.font1),
                   items: CustomerStatus.values.map((status) {
                     return DropdownMenuItem<String>(
                       value: status.label,
                       child: Text(
                         status.label,
                         style: const TextStyle(
-                          fontSize: 14,
-                          color: AppColor.font1,
-                        ),
+                            fontSize: 12, color: AppColor.font1),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     );
                   }).toList(),
@@ -454,47 +661,77 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
               ),
             ),
           ),
-          buildDataCell(estimate['type'] ?? '', totalWidth * 0.08),
-          buildDataCell(estimate['productName'] ?? '', totalWidth * 0.12),
-          buildDataCell(_formatDate(estimate['orderDate']), totalWidth * 0.1),
+          // 종류
+          buildDataCell(furnitureType, availableWidth * ESTIMATE_TYPE_RATIO),
+          // 상품명
+          buildDataCell(estimate['productName'] ?? '',
+              availableWidth * ESTIMATE_PRODUCT_RATIO),
+          // 주문일자
+          buildDataCell(_formatDate(estimate['orderDate']),
+              availableWidth * ESTIMATE_DATE_RATIO),
+          // 금액
           buildDataCell(
               '₩${NumberFormat('#,###').format(estimate['amount'] ?? 0)}',
-              totalWidth * 0.1),
-          buildDataCell(estimate['deliveryAddress'] ?? '', totalWidth * 0.15),
+              availableWidth * ESTIMATE_AMOUNT_RATIO),
+          // 수령지
+          buildDataCell(estimate['deliveryAddress'] ?? '',
+              availableWidth * ESTIMATE_ADDRESS_RATIO),
+          // 견적서 버튼
           Container(
-            width: totalWidth * 0.07,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
+            width: availableWidth * ESTIMATE_DOC_RATIO,
+            padding: const EdgeInsets.symmetric(horizontal: 2),
             child: TextButton(
               onPressed: () {
                 context.go(
                     '/main/customer/${widget.customerId}/estimate/${estimate['estimateId']}');
               },
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
               child: const Text('상세보기',
-                  style: TextStyle(fontSize: 14, color: AppColor.primary)),
+                  style: TextStyle(fontSize: 11, color: AppColor.primary)),
             ),
           ),
+          // 발주서 버튼
           Container(
-            width: totalWidth * 0.07,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
+            width: availableWidth * ESTIMATE_DOC_RATIO,
+            padding: const EdgeInsets.symmetric(horizontal: 2),
             child: TextButton(
               onPressed: () => context.go(
                   '/main/customer/${widget.customerId}/estimate/${estimate['estimateId']}/order'),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
               child: const Text('상세보기',
-                  style: TextStyle(fontSize: 14, color: AppColor.primary)),
+                  style: TextStyle(fontSize: 11, color: AppColor.primary)),
             ),
           ),
+          // 출고증 버튼
           Container(
-            width: totalWidth * 0.07,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
+            width: availableWidth * ESTIMATE_DOC_RATIO,
+            padding: const EdgeInsets.symmetric(horizontal: 2),
             child: TextButton(
               onPressed: () => context.go(
                   '/main/customer/${widget.customerId}/estimate/${estimate['estimateId']}/release'),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
               child: const Text('상세보기',
-                  style: TextStyle(fontSize: 14, color: AppColor.primary)),
+                  style: TextStyle(fontSize: 11, color: AppColor.primary)),
             ),
           ),
-          buildDataCell(estimate['managerName'] ?? '', totalWidth * 0.08),
-          buildDataCell(estimate['note'] ?? '', totalWidth * 0.08),
+          // 담당자명
+          buildDataCell(estimate['managerName'] ?? '',
+              availableWidth * ESTIMATE_MANAGER_RATIO),
+          // 기타
+          buildDataCell(
+              estimate['note'] ?? '', availableWidth * ESTIMATE_NOTE_RATIO),
         ],
       ),
     );
@@ -513,20 +750,24 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
         final data = doc.data();
         final furnitureList = data['furnitureList'] as List<dynamic>? ?? [];
 
-        // 가구 목록이 비어있으면 건너뜀
-        if (furnitureList.isEmpty) continue;
-
-        // 총 금액 계산
+        // 가구 목록이 비어있어도 견적은 표시 (빈 견적도 보여줌)
         double totalAmount = 0;
-        for (var furniture in furnitureList) {
-          totalAmount +=
-              (furniture['price'] ?? 0) * (furniture['quantity'] ?? 0);
-        }
+        String productName = '';
 
-        // 상품명 표시 로직
-        String productName = furnitureList.length > 1
-            ? '${furnitureList[0]['name']} 외 ${furnitureList.length - 1}건'
-            : furnitureList[0]['name'];
+        if (furnitureList.isNotEmpty) {
+          // 총 금액 계산
+          for (var furniture in furnitureList) {
+            totalAmount +=
+                (furniture['price'] ?? 0) * (furniture['quantity'] ?? 0);
+          }
+
+          // 상품명 표시 로직
+          productName = furnitureList.length > 1
+              ? '${furnitureList[0]['name']} 외 ${furnitureList.length - 1}건'
+              : furnitureList[0]['name'];
+        } else {
+          productName = '견적 작성중';
+        }
 
         Map<String, dynamic> estimate = {
           'estimateId': doc.id,
@@ -545,7 +786,8 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
           'note': data['detailNotes'] ?? '',
           'estimateDocId': doc.id,
           'orderId': '',
-          'deliveryId': ''
+          'deliveryId': '',
+          'furnitureList': furnitureList, // 가구 리스트 정보 추가
         };
 
         consolidatedEstimates.add(estimate);
@@ -846,35 +1088,6 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
                           ],
                         )),
                   ),
-                  InkWell(
-                    onTap: () {},
-                    child: Container(
-                        width: 200,
-                        height: 48,
-                        color: Colors.transparent,
-                        child: Row(
-                          children: [
-                            const SizedBox(
-                              width: 17.87,
-                            ),
-                            SizedBox(
-                                width: 16.25,
-                                height: 16.25,
-                                child: Image.asset('assets/images/corp.png')),
-                            const SizedBox(
-                              width: 3.85,
-                            ),
-                            const Text(
-                              '업체 정보',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColor.font1,
-                                  fontSize: 16),
-                            ),
-                          ],
-                        )),
-                  ),
-
                   const SizedBox(
                     height: 48,
                   ),
@@ -1194,9 +1407,8 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
                                                               child: TextField(
                                                                 style:
                                                                     const TextStyle(
-                                                                  height:
-                                                                      1.2, // 라인 높이를 조정하여 수직 정렬 맞춤
-                                                                ),
+                                                                        height:
+                                                                            1.2),
                                                                 controller:
                                                                     _searchController,
                                                                 decoration:
@@ -1209,7 +1421,7 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
                                                                           vertical:
                                                                               14),
                                                                   hintText:
-                                                                      '고객명,주소,업체명,공간컨셉 키워드',
+                                                                      '상태, 상품명, 수령지, 담당자명, 금액 검색',
                                                                   hintStyle:
                                                                       TextStyle(
                                                                           fontSize:
@@ -1220,8 +1432,21 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
                                                                 ),
                                                                 onChanged:
                                                                     (value) {
-                                                                  setState(() {
-                                                                    // 검색어가 변경될 때마다 화면 갱신
+                                                                  _debounceTimer
+                                                                      ?.cancel();
+
+                                                                  // 300ms 후에 setState 실행
+                                                                  _debounceTimer = Timer(
+                                                                      const Duration(
+                                                                          milliseconds:
+                                                                              400),
+                                                                      () {
+                                                                    if (mounted) {
+                                                                      setState(
+                                                                          () {
+                                                                        // 여기서 화면이 갱신됩니다
+                                                                      });
+                                                                    }
                                                                   });
                                                                 },
                                                               ),
@@ -1340,10 +1565,11 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
                                                             children: [
                                                               InkWell(
                                                                 onTap:
-                                                                    _deleteSelectedCustomers,
+                                                                    _deleteSelectedEstimates, // 함수 변경
                                                                 child:
                                                                     Container(
-                                                                  width: 60,
+                                                                  width:
+                                                                      80, // 너비 조정
                                                                   height: 44,
                                                                   decoration: BoxDecoration(
                                                                       border: Border.all(
@@ -1356,7 +1582,7 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
                                                                           .center,
                                                                   child:
                                                                       const Text(
-                                                                    '삭제',
+                                                                    '견적 삭제', // 텍스트 변경
                                                                     style:
                                                                         TextStyle(
                                                                       fontSize:
@@ -1478,8 +1704,10 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
 
                                                                     return Column(
                                                                       children: [
-                                                                        buildEstimateTableHeader(
-                                                                            tableWidth),
+                                                                        // 기존의 buildEstimateTableHeader(tableWidth) 대신 사용
+                                                                        buildEstimateTableHeaderWithData(
+                                                                            tableWidth,
+                                                                            estimates),
                                                                         ...filteredEstimates
                                                                             .map((estimate) =>
                                                                                 buildEstimateRow(estimate, tableWidth))

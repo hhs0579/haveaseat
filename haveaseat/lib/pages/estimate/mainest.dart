@@ -676,14 +676,81 @@ class _CustomerEstimatePageState extends ConsumerState<CustomerEstimatePage> {
         ),
         pw.SizedBox(height: 32),
 
-        // 각 섹션
+        // 각 섹션 - 고객정보 추가, 공간정보 제거
+        _buildPDFCustomerSectionWithEstimate(
+            data['customer'], data['estimate'], ttf, ttfBold),
+        pw.SizedBox(height: 48),
         _buildPDFEstimateSection(data['estimate'], ttf, ttfBold),
-
         pw.SizedBox(height: 48),
-        _buildPDFSpaceSection(data['estimate'], ttf, ttfBold),
-        pw.SizedBox(height: 48),
-
         _buildPDFManagerSection(data['userData'], ttf, ttfBold),
+      ],
+    );
+  }
+
+  pw.Widget _buildPDFCustomerSectionWithEstimate(Customer customer,
+      Map<String, dynamic> estimate, pw.Font ttf, pw.Font ttfBold) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(
+          '고객 정보',
+          style: pw.TextStyle(
+              fontSize: 18, font: ttfBold, color: PdfColor.fromHex('1A1A1A')),
+        ),
+        pw.SizedBox(height: 12),
+        pw.Container(
+          width: double.infinity,
+          height: 2,
+          decoration: pw.BoxDecoration(
+            color: PdfColor.fromHex('000000'),
+          ),
+        ),
+        pw.SizedBox(height: 24),
+
+        // 고객명과 연락처
+        pw.Row(
+          children: [
+            pw.Expanded(
+              child: _buildPDFInfoCell('고객명', customer.name, ttf),
+            ),
+            pw.SizedBox(width: 24),
+            pw.Expanded(
+              child: _buildPDFInfoCell('연락처', customer.phone, ttf),
+            ),
+          ],
+        ),
+
+        pw.SizedBox(height: 12),
+
+        // 수령자와 수령자 연락처
+        pw.Row(
+          children: [
+            pw.Expanded(
+              child: _buildPDFInfoCell('수령자', estimate['recipient'] ?? '', ttf),
+            ),
+            pw.SizedBox(width: 24),
+            pw.Expanded(
+              child: _buildPDFInfoCell(
+                  '수령자 연락처', estimate['contactNumber'] ?? '', ttf),
+            ),
+          ],
+        ),
+
+        pw.SizedBox(height: 12),
+
+        // 배송지와 기타입력사항
+        pw.Row(
+          children: [
+            pw.Expanded(
+              child:
+                  _buildPDFInfoCell('배송지', estimate['siteAddress'] ?? '', ttf),
+            ),
+            pw.SizedBox(width: 24),
+            pw.Expanded(
+              child: _buildPDFInfoCell('기타입력사항', customer.note, ttf),
+            ),
+          ],
+        ),
       ],
     );
   }
@@ -934,15 +1001,18 @@ class _CustomerEstimatePageState extends ConsumerState<CustomerEstimatePage> {
     return pw.Container(
       padding: const pw.EdgeInsets.all(12),
       decoration: pw.BoxDecoration(
-        border:
-            pw.Border(bottom: pw.BorderSide(color: PdfColor.fromHex('EAEAEC'))),
+        border: pw.Border(
+          bottom: pw.BorderSide(color: PdfColor.fromHex('EAEAEC')),
+        ),
       ),
       child: pw.Row(
         children: [
           pw.Container(
             width: 120,
             padding: const pw.EdgeInsets.symmetric(horizontal: 8),
-            color: PdfColor.fromHex('F7F7FB'),
+            decoration: pw.BoxDecoration(
+              color: PdfColor.fromHex('F7F7FB'),
+            ),
             child: pw.Text(
               label,
               style: pw.TextStyle(fontSize: 14, font: ttf),
@@ -1097,99 +1167,199 @@ class _CustomerEstimatePageState extends ConsumerState<CustomerEstimatePage> {
           ),
           child: pw.Column(
             children: [
-              // 테이블 헤더
+              // 테이블 헤더 - 구분선 추가
               pw.Container(
-                color: PdfColor.fromHex('F7F7FB'),
+                decoration: pw.BoxDecoration(
+                  color: PdfColor.fromHex('F7F7FB'),
+                  border: pw.Border(
+                    bottom: pw.BorderSide(color: PdfColor.fromHex('EAEAEC')),
+                  ),
+                ),
                 padding: const pw.EdgeInsets.all(16),
                 child: pw.Row(
                   children: [
                     pw.Expanded(
-                        flex: 2,
-                        child: pw.Text('견적종류',
-                            style: pw.TextStyle(font: ttfBold))),
-                    pw.Expanded(
-                        flex: 3,
+                        flex: 4,
                         child:
-                            pw.Text('가구명', style: pw.TextStyle(font: ttfBold))),
+                            pw.Text('상품명', style: pw.TextStyle(font: ttfBold))),
+                    pw.Container(
+                      width: 1,
+                      height: 20,
+                      decoration: pw.BoxDecoration(
+                        color: PdfColor.fromHex('EAEAEC'),
+                      ),
+                    ),
+                    pw.Expanded(
+                        flex: 2,
+                        child: pw.Text('단가',
+                            style: pw.TextStyle(font: ttfBold),
+                            textAlign: pw.TextAlign.center)),
+                    pw.Container(
+                      width: 1,
+                      height: 20,
+                      decoration: pw.BoxDecoration(
+                        color: PdfColor.fromHex('EAEAEC'),
+                      ),
+                    ),
                     pw.Expanded(
                         flex: 1,
-                        child:
-                            pw.Text('수량', style: pw.TextStyle(font: ttfBold))),
+                        child: pw.Text('수량',
+                            style: pw.TextStyle(font: ttfBold),
+                            textAlign: pw.TextAlign.center)),
+                    pw.Container(
+                      width: 1,
+                      height: 20,
+                      decoration: pw.BoxDecoration(
+                        color: PdfColor.fromHex('EAEAEC'),
+                      ),
+                    ),
                     pw.Expanded(
                         flex: 2,
-                        child: pw.Text('견적일자',
-                            style: pw.TextStyle(font: ttfBold))),
-                    pw.Expanded(
-                        flex: 2,
-                        child:
-                            pw.Text('가격', style: pw.TextStyle(font: ttfBold))),
+                        child: pw.Text('금액',
+                            style: pw.TextStyle(font: ttfBold),
+                            textAlign: pw.TextAlign.center)),
                   ],
                 ),
               ),
-              // 테이블 내용
+              // 테이블 내용 - 모든 행에 구분선 추가
               ...furnitureList.map((furniture) => pw.Container(
                     decoration: pw.BoxDecoration(
                       border: pw.Border(
-                        top: pw.BorderSide(color: PdfColor.fromHex('EAEAEC')),
+                        bottom:
+                            pw.BorderSide(color: PdfColor.fromHex('EAEAEC')),
                       ),
                     ),
                     padding: const pw.EdgeInsets.all(16),
                     child: pw.Row(
                       children: [
                         pw.Expanded(
-                            flex: 2,
-                            child: pw.Text('기존가구',
-                                style: pw.TextStyle(font: ttf))),
-                        pw.Expanded(
-                            flex: 3,
+                            flex: 4,
                             child: pw.Text(furniture['name'] ?? '',
                                 style: pw.TextStyle(font: ttf))),
-                        pw.Expanded(
-                            flex: 1,
-                            child: pw.Text(
-                                furniture['quantity']?.toString() ?? '',
-                                style: pw.TextStyle(font: ttf))),
-                        pw.Expanded(
-                            flex: 2,
-                            child: pw.Text(_formatDate(estimate['updatedAt']),
-                                style: pw.TextStyle(font: ttf))),
+                        pw.Container(
+                          width: 1,
+                          height: 20,
+                          decoration: pw.BoxDecoration(
+                            color: PdfColor.fromHex('EAEAEC'),
+                          ),
+                        ),
                         pw.Expanded(
                             flex: 2,
                             child: pw.Text(
                                 '${_formatNumber(furniture['price'])}원',
-                                style: pw.TextStyle(font: ttf))),
+                                style: pw.TextStyle(font: ttf),
+                                textAlign: pw.TextAlign.center)),
+                        pw.Container(
+                          width: 1,
+                          height: 20,
+                          decoration: pw.BoxDecoration(
+                            color: PdfColor.fromHex('EAEAEC'),
+                          ),
+                        ),
+                        pw.Expanded(
+                            flex: 1,
+                            child: pw.Text(
+                                furniture['quantity']?.toString() ?? '',
+                                style: pw.TextStyle(font: ttf),
+                                textAlign: pw.TextAlign.center)),
+                        pw.Container(
+                          width: 1,
+                          height: 20,
+                          decoration: pw.BoxDecoration(
+                            color: PdfColor.fromHex('EAEAEC'),
+                          ),
+                        ),
+                        pw.Expanded(
+                            flex: 2,
+                            child: pw.Text(
+                                '${_formatNumber((furniture['price'] ?? 0) * (furniture['quantity'] ?? 0))}원',
+                                style: pw.TextStyle(font: ttf),
+                                textAlign: pw.TextAlign.center)),
                       ],
                     ),
                   )),
-              // 총 합계 행 추가
+              // 견적일자와 총금액 행 - 색상 분리
               pw.Container(
                 decoration: pw.BoxDecoration(
                   border: pw.Border(
                     top: pw.BorderSide(
                         color: PdfColor.fromHex('000000'), width: 2),
+                    bottom: pw.BorderSide(color: PdfColor.fromHex('EAEAEC')),
                   ),
                 ),
                 padding: const pw.EdgeInsets.all(16),
                 child: pw.Row(
                   children: [
-                    // 빈 공간 (8개 flex 만큼)
-                    pw.Expanded(flex: 8, child: pw.Container()),
-                    // 총 합계 레이블
+                    // 견적일자 레이블 (회색 배경)
                     pw.Expanded(
-                      flex: 1,
-                      child: pw.Text(
-                        '총 합계',
-                        style: pw.TextStyle(font: ttfBold, fontSize: 14),
-                        textAlign: pw.TextAlign.center,
+                      flex: 2,
+                      child: pw.Container(
+                        decoration: pw.BoxDecoration(
+                          color: PdfColor.fromHex('F7F7FB'),
+                        ),
+                        padding: const pw.EdgeInsets.all(8),
+                        child: pw.Text(
+                          '견적일자',
+                          style: pw.TextStyle(font: ttfBold, fontSize: 14),
+                        ),
                       ),
                     ),
-                    // 총 합계 금액
+                    // 견적일자 값 (흰색 배경)
+                    pw.Expanded(
+                      flex: 3,
+                      child: pw.Container(
+                        decoration: pw.BoxDecoration(
+                          color: PdfColor.fromHex('FFFFFF'),
+                        ),
+                        padding: const pw.EdgeInsets.all(8),
+                        child: pw.Text(
+                          _formatDate(estimate['updatedAt']),
+                          style: pw.TextStyle(font: ttf, fontSize: 14),
+                        ),
+                      ),
+                    ),
+                    pw.Container(
+                      width: 1,
+                      height: 20,
+                      decoration: pw.BoxDecoration(
+                        color: PdfColor.fromHex('EAEAEC'),
+                      ),
+                    ),
+                    // 총금액 레이블 (회색 배경)
                     pw.Expanded(
                       flex: 1,
-                      child: pw.Text(
-                        '${_formatNumber(_calculateTotal(furnitureList))}원',
-                        style: pw.TextStyle(font: ttfBold, fontSize: 14),
-                        textAlign: pw.TextAlign.right,
+                      child: pw.Container(
+                        decoration: pw.BoxDecoration(
+                          color: PdfColor.fromHex('F7F7FB'),
+                        ),
+                        padding: const pw.EdgeInsets.all(8),
+                        child: pw.Text(
+                          '총금액',
+                          style: pw.TextStyle(font: ttfBold, fontSize: 14),
+                          textAlign: pw.TextAlign.center,
+                        ),
+                      ),
+                    ),
+                    pw.Container(
+                      width: 1,
+                      height: 20,
+                      decoration: pw.BoxDecoration(
+                        color: PdfColor.fromHex('EAEAEC'),
+                      ),
+                    ),
+                    // 총금액 값 (흰색 배경)
+                    pw.Expanded(
+                      flex: 2,
+                      child: pw.Container(
+                        decoration: pw.BoxDecoration(
+                          color: PdfColor.fromHex('FFFFFF'),
+                        ),
+                        padding: const pw.EdgeInsets.all(8),
+                        child: pw.Text(
+                          '${_formatNumber(_calculateTotal(furnitureList))}원',
+                          style: pw.TextStyle(font: ttfBold, fontSize: 14),
+                          textAlign: pw.TextAlign.center,
+                        ),
                       ),
                     ),
                   ],
@@ -1198,6 +1368,9 @@ class _CustomerEstimatePageState extends ConsumerState<CustomerEstimatePage> {
             ],
           ),
         ),
+
+        // 메모 섹션
+        pw.SizedBox(height: 16),
       ],
     );
   }

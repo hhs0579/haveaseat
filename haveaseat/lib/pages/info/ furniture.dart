@@ -74,15 +74,22 @@ class _furniturePageState extends ConsumerState<furniturePage> {
         throw Exception('가구 정보를 입력해주세요');
       }
 
-      // 고객 정보 가져오기
-      final customer = await ref
-          .read(customerDataProvider.notifier)
-          .getCustomer(widget.customerId);
-      if (customer == null || customer.estimateIds.isEmpty) {
-        throw Exception('고객 정보를 찾을 수 없습니다');
+      String targetEstimateId;
+
+      // 견적 ID 결정
+      if (widget.estimateId != null) {
+        targetEstimateId = widget.estimateId!;
+      } else {
+        // 고객 정보 가져오기 (새 고객 모드)
+        final customer = await ref
+            .read(customerDataProvider.notifier)
+            .getCustomer(widget.customerId);
+        if (customer == null || customer.estimateIds.isEmpty) {
+          throw Exception('고객 정보를 찾을 수 없습니다');
+        }
+        targetEstimateId = customer.estimateIds[0];
       }
 
-      final estimateId = customer.estimateIds[0];
       List<Map<String, dynamic>> existingFurnitureList = [];
       List<Map<String, dynamic>> customFurnitureList = [];
 
@@ -144,7 +151,7 @@ class _furniturePageState extends ConsumerState<furniturePage> {
       // 임시 저장 데이터
       final tempData = {
         'customerId': widget.customerId,
-        'estimateId': estimateId,
+        'estimateId': targetEstimateId,
         'status': EstimateStatus.IN_PROGRESS.toString(),
         'lastUpdated': FieldValue.serverTimestamp(),
         'isTemp': true,
@@ -153,15 +160,22 @@ class _furniturePageState extends ConsumerState<furniturePage> {
 
       await FirebaseFirestore.instance
           .collection('temp_estimates')
-          .doc(estimateId)
+          .doc(targetEstimateId)
           .set(tempData, SetOptions(merge: true));
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('임시 저장되었습니다')),
         );
-        context.go(
-            '/main/addpage/spaceadd/${widget.customerId}/space-detail/furniture/estimate');
+
+        // 다음 페이지 이동 경로 분기
+        if (widget.estimateId != null) {
+          context.go(
+              '/main/customer/${widget.customerId}/estimate/${widget.estimateId}/edit/space-detail/furniture/estimate');
+        } else {
+          context.go(
+              '/main/addpage/spaceadd/${widget.customerId}/space-detail/furniture/estimate');
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -194,15 +208,22 @@ class _furniturePageState extends ConsumerState<furniturePage> {
         throw Exception('가구 정보를 입력해주세요');
       }
 
-      // 고객 정보 가져오기
-      final customer = await ref
-          .read(customerDataProvider.notifier)
-          .getCustomer(widget.customerId);
-      if (customer == null || customer.estimateIds.isEmpty) {
-        throw Exception('고객 정보를 찾을 수 없습니다');
+      String targetEstimateId;
+
+      // 견적 ID 결정
+      if (widget.estimateId != null) {
+        targetEstimateId = widget.estimateId!;
+      } else {
+        // 고객 정보 가져오기 (새 고객 모드)
+        final customer = await ref
+            .read(customerDataProvider.notifier)
+            .getCustomer(widget.customerId);
+        if (customer == null || customer.estimateIds.isEmpty) {
+          throw Exception('고객 정보를 찾을 수 없습니다');
+        }
+        targetEstimateId = customer.estimateIds[0];
       }
 
-      final estimateId = customer.estimateIds[0];
       List<Map<String, dynamic>> existingFurnitureList = [];
       List<Map<String, dynamic>> customFurnitureList = [];
 
@@ -271,7 +292,7 @@ class _furniturePageState extends ConsumerState<furniturePage> {
       // 기존 데이터 가져오기
       final estimateDoc = await FirebaseFirestore.instance
           .collection('estimates')
-          .doc(estimateId)
+          .doc(targetEstimateId)
           .get();
 
       if (!estimateDoc.exists) {
@@ -281,25 +302,34 @@ class _furniturePageState extends ConsumerState<furniturePage> {
       // estimate 컬렉션에 저장 - memo 필드 추가
       await FirebaseFirestore.instance
           .collection('estimates')
-          .doc(estimateId)
+          .doc(targetEstimateId)
           .set({
         'furnitureList': combinedFurnitureList,
         'updatedAt': FieldValue.serverTimestamp(),
         'memo': memo, // 메모 필드 추가
       }, SetOptions(merge: true));
 
-      // 임시 저장 데이터 삭제
-      await FirebaseFirestore.instance
-          .collection('temp_estimates')
-          .doc(estimateId)
-          .delete();
+      // 임시 저장 데이터 삭제 (새 고객 모드일 때만)
+      if (widget.estimateId == null) {
+        await FirebaseFirestore.instance
+            .collection('temp_estimates')
+            .doc(targetEstimateId)
+            .delete();
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('저장되었습니다')),
         );
-        context.go(
-            '/main/addpage/spaceadd/${widget.customerId}/space-detail/furniture/estimate');
+
+        // 다음 페이지 이동 경로 분기
+        if (widget.estimateId != null) {
+          context.go(
+              '/main/customer/${widget.customerId}/estimate/${widget.estimateId}/edit/space-detail/furniture/estimate');
+        } else {
+          context.go(
+              '/main/addpage/spaceadd/${widget.customerId}/space-detail/furniture/estimate');
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -703,16 +733,85 @@ class _furniturePageState extends ConsumerState<furniturePage> {
     );
   }
 
+  Future<void> _loadExistingEstimateData() async {
+    if (widget.estimateId != null) {
+      try {
+        final estimateDoc = await FirebaseFirestore.instance
+            .collection('estimates')
+            .doc(widget.estimateId!)
+            .get();
+
+        if (estimateDoc.exists) {
+          final data = estimateDoc.data()!;
+          final furnitureList = data['furnitureList'] as List<dynamic>? ?? [];
+
+          // 기존 리스트 초기화
+          setState(() {
+            _existingFurnitureFields.clear();
+            _customFurnitureFields.clear();
+          });
+
+          for (var furniture in furnitureList) {
+            final isCustom = furniture['isCustom'] as bool? ?? false;
+
+            if (isCustom) {
+              // 제작 가구 필드 추가
+              final field = CustomFurnitureField();
+              field.nameController.text = furniture['name'] ?? '';
+              field.descriptionController.text = furniture['description'] ?? '';
+              field.quantityController.text =
+                  furniture['quantity']?.toString() ?? '';
+              field.priceController.text = furniture['price']?.toString() ?? '';
+
+              setState(() {
+                _customFurnitureFields.add(field);
+              });
+            } else {
+              // 기존 가구 필드 추가
+              final field = FurnitureField();
+              field.searchController.text = furniture['name'] ?? '';
+              field.quantityController.text =
+                  furniture['quantity']?.toString() ?? '';
+
+              setState(() {
+                _existingFurnitureFields.add(field);
+              });
+            }
+          }
+
+          // 빈 필드가 없으면 하나씩 추가
+          if (_existingFurnitureFields.isEmpty) {
+            setState(() {
+              _existingFurnitureFields.add(FurnitureField());
+            });
+          }
+          if (_customFurnitureFields.isEmpty) {
+            setState(() {
+              _customFurnitureFields.add(CustomFurnitureField());
+            });
+          }
+        }
+      } catch (e) {
+        print('Error loading existing estimate data: $e');
+      }
+    }
+  }
+
   @override
   void initState() {
     super.initState();
 
-    // 첫 번째 항목 추가
-    _existingFurnitureFields.add(FurnitureField());
-    _customFurnitureFields.add(CustomFurnitureField());
+    // 기존 견적 편집 모드가 아닌 경우에만 첫 번째 항목 추가
+    if (widget.estimateId == null) {
+      _existingFurnitureFields.add(FurnitureField());
+      _customFurnitureFields.add(CustomFurnitureField());
+    }
 
     // 페이지 컨트롤러 초기화
     _pageController = PageController();
+
+    // 기존 견적 데이터 로드
+    _loadExistingEstimateData();
   }
 
   @override
