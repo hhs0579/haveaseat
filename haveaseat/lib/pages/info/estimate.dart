@@ -29,10 +29,12 @@ import 'package:printing/printing.dart';
 class EstimatePage extends ConsumerStatefulWidget {
   final String customerId;
   final String? estimateId;
+  final String? name;
   const EstimatePage({
     super.key,
     required this.customerId,
     this.estimateId,
+    this.name,
   });
 
   @override
@@ -342,8 +344,7 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                     ),
                     SizedBox(
                       width: cellWidth,
-                      child:
-                          _buildFileCell('사업자등록증', customer.businessLicenseUrl),
+                      child: _buildFileCell('사업자등록증', customer.businessLicenseUrl),
                     ),
                   ],
                 ),

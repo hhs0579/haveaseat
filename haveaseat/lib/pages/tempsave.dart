@@ -152,44 +152,28 @@ class _TempSavePageState extends ConsumerState<TempSavePage> {
       final currentUserId = FirebaseAuth.instance.currentUser?.uid;
       if (currentUserId == null) return [];
 
-      // 예시: 임시저장된 고객정보 가져오기 (isDraft가 true인 항목들)
-      final snapshot = await FirebaseFirestore.instance
-          .collection('customers')
-          .where('assignedTo', isEqualTo: currentUserId)
-          .where('isDraft', isEqualTo: true)
-          .get();
-
-      List<Map<String, dynamic>> tempSaveItems = [];
-
-      for (var doc in snapshot.docs) {
-        final data = doc.data();
-        tempSaveItems.add({
-          'id': doc.id,
-          'companyName': data['name'] ?? '무제',
-          'type': '고객정보',
-          'createdDate': data['createdAt'] ?? Timestamp.now(),
-          'modifiedDate':
-              data['updatedAt'] ?? data['createdAt'] ?? Timestamp.now(),
-          'manager': data['managerName'] ?? '담당자 미정',
-        });
-      }
-
-      // 견적정보 임시저장도 추가 (예시)
+      // estimates 컬렉션에서 isDraft: true인 임시저장 데이터만 가져오기
       final estimateSnapshot = await FirebaseFirestore.instance
           .collection('estimates')
           .where('isDraft', isEqualTo: true)
           .get();
 
+      List<Map<String, dynamic>> tempSaveItems = [];
+
       for (var doc in estimateSnapshot.docs) {
         final data = doc.data();
         tempSaveItems.add({
           'id': doc.id,
-          'companyName': data['customerName'] ?? '무제',
-          'type': '견적정보',
-          'createdDate': data['createdAt'] ?? Timestamp.now(),
+          'customerId': data['customerId'] ?? doc.id,
+          'estimateId': data['estimateId'] ?? doc.id,
+          'name': data['name'] ?? '무제',
+          'type': data['type'] ?? '임시저장',
+          'createdDate':
+              data['createdAt'] ?? data['lastUpdated'] ?? Timestamp.now(),
           'modifiedDate':
-              data['updatedAt'] ?? data['createdAt'] ?? Timestamp.now(),
+              data['updatedAt'] ?? data['lastUpdated'] ?? Timestamp.now(),
           'manager': data['managerName'] ?? '담당자 미정',
+          'isDraft': true,
         });
       }
 
@@ -205,15 +189,31 @@ class _TempSavePageState extends ConsumerState<TempSavePage> {
     if (_searchController.text.isEmpty &&
         _startDate == null &&
         _endDate == null) {
-      return items;
+      // isDraft == true이면서 이름이 비어있지 않고 '무제', '이름없음'이 아닌 데이터만 반환
+      return items
+          .where((item) =>
+              item['isDraft'] == true &&
+              item['name'] != null &&
+              item['name'].toString().trim().isNotEmpty &&
+              item['name'] != '무제' &&
+              item['name'] != '이름없음')
+          .toList();
     }
 
     return items.where((item) {
+      if (item['isDraft'] != true) return false;
+      if (item['name'] == null || item['name'].toString().trim().isEmpty) {
+        return false;
+      }
+      if (item['name'] == '무제' || item['name'] == '이름없음') {
+        return false;
+      }
+
       // 검색어 필터링
       if (_searchController.text.isNotEmpty) {
         String searchTerm = _searchController.text.toLowerCase();
         bool matchesSearch =
-            item['companyName'].toString().toLowerCase().contains(searchTerm) ||
+            item['name'].toString().toLowerCase().contains(searchTerm) ||
                 item['type'].toString().toLowerCase().contains(searchTerm) ||
                 item['manager'].toString().toLowerCase().contains(searchTerm);
 
@@ -321,12 +321,37 @@ class _TempSavePageState extends ConsumerState<TempSavePage> {
             ),
           ),
           buildDataCell(
-            item['companyName'],
+            item['name'],
             totalWidth * COMPANY_NAME_RATIO,
             isClickable: true,
             onTap: () {
-              // TODO: 임시저장 상세 페이지로 이동
-              // context.go('/temp-save/${item['id']}');
+              final customerId = item['customerId'] ?? item['id'];
+              final estimateId = item['estimateId'] ?? item['id'];
+              final type = item['type'] ?? '';
+              final name = item['name'] ?? '';
+              if (type == '고객정보') {
+                context.go('/main/addpage/spaceadd/$customerId/$estimateId',
+                    extra: {'name': name});
+              } else if (type == '공간기본') {
+                context.go(
+                    '/main/addpage/spaceadd/$customerId/$estimateId/space-detail',
+                    extra: {'name': name});
+              } else if (type == '공간상세') {
+                context.go(
+                    '/main/addpage/spaceadd/$customerId/$estimateId/space-detail',
+                    extra: {'name': name});
+              } else if (type == '가구') {
+                context.go(
+                    '/main/addpage/spaceadd/$customerId/$estimateId/space-detail/furniture',
+                    extra: {'name': name});
+              } else if (type == '견적정보' || type == '견적') {
+                context.go(
+                    '/main/addpage/spaceadd/$customerId/$estimateId/space-detail/furniture/estimate',
+                    extra: {'name': name});
+              } else {
+                context.go('/main/addpage/spaceadd/$customerId/$estimateId',
+                    extra: {'name': name});
+              }
             },
           ),
           buildDataCell(item['type'], totalWidth * TYPE_RATIO),
@@ -787,66 +812,57 @@ class _TempSavePageState extends ConsumerState<TempSavePage> {
                                           SizedBox(
                                             width: availableWidth,
                                             height: availableHeight,
-                                            child: ClipRRect(
-                                              child: SingleChildScrollView(
-                                                scrollDirection:
-                                                    Axis.horizontal,
-                                                child: ConstrainedBox(
-                                                  constraints: BoxConstraints(
-                                                    minWidth: tableWidth,
-                                                  ),
-                                                  child: Column(
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .start,
-                                                    children: [
-                                                      FutureBuilder<
-                                                          List<
-                                                              Map<String,
-                                                                  dynamic>>>(
-                                                        future:
-                                                            _fetchTempSaveData(),
-                                                        builder: (context,
-                                                            snapshot) {
-                                                          if (snapshot
-                                                                  .connectionState ==
-                                                              ConnectionState
-                                                                  .waiting) {
-                                                            return const Center(
-                                                                child:
-                                                                    CircularProgressIndicator());
-                                                          }
+                                            child: SingleChildScrollView(
+                                              scrollDirection: Axis.horizontal,
+                                              child: ConstrainedBox(
+                                                constraints: BoxConstraints(
+                                                  minWidth: tableWidth,
+                                                ),
+                                                child: SingleChildScrollView(
+                                                  scrollDirection:
+                                                      Axis.vertical,
+                                                  child: FutureBuilder<
+                                                      List<
+                                                          Map<String,
+                                                              dynamic>>>(
+                                                    future:
+                                                        _fetchTempSaveData(),
+                                                    builder:
+                                                        (context, snapshot) {
+                                                      if (snapshot
+                                                              .connectionState ==
+                                                          ConnectionState
+                                                              .waiting) {
+                                                        return const Center(
+                                                            child:
+                                                                CircularProgressIndicator());
+                                                      }
 
-                                                          if (snapshot
-                                                              .hasError) {
-                                                            return Center(
-                                                                child: Text(
-                                                                    'Error: ${snapshot.error}'));
-                                                          }
+                                                      if (snapshot.hasError) {
+                                                        return Center(
+                                                            child: Text(
+                                                                'Error: ${snapshot.error}'));
+                                                      }
 
-                                                          final items =
-                                                              snapshot.data ??
-                                                                  [];
-                                                          final filteredItems =
-                                                              _filterItems(
-                                                                  items);
+                                                      final items =
+                                                          snapshot.data ?? [];
+                                                      final filteredItems =
+                                                          _filterItems(items);
 
-                                                          return Column(
-                                                            children: [
-                                                              buildTableHeader(
-                                                                  tableWidth,
-                                                                  items),
-                                                              ...filteredItems
-                                                                  .map((item) =>
-                                                                      buildItemRow(
-                                                                          item,
-                                                                          tableWidth))
-                                                                  .toList(),
-                                                            ],
-                                                          );
-                                                        },
-                                                      ),
-                                                    ],
+                                                      return Column(
+                                                        children: [
+                                                          buildTableHeader(
+                                                              tableWidth,
+                                                              items),
+                                                          ...filteredItems
+                                                              .map((item) =>
+                                                                  buildItemRow(
+                                                                      item,
+                                                                      tableWidth))
+                                                              .toList(),
+                                                        ],
+                                                      );
+                                                    },
                                                   ),
                                                 ),
                                               ),

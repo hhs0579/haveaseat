@@ -42,6 +42,7 @@ class Customer {
   final DateTime createdAt;
   final DateTime updatedAt;
   final List<String> estimateIds;
+  final bool isDraft; // 추가
 
   Customer({
     required this.id,
@@ -57,6 +58,7 @@ class Customer {
     required this.createdAt,
     required this.updatedAt,
     required this.estimateIds,
+    this.isDraft = false, // 기본값 false
   });
 
   factory Customer.fromJson(String id, Map<String, dynamic> json) {
@@ -86,6 +88,7 @@ class Customer {
       createdAt: (json['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (json['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       estimateIds: List<String>.from(json['estimateIds'] ?? []),
+      isDraft: json['isDraft'] ?? false, // 추가
     );
   }
 
@@ -104,6 +107,7 @@ class Customer {
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
       'estimateIds': estimateIds,
+      'isDraft': isDraft, // 추가
     };
   }
 }
@@ -838,15 +842,15 @@ class CustomerNotifier extends AsyncNotifier<List<Customer>> {
     required List<String> otherDocumentUrls,
     required String note,
     required String assignedTo,
+    bool isDraft = false, // 추가: 정식저장/임시저장 구분
   }) async {
     try {
       state = const AsyncValue.loading();
       final now = DateTime.now();
 
-      // 1. 고객 문서 생성
+      // 1. 고객 문서 생성 (임시/정식 모두 생성)
       final customerRef =
           FirebaseFirestore.instance.collection('customers').doc();
-      // 2. 기본 견적 문서 생성
       final estimateRef =
           FirebaseFirestore.instance.collection('estimates').doc();
 
@@ -866,13 +870,15 @@ class CustomerNotifier extends AsyncNotifier<List<Customer>> {
         'createdAt': now,
         'updatedAt': now,
         'estimateIds': [estimateRef.id],
+        'isDraft': isDraft, // 추가
       };
 
-      // 4. 트랜잭션으로 두 문서 동시 생성
-      await FirebaseFirestore.instance.runTransaction((transaction) async {
-        transaction.set(customerRef, customerData);
-        transaction.set(estimateRef, estimateData);
-      });
+      // 임시/정식 모두 customers 문서 생성
+      await customerRef.set(customerData);
+      // 정식저장일 때만 estimates 문서도 같이 생성
+      if (!isDraft) {
+        await estimateRef.set(estimateData);
+      }
 
       state = AsyncValue.data(await _fetchCustomers());
       return customerRef.id;

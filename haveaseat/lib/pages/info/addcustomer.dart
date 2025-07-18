@@ -11,10 +11,18 @@ import 'package:haveaseat/riverpod/usermodel.dart';
 import 'package:haveaseat/widget/address.dart';
 import 'package:haveaseat/widget/fileupload.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:uuid/uuid.dart';
 
 class addCustomerPage extends ConsumerStatefulWidget {
-  // ConsumerWidget을 ConsumerStatefulWidget으로 변경
-  const addCustomerPage({super.key});
+  final String? customerId;
+  final String? estimateId;
+  final String? name;
+  const addCustomerPage({
+    super.key,
+    this.customerId,
+    this.estimateId,
+    this.name,
+  });
 
   @override
   ConsumerState<addCustomerPage> createState() => _addCustomerPageState();
@@ -123,59 +131,69 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
   Future<void> _saveTempCustomer() async {
     try {
       final user = ref.read(UserProvider.currentUserProvider).value;
-      if (user == null) {
-        throw Exception('로그인이 필요합니다');
-      }
-      final customerId =
-          await ref.read(customerDataProvider.notifier).addCustomer(
-                name: _nameController.text,
-                phone: _phoneController.text,
-                email:
-                    '${_emailController.text}@${selectedDomain ?? _directDomainController.text}',
-                address:
-                    '${_addressController.text} ${_detailAddressController.text}',
-                businessLicenseUrl: _businessLicenseUrl ?? '',
-                otherDocumentUrls: _otherDocumentUrls,
-                note: _noteController.text,
-                assignedTo: user.uid,
-              );
-      // 새로운 견적 ID 생성
-      final estimateRef =
-          FirebaseFirestore.instance.collection('estimates').doc();
-
-      // 임시 저장 데이터 생성
-      final tempData = {
-        'estimateId': estimateRef.id,
-        'status': EstimateStatus.IN_PROGRESS.toString(),
-        'lastUpdated': FieldValue.serverTimestamp(),
-        'isTemp': true,
-        // 고객 정보
-        'customerInfo': {
-          'name': _nameController.text,
+      if (user == null) throw Exception('로그인이 필요합니다');
+      final estimateId = widget.estimateId ??
+          FirebaseFirestore.instance.collection('estimates').doc().id;
+      final customerId = widget.customerId ??
+          FirebaseFirestore.instance.collection('customers').doc().id;
+      final isNewCustomer = widget.customerId == null;
+      // 고객 최초 생성시에만 estimateIds 추가
+      if (isNewCustomer) {
+        await FirebaseFirestore.instance
+            .collection('customers')
+            .doc(customerId)
+            .set({
+          'name': _nameController.text.trim().isNotEmpty
+              ? _nameController.text.trim()
+              : '이름없음',
           'phone': _phoneController.text,
           'email':
               '${_emailController.text}@${selectedDomain ?? _directDomainController.text}',
           'address':
               '${_addressController.text} ${_detailAddressController.text}',
-          'businessLicenseUrl': _businessLicenseUrl,
+          'businessLicenseUrl': _businessLicenseUrl ?? '',
           'otherDocumentUrls': _otherDocumentUrls,
           'note': _noteController.text,
           'assignedTo': user.uid,
-        }
-      };
-
-      // temp_estimates 컬렉션에 저장
-      await FirebaseFirestore.instance
-          .collection('temp_estimates')
-          .doc(estimateRef.id)
-          .set(tempData, SetOptions(merge: true));
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('임시 저장되었습니다')),
-        );
-        context.go('/main/addpage/spaceadd/$customerId');
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+          'estimateIds': [estimateId],
+          'isDraft': true,
+        }, SetOptions(merge: true));
       }
+      // estimates에 동일한 estimateId로 저장
+      await FirebaseFirestore.instance
+          .collection('estimates')
+          .doc(estimateId)
+          .set({
+        'customerId': customerId,
+        'estimateId': estimateId,
+        'status': EstimateStatus.IN_PROGRESS.toString(),
+        'lastUpdated': FieldValue.serverTimestamp(),
+        'isDraft': true,
+        'type': '고객정보',
+        'name': _nameController.text.trim().isNotEmpty
+            ? _nameController.text.trim()
+            : '이름없음',
+        'customerInfo': {
+          'name': _nameController.text.trim().isNotEmpty
+              ? _nameController.text.trim()
+              : '이름없음',
+          'assignedTo': user.uid,
+        },
+        'otherDocumentUrls': _otherDocumentUrls,
+        'businessLicenseUrl': _businessLicenseUrl ?? '',
+        'note': _noteController.text,
+        'address':
+            '${_addressController.text} ${_detailAddressController.text}',
+        'phone': _phoneController.text,
+        'email':
+            '${_emailController.text}@${selectedDomain ?? _directDomainController.text}',
+      }, SetOptions(merge: true));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('임시 저장되었습니다')),
+      );
+      context.go('/temp');
     } catch (e) {
       print('임시 저장 중 오류: $e');
       if (mounted) {
@@ -259,7 +277,7 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
         throw Exception('로그인이 필요합니다');
       }
 
-      // 고객 정보 저장 및 ID 반환 받기
+      // 고객 정보 저장 및 ID 반환 받기 (정식저장만 호출)
       final customerId =
           await ref.read(customerDataProvider.notifier).addCustomer(
                 name: _nameController.text,
@@ -272,19 +290,28 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
                 otherDocumentUrls: _otherDocumentUrls,
                 note: _noteController.text,
                 assignedTo: user.uid,
+                isDraft: true, // 임시고객임을 명시(실제 customers에는 저장하지 않음)
               );
+
+      // estimates 컬렉션에만 isDraft: true로 저장 (임시저장)
+      await FirebaseFirestore.instance
+          .collection('estimates')
+          .doc(customerId)
+          .set({'isDraft': true}, SetOptions(merge: true));
+
+      // customers 컬렉션에는 저장하지 않음!
 
       // 임시 저장 데이터 삭제
       if (_tempSaveDocId != null) {
         await FirebaseFirestore.instance
-            .collection('temp_estimates')
+            .collection('estimates')
             .doc(_tempSaveDocId)
             .delete();
       }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('고객 정보가 저장되었습니다')),
+          const SnackBar(content: Text('고객 정보가 임시저장되었습니다')),
         );
         // 공간 기본정보 페이지로 이동
         context.go('/main/addpage/spaceadd/$customerId');
@@ -330,6 +357,133 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
     }
 
     return true;
+  }
+
+  // 다음 버튼 클릭 시
+  void _goNext() async {
+    try {
+      final user = ref.read(UserProvider.currentUserProvider).value;
+      if (user == null) throw Exception('로그인이 필요합니다');
+      final estimateId = widget.estimateId ??
+          FirebaseFirestore.instance.collection('estimates').doc().id;
+      final customerId = widget.customerId ??
+          FirebaseFirestore.instance.collection('customers').doc().id;
+      final isNewCustomer = widget.customerId == null;
+      // 고객 최초 생성시에만 estimateIds 추가
+      if (isNewCustomer) {
+        await FirebaseFirestore.instance
+            .collection('customers')
+            .doc(customerId)
+            .set({
+          'name': _nameController.text,
+          'phone': _phoneController.text,
+          'email':
+              '${_emailController.text}@${selectedDomain ?? _directDomainController.text}',
+          'address':
+              '${_addressController.text} ${_detailAddressController.text}',
+          'businessLicenseUrl': _businessLicenseUrl ?? '',
+          'otherDocumentUrls': _otherDocumentUrls,
+          'note': _noteController.text,
+          'assignedTo': user.uid,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+          'estimateIds': [estimateId],
+          'isDraft': true,
+        }, SetOptions(merge: true));
+      }
+      // estimates에 동일한 estimateId로 저장
+      await FirebaseFirestore.instance
+          .collection('estimates')
+          .doc(estimateId)
+          .set({
+        'customerId': customerId,
+        'estimateId': estimateId,
+        'status': EstimateStatus.IN_PROGRESS.toString(),
+        'lastUpdated': FieldValue.serverTimestamp(),
+        'isDraft': true,
+        'type': '공간기본',
+        'name': _nameController.text.isNotEmpty ? _nameController.text : '이름없음',
+        'customerInfo': {
+          'name': _nameController.text,
+          'phone': _phoneController.text,
+          'email':
+              '${_emailController.text}@${selectedDomain ?? _directDomainController.text}',
+          'address':
+              '${_addressController.text} ${_detailAddressController.text}',
+          'businessLicenseUrl': _businessLicenseUrl ?? '',
+          'otherDocumentUrls': _otherDocumentUrls,
+          'note': _noteController.text,
+          'assignedTo': user.uid,
+        }
+      }, SetOptions(merge: true));
+      context.go('/main/addpage/spaceadd/$customerId/$estimateId',
+          extra: {'name': _nameController.text});
+    } catch (e) {
+      print('다음 단계 저장 중 오류: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('다음 단계 저장 중 오류가 발생했습니다: $e')),
+        );
+      }
+    }
+  }
+
+  // 이전 버튼 누르면 이전에 작성한 값 불러오기 (estimates → customers 순)
+  void _loadPreviousData() async {
+    try {
+      final estimateId = widget.estimateId;
+      if (estimateId != null) {
+        final estimateDoc = await FirebaseFirestore.instance
+            .collection('estimates')
+            .doc(estimateId)
+            .get();
+        if (estimateDoc.exists) {
+          final data = estimateDoc.data()!;
+          setState(() {
+            _nameController.text = data['name'] ?? '';
+            _phoneController.text = data['phone'] ?? '';
+            _emailController.text = (data['email'] ?? '').split('@').first;
+            // 도메인 분리
+            final emailParts = (data['email'] ?? '').split('@');
+            if (emailParts.length == 2) {
+              selectedDomain = emailParts[1];
+            }
+            _addressController.text = data['address']?.split(' ').first ?? '';
+            _detailAddressController.text =
+                data['address']?.split(' ').skip(1).join(' ') ?? '';
+            _noteController.text = data['note'] ?? '';
+          });
+          return;
+        }
+      }
+      // estimates에 없으면 customers에서 불러오기
+      final customerId = widget.customerId;
+      if (customerId != null) {
+        final customerDoc = await FirebaseFirestore.instance
+            .collection('customers')
+            .doc(customerId)
+            .get();
+        if (customerDoc.exists) {
+          final data = customerDoc.data()!;
+          setState(() {
+            _nameController.text = data['name'] ?? '';
+            _phoneController.text = data['phone'] ?? '';
+            _emailController.text = (data['email'] ?? '').split('@').first;
+            // 도메인 분리
+            final emailParts = (data['email'] ?? '').split('@');
+            if (emailParts.length == 2) {
+              selectedDomain = emailParts[1];
+            }
+            _addressController.text = data['address']?.split(' ').first ?? '';
+            _detailAddressController.text =
+                data['address']?.split(' ').skip(1).join(' ') ?? '';
+            _noteController.text = data['note'] ?? '';
+          });
+        }
+      }
+    } catch (e) {
+      print('이전 데이터 불러오기 오류: $e');
+    }
   }
 
   @override

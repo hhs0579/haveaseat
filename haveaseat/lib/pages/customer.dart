@@ -815,6 +815,7 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
     // 먼저 담당 고객만 필터링 (managerId 대신 assignedTo 사용)
     final myCustomers = customers
         .where((customer) => customer.assignedTo == currentUserId)
+        .where((customer) => customer.isDraft != true) // isDraft==false만 남김
         .toList();
 
     // 검색어나 날짜 필터가 없으면 담당 고객 전체 반환

@@ -394,12 +394,13 @@ class _MainPageState extends ConsumerState<MainPage> {
   List<Customer> _filterCustomers(List<Customer> customers) {
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
 
-    // 먼저 담당 고객만 필터링
+    // 담당 고객만 필터링 후, 임시저장 제외
     var filteredCustomers = customers
         .where((customer) => customer.assignedTo == currentUserId)
+        .where((customer) => customer.isDraft != true) // isDraft==false만 남김
         .toList();
 
-    // Status 필터 적용
+    // Status filter
     if (_selectedStatus != null) {
       filteredCustomers = filteredCustomers
           .where((customer) => customer.status == _selectedStatus)

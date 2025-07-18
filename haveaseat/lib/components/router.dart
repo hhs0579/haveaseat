@@ -79,6 +79,25 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: 'addpage',
             builder: (context, state) => const addCustomerPage(),
             routes: [
+              // 임시저장 이어쓰기: addcustomer부터 시작
+              GoRoute(
+                path: 'addcustomer/:customerId/:estimateId',
+                builder: (context, state) {
+                  final customerId = state.pathParameters['customerId']!;
+                  final estimateId = state.pathParameters['estimateId']!;
+                  final name = state.extra != null &&
+                          state.extra is Map &&
+                          (state.extra as Map).containsKey('name')
+                      ? (state.extra as Map)['name'] as String
+                      : null;
+                  return addCustomerPage(
+                    customerId: customerId,
+                    estimateId: estimateId,
+                    name: name,
+                  );
+                },
+              ),
+              // 기존: /main/addpage/spaceadd/:customerId
               GoRoute(
                 path: 'spaceadd/:customerId',
                 name: 'mainSpaceAdd',
@@ -119,76 +138,158 @@ final routerProvider = Provider<GoRouter>((ref) {
                   ),
                 ],
               ),
+              // 추가: /main/addpage/spaceadd/:customerId/:estimateId 이하 경로 (임시저장 이어쓰기)
+              GoRoute(
+                path: 'spaceadd/:customerId/:estimateId',
+                builder: (context, state) {
+                  final customerId = state.pathParameters['customerId']!;
+                  final estimateId = state.pathParameters['estimateId']!;
+                  final name = state.extra != null &&
+                          state.extra is Map &&
+                          (state.extra as Map).containsKey('name')
+                      ? (state.extra as Map)['name'] as String
+                      : null;
+                  return SpaceAddPage(
+                      customerId: customerId,
+                      estimateId: estimateId,
+                      name: name);
+                },
+                routes: [
+                  GoRoute(
+                    path: 'space-detail',
+                    builder: (context, state) {
+                      final customerId = state.pathParameters['customerId']!;
+                      final estimateId = state.pathParameters['estimateId']!;
+                      final name = state.extra != null &&
+                              state.extra is Map &&
+                              (state.extra as Map).containsKey('name')
+                          ? (state.extra as Map)['name'] as String
+                          : null;
+                      return SpaceDetailPage(
+                          customerId: customerId,
+                          estimateId: estimateId,
+                          name: name);
+                    },
+                    routes: [
+                      GoRoute(
+                        path: 'furniture',
+                        builder: (context, state) {
+                          final customerId =
+                              state.pathParameters['customerId']!;
+                          final estimateId =
+                              state.pathParameters['estimateId']!;
+                          final name = state.extra != null &&
+                                  state.extra is Map &&
+                                  (state.extra as Map).containsKey('name')
+                              ? (state.extra as Map)['name'] as String
+                              : null;
+                          return furniturePage(
+                              customerId: customerId,
+                              estimateId: estimateId,
+                              name: name);
+                        },
+                        routes: [
+                          GoRoute(
+                            path: 'estimate',
+                            builder: (context, state) {
+                              final customerId =
+                                  state.pathParameters['customerId']!;
+                              final estimateId =
+                                  state.pathParameters['estimateId']!;
+                              final name = state.extra != null &&
+                                      state.extra is Map &&
+                                      (state.extra as Map).containsKey('name')
+                                  ? (state.extra as Map)['name'] as String
+                                  : null;
+                              return EstimatePage(
+                                  customerId: customerId,
+                                  estimateId: estimateId,
+                                  name: name);
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ],
           ),
-      GoRoute(
-  path: 'customer/:id',
-  builder: (context, state) => CustomerDetailPage(
-    customerId: state.pathParameters['id']!,
-  ),
-  routes: [
-    GoRoute(
-      path: 'estimate/:estimateId',
-      builder: (context, state) => CustomerEstimatePage(
-        customerId: state.pathParameters['id']!,
-        estimateId: state.pathParameters['estimateId']!,
-      ),
-    ),
-    GoRoute(
-      path: 'estimate/:estimateId/order',
-      builder: (context, state) => OrderEstimatePage(
-        customerId: state.pathParameters['id']!,
-        estimateId: state.pathParameters['estimateId']!,
-      ),
-    ),
-    GoRoute(
-      path: 'estimate/:estimateId/release',
-      builder: (context, state) => ReleaseEstimatePage(
-        customerId: state.pathParameters['id']!,
-        estimateId: state.pathParameters['estimateId']!,
-      ),
-    ),
-    // ✅ 기존 견적 편집을 위한 플로우 (estimateId 포함)
-    GoRoute(
-      path: 'estimate/:estimateId/edit',
-      builder: (context, state) {
-        final customerId = state.pathParameters['id']!;
-        final estimateId = state.pathParameters['estimateId']!;
-        return SpaceAddPage(customerId: customerId, estimateId: estimateId);
-      },
-      routes: [
-        GoRoute(
-          path: 'space-detail',
-          builder: (context, state) {
-            final customerId = state.pathParameters['id']!;
-            final estimateId = state.pathParameters['estimateId']!;
-            return SpaceDetailPage(customerId: customerId, estimateId: estimateId);
-          },
-          routes: [
-            GoRoute(
-              path: 'furniture',
-              builder: (context, state) {
-                final customerId = state.pathParameters['id']!;
-                final estimateId = state.pathParameters['estimateId']!;
-                return furniturePage(customerId: customerId, estimateId: estimateId);
-              },
-              routes: [
-                GoRoute(
-                  path: 'estimate',
-                  builder: (context, state) {
-                    final customerId = state.pathParameters['id']!;
-                    final estimateId = state.pathParameters['estimateId']!;
-                    return EstimatePage(customerId: customerId, estimateId: estimateId);
-                  },
-                ),
-              ],
+          GoRoute(
+            path: 'customer/:id',
+            builder: (context, state) => CustomerDetailPage(
+              customerId: state.pathParameters['id']!,
             ),
-          ],
-        ),
-      ],
-    ),
-  ],
-),
+            routes: [
+              GoRoute(
+                path: 'estimate/:estimateId',
+                builder: (context, state) => CustomerEstimatePage(
+                  customerId: state.pathParameters['id']!,
+                  estimateId: state.pathParameters['estimateId']!,
+                ),
+              ),
+              GoRoute(
+                path: 'estimate/:estimateId/order',
+                builder: (context, state) => OrderEstimatePage(
+                  customerId: state.pathParameters['id']!,
+                  estimateId: state.pathParameters['estimateId']!,
+                ),
+              ),
+              GoRoute(
+                path: 'estimate/:estimateId/release',
+                builder: (context, state) => ReleaseEstimatePage(
+                  customerId: state.pathParameters['id']!,
+                  estimateId: state.pathParameters['estimateId']!,
+                ),
+              ),
+              // ✅ 기존 견적 편집을 위한 플로우 (estimateId 포함)
+              GoRoute(
+                path: 'estimate/:estimateId/edit',
+                builder: (context, state) {
+                  final customerId = state.pathParameters['id']!;
+                  final estimateId = state.pathParameters['estimateId']!;
+                  return SpaceAddPage(
+                      customerId: customerId, estimateId: estimateId);
+                },
+                routes: [
+                  GoRoute(
+                    path: 'space-detail',
+                    builder: (context, state) {
+                      final customerId = state.pathParameters['id']!;
+                      final estimateId = state.pathParameters['estimateId']!;
+                      return SpaceDetailPage(
+                          customerId: customerId, estimateId: estimateId);
+                    },
+                    routes: [
+                      GoRoute(
+                        path: 'furniture',
+                        builder: (context, state) {
+                          final customerId = state.pathParameters['id']!;
+                          final estimateId =
+                              state.pathParameters['estimateId']!;
+                          return furniturePage(
+                              customerId: customerId, estimateId: estimateId);
+                        },
+                        routes: [
+                          GoRoute(
+                            path: 'estimate',
+                            builder: (context, state) {
+                              final customerId = state.pathParameters['id']!;
+                              final estimateId =
+                                  state.pathParameters['estimateId']!;
+                              return EstimatePage(
+                                  customerId: customerId,
+                                  estimateId: estimateId);
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
         ],
       ),
       GoRoute(

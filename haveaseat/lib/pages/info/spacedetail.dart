@@ -13,14 +13,17 @@ import 'package:haveaseat/widget/address.dart';
 import 'package:haveaseat/widget/fileupload.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:uuid/uuid.dart';
 
 class SpaceDetailPage extends ConsumerStatefulWidget {
   final String customerId;
   final String? estimateId; // 새로 추가 - 기존 견적 편집 시 사용
+  final String? name; // 회사명(고객명) 변수명 통일
   const SpaceDetailPage({
     super.key,
     required this.customerId, // required로 필수 파라미터로 지정
     this.estimateId,
+    this.name,
   }); // 중복된 생성자 제거
 
   @override
@@ -133,18 +136,20 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
             }
 
             final targetAgeGroups = data['targetAgeGroups'] as List<dynamic>?;
-            selectedAgeRange = targetAgeGroups?.isNotEmpty == true
-                ? targetAgeGroups![0]
-                : '10대';
+            selectedAgeRange =
+                (targetAgeGroups != null && targetAgeGroups.isNotEmpty)
+                    ? targetAgeGroups[0]
+                    : '10대';
 
             final businessType = data['businessType'];
             if (businessType != null) {
               final foundType = businessTypes.firstWhere(
                   (type) => type['label'] == businessType,
-                  orElse: () => {'value': '', 'label': ''} // null 대신 빈 문자열 반환
-                  );
+                  orElse: () => {'value': '', 'label': ''});
               selectedBusinessType =
-                  foundType['value']!.isEmpty ? null : foundType['value'];
+                  foundType['value'] != null && foundType['value']!.isNotEmpty
+                      ? foundType['value']
+                      : null;
             }
 
             _noteController.text = data['detailNotes'] ?? '';
@@ -188,11 +193,21 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
               selectedConcepts = concepts.map((e) => e.toString()).toSet();
             }
 
-            selectedAgeRange = spaceDetailInfo['targetAgeGroups']?[0] ?? '10대';
+            final targetAgeGroups =
+                spaceDetailInfo['targetAgeGroups'] as List<dynamic>?;
+            selectedAgeRange =
+                (targetAgeGroups != null && targetAgeGroups.isNotEmpty)
+                    ? targetAgeGroups[0]
+                    : '10대';
             final businessType = spaceDetailInfo['businessType'];
             if (businessType != null) {
-              selectedBusinessType = businessTypes
-                  .firstWhere((type) => type['label'] == businessType)['value'];
+              final foundType = businessTypes.firstWhere(
+                  (type) => type['label'] == businessType,
+                  orElse: () => {'value': '', 'label': ''});
+              selectedBusinessType =
+                  foundType['value'] != null && foundType['value']!.isNotEmpty
+                      ? foundType['value']
+                      : null;
             }
 
             _noteController.text = spaceDetailInfo['detailNotes'] ?? '';
@@ -203,6 +218,61 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
       }
     } catch (e) {
       print('Error loading temp data: $e');
+    }
+  }
+
+  // 이전 버튼 누르면 이전에 작성한 값 불러오기 (estimates → customers 순, type별 하위맵 우선)
+  void _loadPreviousData() async {
+    try {
+      final estimateId = widget.estimateId;
+      if (estimateId != null) {
+        final estimateDoc = await FirebaseFirestore.instance
+            .collection('estimates')
+            .doc(estimateId)
+            .get();
+        if (estimateDoc.exists) {
+          final data = estimateDoc.data()!;
+          final type = data['type'] ?? '';
+          if (type == '공간상세' && data['spaceDetailInfo'] != null) {
+            final detail = data['spaceDetailInfo'];
+            setState(() {
+              _minBudgetController.text = detail['minBudget']?.toString() ?? '';
+              _maxBudgetController.text = detail['maxBudget']?.toString() ?? '';
+              selectedUnit = detail['spaceUnit'] ?? '평';
+              _areaController.text = detail['spaceArea']?.toString() ?? '';
+              _noteController.text = detail['detailNotes'] ?? '';
+              // 기타 필요한 필드도 동일하게 복원
+            });
+          } else {
+            setState(() {
+              _minBudgetController.text = data['minBudget']?.toString() ?? '';
+              _maxBudgetController.text = data['maxBudget']?.toString() ?? '';
+              selectedUnit = data['spaceUnit'] ?? '평';
+              _areaController.text = data['spaceArea']?.toString() ?? '';
+              _noteController.text = data['detailNotes'] ?? '';
+            });
+          }
+          return;
+        }
+      }
+      // customers에서 복원
+      final customerId = widget.customerId;
+      final customerDoc = await FirebaseFirestore.instance
+          .collection('customers')
+          .doc(customerId)
+          .get();
+      if (customerDoc.exists) {
+        final data = customerDoc.data()!;
+        setState(() {
+          _minBudgetController.text = '';
+          _maxBudgetController.text = '';
+          selectedUnit = '평';
+          _areaController.text = '';
+          _noteController.text = data['note'] ?? '';
+        });
+      }
+    } catch (e) {
+      print('이전 데이터 불러오기 오류: $e');
     }
   }
 
@@ -350,73 +420,64 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
     return true;
   }
 
+  // 임시 저장 함수
   Future<void> _saveTempDetailInfo() async {
     try {
-      double? minBudget = double.tryParse(_minBudgetController.text);
-      double? maxBudget = double.tryParse(_maxBudgetController.text);
-      double? spaceArea = double.tryParse(_areaController.text);
-
-      String? businessTypeLabel;
-      if (selectedBusinessType != null) {
-        businessTypeLabel = businessTypes.firstWhere(
-            (type) => type['value'] == selectedBusinessType)['label'];
+      String estimateId = widget.estimateId ?? '';
+      if (estimateId.isEmpty) {
+        final estimateRef =
+            FirebaseFirestore.instance.collection('estimates').doc();
+        estimateId = estimateRef.id;
+        // 견적 최초 생성시에만 customers.estimateIds 추가
+        await FirebaseFirestore.instance
+            .collection('customers')
+            .doc(widget.customerId)
+            .set({
+          'estimateIds': [estimateId],
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
       }
-
-      String targetEstimateId;
-
-      // 견적 ID 결정
-      if (widget.estimateId != null) {
-        targetEstimateId = widget.estimateId!;
-      } else {
-        final customer = await ref
-            .read(customerDataProvider.notifier)
-            .getCustomer(widget.customerId);
-        if (customer == null || customer.estimateIds.isEmpty) {
-          throw Exception('고객 정보를 찾을 수 없습니다');
-        }
-        targetEstimateId = customer.estimateIds[0];
+      // name 값 보장: widget.name이 없으면 Firestore에서 고객명 조회
+      String? nameValue = widget.name;
+      if (nameValue == null || nameValue.trim().isEmpty) {
+        final customerDoc = await FirebaseFirestore.instance
+            .collection('customers')
+            .doc(widget.customerId)
+            .get();
+        nameValue = customerDoc.data()?['name'] ?? '무제';
       }
-
+      final estimateRef =
+          FirebaseFirestore.instance.collection('estimates').doc(estimateId);
       final tempData = {
         'customerId': widget.customerId,
-        'estimateId': targetEstimateId,
+        'estimateId': estimateId,
         'status': EstimateStatus.IN_PROGRESS.toString(),
         'lastUpdated': FieldValue.serverTimestamp(),
-        'isTemp': true,
+        'isDraft': true,
+        'type': '공간상세',
+        'name': nameValue,
         'spaceDetailInfo': {
-          'minBudget': minBudget,
-          'maxBudget': maxBudget,
-          'spaceArea': spaceArea,
+          'minBudget': double.tryParse(_minBudgetController.text),
+          'maxBudget': double.tryParse(_maxBudgetController.text),
+          'spaceArea': double.tryParse(_areaController.text),
           'spaceUnit': selectedUnit,
           'targetAgeGroups': [selectedAgeRange],
-          'businessType': businessTypeLabel,
+          'businessType': businessTypes.firstWhere(
+              (type) => type['value'] == selectedBusinessType,
+              orElse: () => {'label': ''})['label'],
           'concept': selectedConcepts.toList(),
           'detailNotes': _noteController.text,
           'designFileUrls': _otherDocumentUrls,
         }
       };
-
-      await FirebaseFirestore.instance
-          .collection('temp_estimates')
-          .doc(targetEstimateId)
-          .set(tempData, SetOptions(merge: true));
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('임시 저장되었습니다')),
-        );
-
-        // 다음 페이지 이동 경로 분기
-        if (widget.estimateId != null) {
-          context.go(
-              '/main/customer/${widget.customerId}/estimate/${widget.estimateId}/edit/space-detail/furniture');
-        } else {
-          context.go(
-              '/main/addpage/spaceadd/${widget.customerId}/space-detail/furniture');
-        }
-      }
+      print('임시저장 tempData: $tempData');
+      await estimateRef.set(tempData, SetOptions(merge: true));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('임시 저장되었습니다')),
+      );
+      context.go('/temp');
     } catch (e) {
-      print('Error saving temp data: $e');
+      print('임시 저장 중 오류: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('임시 저장 중 오류가 발생했습니다: $e')),
@@ -425,25 +486,78 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
     }
   }
 
+  // 다음 버튼 클릭 시
+  void _goNext() async {
+    try {
+      String estimateId = widget.estimateId ?? '';
+      if (estimateId.isEmpty) {
+        final estimateRef =
+            FirebaseFirestore.instance.collection('estimates').doc();
+        estimateId = estimateRef.id;
+        // 견적 최초 생성시에만 customers.estimateIds 추가
+        await FirebaseFirestore.instance
+            .collection('customers')
+            .doc(widget.customerId)
+            .set({
+          'estimateIds': [estimateId],
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
+      final estimateRef =
+          FirebaseFirestore.instance.collection('estimates').doc(estimateId);
+      final tempData = {
+        'customerId': widget.customerId,
+        'estimateId': estimateId,
+        'status': EstimateStatus.IN_PROGRESS.toString(),
+        'lastUpdated': FieldValue.serverTimestamp(),
+        'isDraft': true,
+        'type': '가구',
+        'name': widget.name ?? '무제',
+        'spaceDetailInfo': {
+          'minBudget': double.tryParse(_minBudgetController.text),
+          'maxBudget': double.tryParse(_maxBudgetController.text),
+          'spaceArea': double.tryParse(_areaController.text),
+          'spaceUnit': selectedUnit,
+          'targetAgeGroups': [selectedAgeRange],
+          'businessType': businessTypes.firstWhere(
+              (type) => type['value'] == selectedBusinessType,
+              orElse: () => {'label': ''})['label'],
+          'concept': selectedConcepts.toList(),
+          'detailNotes': _noteController.text,
+          'designFileUrls': _otherDocumentUrls,
+        }
+      };
+      await estimateRef.set(tempData, SetOptions(merge: true));
+      context.go(
+          '/main/addpage/spaceadd/${widget.customerId}/$estimateId/space-detail/furniture',
+          extra: {'companyName': widget.name ?? '무제'});
+    } catch (e) {
+      print('다음 단계 저장 중 오류: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('다음 단계 저장 중 오류가 발생했습니다: $e')),
+        );
+      }
+    }
+  }
+
   Future<void> _saveSpaceDetailInfo() async {
     if (!_validateInputs()) return;
-
     try {
-      String targetEstimateId;
-
-      // 견적 ID 결정
-      if (widget.estimateId != null) {
-        targetEstimateId = widget.estimateId!;
-      } else {
-        final customer = await ref
-            .read(customerDataProvider.notifier)
-            .getCustomer(widget.customerId);
-        if (customer == null || customer.estimateIds.isEmpty) {
-          throw Exception('고객 정보를 찾을 수 없습니다');
-        }
-        targetEstimateId = customer.estimateIds[0];
+      String estimateId = widget.estimateId ?? '';
+      if (estimateId.isEmpty) {
+        final estimateRef =
+            FirebaseFirestore.instance.collection('estimates').doc();
+        estimateId = estimateRef.id;
+        // 견적 최초 생성시에만 customers.estimateIds 추가
+        await FirebaseFirestore.instance
+            .collection('customers')
+            .doc(widget.customerId)
+            .set({
+          'estimateIds': [estimateId],
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
       }
-
       final estimateData = {
         'minBudget': double.parse(_minBudgetController.text),
         'maxBudget': double.parse(_maxBudgetController.text),
@@ -451,47 +565,45 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
         'spaceUnit': selectedUnit,
         'targetAgeGroups': [selectedAgeRange],
         'businessType': businessTypes.firstWhere(
-            (type) => type['value'] == selectedBusinessType)['label'],
+            (type) => type['value'] == selectedBusinessType,
+            orElse: () => {'label': ''})['label'],
         'concept': selectedConcepts.toList(),
         'detailNotes': _noteController.text,
         'designFileUrls': _otherDocumentUrls,
         'status': EstimateStatus.IN_PROGRESS.toString(),
         'updatedAt': FieldValue.serverTimestamp(),
+        'isDraft': false,
+        'customerId': widget.customerId,
+        'estimateId': estimateId,
       };
-
       await FirebaseFirestore.instance
           .collection('estimates')
-          .doc(targetEstimateId)
+          .doc(estimateId)
           .set(estimateData, SetOptions(merge: true));
-
       await ref.read(estimatesProvider.notifier).updateSpaceDetailInfo(
-            estimateId: targetEstimateId,
+            estimateId: estimateId,
             minBudget: double.parse(_minBudgetController.text),
             maxBudget: double.parse(_maxBudgetController.text),
             spaceArea: double.parse(_areaController.text),
             spaceUnit: selectedUnit,
             targetAgeGroups: [selectedAgeRange],
             businessType: businessTypes.firstWhere(
-                (type) => type['value'] == selectedBusinessType)['label']!,
+                (type) => type['value'] == selectedBusinessType,
+                orElse: () => {'label': ''})['label']!,
             concept: selectedConcepts.toList(),
             detailNotes: _noteController.text,
             designFileUrls: _otherDocumentUrls,
           );
-
-      // temp_estimates 삭제 (새 고객 모드일 때만)
       if (widget.estimateId == null) {
         await FirebaseFirestore.instance
             .collection('temp_estimates')
-            .doc(targetEstimateId)
+            .doc(estimateId)
             .delete();
       }
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('저장되었습니다')),
         );
-
-        // 다음 페이지 이동 경로 분기
         if (widget.estimateId != null) {
           context.go(
               '/main/customer/${widget.customerId}/estimate/${widget.estimateId}/edit/space-detail/furniture');

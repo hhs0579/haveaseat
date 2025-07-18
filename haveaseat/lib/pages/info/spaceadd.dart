@@ -13,16 +13,19 @@ import 'package:haveaseat/widget/address.dart';
 import 'package:haveaseat/widget/fileupload.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:uuid/uuid.dart';
 
 class SpaceAddPage extends ConsumerStatefulWidget {
   // ConsumerWidget을 ConsumerStatefulWidget으로 변경
   final String customerId; // 고객 ID를 받아옴
   final String? estimateId;
+  final String? name; // 회사명(고객명) 변수명 통일
 
   const SpaceAddPage({
     super.key,
     required this.customerId,
-    this.estimateId, 
+    this.estimateId,
+    this.name,
   });
 
   @override
@@ -83,14 +86,18 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
 
   Future<void> _loadTempEstimate() async {
     try {
-      final customer = await ref
-          .read(customerDataProvider.notifier)
-          .getCustomer(widget.customerId);
-      if (customer == null || customer.estimateIds.isEmpty) return;
-
-      final estimateId = customer.estimateIds[0];
+      // 기존: customers 문서에서 customer 정보 조회
+      // 변경: estimates 문서에서 customerInfo 사용
+      String? estimateId;
+      if (widget.estimateId != null) {
+        estimateId = widget.estimateId;
+      } else {
+        // 임시저장 플로우에서는 estimateId를 따로 관리해야 함
+        // (임시저장페이지에서 이어서 작성 시 estimateId를 넘겨줘야 함)
+        return;
+      }
       final docSnapshot = await FirebaseFirestore.instance
-          .collection('temp_estimates')
+          .collection('estimates')
           .doc(estimateId)
           .get();
 
@@ -104,17 +111,16 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                 addressParts.take(addressParts.length - 1).join(' ');
             _detailSiteAddressController.text = addressParts.last;
           }
-
           // 날짜 처리
           if (data['openingDate'] != null) {
             _openingDate = (data['openingDate'] as Timestamp).toDate();
           }
-
           _recipientController.text = data['recipient'] ?? '';
           _contactNumberController.text = data['contactNumber'] ?? '';
           _shippingMethod = data['shippingMethod'];
           _paymentMethod = data['paymentMethod'];
           _additionalNotesController.text = data['basicNotes'] ?? '';
+          // 고객명 등은 필요시 data['customerInfo']에서 사용
         });
       }
     } catch (e) {
@@ -122,43 +128,46 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
     }
   }
 
-// 임시 저장
+// 임시 저장 함수
   Future<void> _saveTempBasicInfo() async {
     try {
       final user = ref.read(UserProvider.currentUserProvider).value;
-      if (user == null) {
-        throw Exception('로그인이 필요합니다');
+      if (user == null) throw Exception('로그인이 필요합니다');
+      String estimateId = widget.estimateId ?? '';
+      if (estimateId.isEmpty) {
+        final estimateRef =
+            FirebaseFirestore.instance.collection('estimates').doc();
+        estimateId = estimateRef.id;
       }
-      final userData = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
-
-      final customer = await ref
-          .read(customerDataProvider.notifier)
-          .getCustomer(widget.customerId);
-      if (customer == null || customer.estimateIds.isEmpty) {
-        throw Exception('고객 정보를 찾을 수 없습니다');
+      // customers.estimateIds는 최초 생성시에만 추가
+      if (widget.estimateId == null) {
+        await FirebaseFirestore.instance
+            .collection('customers')
+            .doc(widget.customerId)
+            .set({
+          'estimateIds': [estimateId],
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
       }
-
-      // Firestore에서 해당 고객의 견적 정보 가져오기
-      final customerDoc = await FirebaseFirestore.instance
-          .collection('customers')
-          .doc(widget.customerId)
-          .get();
-
-      if (!customerDoc.exists) throw Exception('고객 정보를 찾을 수 없습니다');
-
-      final estimateId = customer.estimateIds[0]; // 첫 번째 견적 ID 사용
-
-      // 임시 저장 데이터 생성
+      // name 값 보장: widget.name이 없으면 Firestore에서 고객명 조회
+      String? nameValue = widget.name;
+      if (nameValue == null || nameValue.trim().isEmpty) {
+        final customerDoc = await FirebaseFirestore.instance
+            .collection('customers')
+            .doc(widget.customerId)
+            .get();
+        nameValue = customerDoc.data()?['name'] ?? '무제';
+      }
+      final estimateRef =
+          FirebaseFirestore.instance.collection('estimates').doc(estimateId);
       final tempData = {
         'customerId': widget.customerId,
         'estimateId': estimateId,
         'status': EstimateStatus.IN_PROGRESS.toString(),
         'lastUpdated': FieldValue.serverTimestamp(),
-        'isTemp': true,
-        // 공간 기본 정보
+        'isDraft': true,
+        'type': '공간기본',
+        'name': nameValue,
         'siteAddress':
             '${_siteAddressController.text} ${_detailSiteAddressController.text}',
         'openingDate':
@@ -168,21 +177,20 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
         'shippingMethod': _shippingMethod,
         'paymentMethod': _paymentMethod,
         'basicNotes': _additionalNotesController.text,
-        'managerName': userData.data()?['name'] ?? '', // 담당자명 추가
-        'managerPhone': userData.data()?['phoneNumber'] ?? '', // 담당자 번호 추가
+        'managerName': user.displayName ?? '',
+        'managerPhone': user.phoneNumber ?? '',
+        'customerInfo': {
+          'name': nameValue,
+          'assignedTo': user.uid,
+        },
       };
-
-      // temp_estimates 컬렉션에 저장
-      await FirebaseFirestore.instance
-          .collection('temp_estimates')
-          .doc(estimateId)
-          .set(tempData, SetOptions(merge: true));
-
+      print('임시저장 tempData: $tempData');
+      await estimateRef.set(tempData, SetOptions(merge: true));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('임시 저장되었습니다')),
         );
-        context.go('/main/addpage/spaceadd/${widget.customerId}/space-detail');
+        context.go('/temp');
       }
     } catch (e) {
       print('임시 저장 중 오류: $e');
@@ -195,37 +203,36 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
   }
 
 // spacemodel.dart의 EstimatesNotifier 클래스 내에서 updateSpaceBasicInfo 수정
-   Future<void> _saveSpaceBasicInfo() async {
+  Future<void> _saveSpaceBasicInfo() async {
     if (!_validateInputs()) return;
-
     try {
       final user = ref.read(UserProvider.currentUserProvider).value;
       if (user == null) throw Exception('로그인이 필요합니다');
-
       final userData = await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
           .get();
-
-      String targetEstimateId;
-      
-      // 기존 견적 편집 모드인 경우
-      if (widget.estimateId != null) {
-        targetEstimateId = widget.estimateId!;
-      } else {
-        // 새 견적 모드인 경우
-        final customer = await ref
-            .read(customerDataProvider.notifier)
-            .getCustomer(widget.customerId);
-        if (customer == null || customer.estimateIds.isEmpty) {
-          throw Exception('고객 정보를 찾을 수 없습니다');
-        }
-        targetEstimateId = customer.estimateIds[0];
+      String estimateId = widget.estimateId ?? '';
+      if (estimateId.isEmpty) {
+        final estimateRef =
+            FirebaseFirestore.instance.collection('estimates').doc();
+        estimateId = estimateRef.id;
       }
-
+      // customers.estimateIds는 최초 생성시에만 추가
+      if (widget.estimateId == null) {
+        await FirebaseFirestore.instance
+            .collection('customers')
+            .doc(widget.customerId)
+            .set({
+          'estimateIds': [estimateId],
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
       final estimateData = {
-        'siteAddress': '${_siteAddressController.text} ${_detailSiteAddressController.text}',
-        'openingDate': Timestamp.fromDate(_openingDate!),
+        'siteAddress':
+            '${_siteAddressController.text} ${_detailSiteAddressController.text}',
+        'openingDate':
+            _openingDate != null ? Timestamp.fromDate(_openingDate!) : null,
         'recipient': _recipientController.text,
         'contactNumber': _contactNumberController.text,
         'shippingMethod': _shippingMethod ?? '',
@@ -235,25 +242,24 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
         'updatedAt': FieldValue.serverTimestamp(),
         'managerName': userData.data()?['name'] ?? '',
         'managerPhone': userData.data()?['phoneNumber'] ?? '',
+        'isDraft': true,
+        'customerId': widget.customerId,
+        'estimateId': estimateId,
       };
-
       await FirebaseFirestore.instance
           .collection('estimates')
-          .doc(targetEstimateId)
+          .doc(estimateId)
           .set(estimateData, SetOptions(merge: true));
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('저장되었습니다')),
+          const SnackBar(content: Text('임시 저장되었습니다')),
         );
-        
-        // 다음 페이지로 이동
         if (widget.estimateId != null) {
-          // 기존 견적 편집 모드
-          context.go('/main/customer/${widget.customerId}/estimate/${widget.estimateId}/edit/space-detail');
+          context.go(
+              '/main/customer/${widget.customerId}/estimate/${widget.estimateId}/edit/space-detail');
         } else {
-          // 새 견적 모드
-          context.go('/main/addpage/spaceadd/${widget.customerId}/space-detail');
+          context
+              .go('/main/addpage/spaceadd/${widget.customerId}/space-detail');
         }
       }
     } catch (e) {
@@ -387,6 +393,77 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
       setState(() {
         _openingDate = picked;
       });
+    }
+  }
+
+  // 이전 버튼 누르면 이전에 작성한 값 불러오기 (estimates → customers 순, spaceBasicInfo 우선)
+  void _loadPreviousData() async {
+    try {
+      final estimateId = widget.estimateId;
+      if (estimateId != null) {
+        final estimateDoc = await FirebaseFirestore.instance
+            .collection('estimates')
+            .doc(estimateId)
+            .get();
+        if (estimateDoc.exists) {
+          final data = estimateDoc.data()!;
+          // 1. spaceBasicInfo 우선 (없으면 최상위)
+          if (data['spaceBasicInfo'] != null) {
+            final basic = data['spaceBasicInfo'];
+            setState(() {
+              _siteAddressController.text =
+                  basic['siteAddress']?.split(' ').first ?? '';
+              _detailSiteAddressController.text =
+                  basic['siteAddress']?.split(' ').skip(1).join(' ') ?? '';
+              _recipientController.text = basic['recipient'] ?? '';
+              _contactNumberController.text = basic['contactNumber'] ?? '';
+              _shippingMethod = basic['shippingMethod'];
+              _paymentMethod = basic['paymentMethod'];
+              _additionalNotesController.text = basic['basicNotes'] ?? '';
+              if (basic['openingDate'] != null) {
+                _openingDate = (basic['openingDate'] as Timestamp).toDate();
+              }
+            });
+          } else {
+            setState(() {
+              _siteAddressController.text =
+                  data['siteAddress']?.split(' ').first ?? '';
+              _detailSiteAddressController.text =
+                  data['siteAddress']?.split(' ').skip(1).join(' ') ?? '';
+              _recipientController.text = data['recipient'] ?? '';
+              _contactNumberController.text = data['contactNumber'] ?? '';
+              _shippingMethod = data['shippingMethod'];
+              _paymentMethod = data['paymentMethod'];
+              _additionalNotesController.text = data['basicNotes'] ?? '';
+              if (data['openingDate'] != null) {
+                _openingDate = (data['openingDate'] as Timestamp).toDate();
+              }
+            });
+          }
+          return;
+        }
+      }
+      // customers에서 복원
+      final customerId = widget.customerId;
+      final customerDoc = await FirebaseFirestore.instance
+          .collection('customers')
+          .doc(customerId)
+          .get();
+      if (customerDoc.exists) {
+        final data = customerDoc.data()!;
+        setState(() {
+          _siteAddressController.text = data['address']?.split(' ').first ?? '';
+          _detailSiteAddressController.text =
+              data['address']?.split(' ').skip(1).join(' ') ?? '';
+          _recipientController.text = data['name'] ?? '';
+          _contactNumberController.text = data['phone'] ?? '';
+          _shippingMethod = null;
+          _paymentMethod = null;
+          _additionalNotesController.text = data['note'] ?? '';
+        });
+      }
+    } catch (e) {
+      print('이전 데이터 불러오기 오류: $e');
     }
   }
 

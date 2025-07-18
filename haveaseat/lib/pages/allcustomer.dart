@@ -388,10 +388,9 @@ class _AllCustomerPageState extends ConsumerState<AllCustomerPage> {
 
 // 필터링 메서드 수정
   List<Customer> _filterCustomers(List<Customer> customers) {
-    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-
-    // 먼저 담당 고객만 필터링
-    var filteredCustomers = customers;
+    // 전체 고객에서 isDraft == false인 고객만 남김
+    var filteredCustomers =
+        customers.where((customer) => customer.isDraft == false).toList();
 
     // Status filter
     if (_selectedStatus != null) {
