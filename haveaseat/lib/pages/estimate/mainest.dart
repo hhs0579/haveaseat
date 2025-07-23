@@ -52,10 +52,10 @@ class _CustomerEstimatePageState extends ConsumerState<CustomerEstimatePage> {
           .getCustomer(widget.customerId);
       if (customer == null) throw Exception('고객 정보를 찾을 수 없습니다');
 
-      // 견적 정보 가져오기
+      // 견적 정보 가져오기 (URL에서 전달받은 estimateId 사용)
       final estimateDoc = await FirebaseFirestore.instance
           .collection('estimates')
-          .doc(customer.estimateIds[0])
+          .doc(widget.estimateId)
           .get();
 
       if (!estimateDoc.exists) throw Exception('견적 정보를 찾을 수 없습니다');
@@ -237,10 +237,30 @@ class _CustomerEstimatePageState extends ConsumerState<CustomerEstimatePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          '고객 정보',
-          style: TextStyle(
-              fontWeight: FontWeight.w600, fontSize: 18, color: Colors.black),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              '고객 정보',
+              style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 18,
+                  color: Colors.black),
+            ),
+            InkWell(
+              onTap: () {
+                context.go('/main/customer/${customer.id}/edit');
+              },
+              child: const Text(
+                '수정하기',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
+                  color: Color(0xff757575),
+                ),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
         Container(
@@ -308,10 +328,31 @@ class _CustomerEstimatePageState extends ConsumerState<CustomerEstimatePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          '공간 정보',
-          style: TextStyle(
-              fontWeight: FontWeight.w600, fontSize: 18, color: Colors.black),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              '공간 정보',
+              style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 18,
+                  color: Colors.black),
+            ),
+            InkWell(
+              onTap: () {
+                context.go(
+                    '/main/customer/${widget.customerId}/estimate/${widget.estimateId}/edit/space-basic');
+              },
+              child: const Text(
+                '수정하기',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
+                  color: Color(0xff757575),
+                ),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
         Container(
@@ -416,10 +457,31 @@ class _CustomerEstimatePageState extends ConsumerState<CustomerEstimatePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          '견적 정보',
-          style: TextStyle(
-              fontWeight: FontWeight.w600, fontSize: 18, color: Colors.black),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              '견적 정보',
+              style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 18,
+                  color: Colors.black),
+            ),
+            InkWell(
+              onTap: () {
+                context.go(
+                    '/main/customer/${widget.customerId}/estimate/${widget.estimateId}/edit/space-detail/furniture');
+              },
+              child: const Text(
+                '수정하기',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
+                  color: Color(0xff757575),
+                ),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
         Container(

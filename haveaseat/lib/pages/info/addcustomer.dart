@@ -17,11 +17,14 @@ class addCustomerPage extends ConsumerStatefulWidget {
   final String? customerId;
   final String? estimateId;
   final String? name;
+  final bool isEditMode; // 수정 모드 플래그 추가
+
   const addCustomerPage({
     super.key,
     this.customerId,
     this.estimateId,
     this.name,
+    this.isEditMode = false, // 기본값은 false (새 고객 추가 모드)
   });
 
   @override
@@ -364,11 +367,31 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
     try {
       final user = ref.read(UserProvider.currentUserProvider).value;
       if (user == null) throw Exception('로그인이 필요합니다');
-      final estimateId = widget.estimateId ??
-          FirebaseFirestore.instance.collection('estimates').doc().id;
+
+      // 수정 모드일 때는 고객 정보 업데이트 후 이전 페이지로 돌아가기
+      if (widget.isEditMode && widget.customerId != null) {
+        await _updateCustomerInfo();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('고객 정보가 수정되었습니다')),
+          );
+          context.pop(); // 이전 페이지로 돌아가기
+        }
+        return;
+      }
+
+      // estimateId가 없으면 새로 생성
+      String estimateId = widget.estimateId ?? '';
+      if (estimateId.isEmpty) {
+        final estimateRef =
+            FirebaseFirestore.instance.collection('estimates').doc();
+        estimateId = estimateRef.id;
+      }
+
       final customerId = widget.customerId ??
           FirebaseFirestore.instance.collection('customers').doc().id;
       final isNewCustomer = widget.customerId == null;
+
       // 고객 최초 생성시에만 estimateIds 추가
       if (isNewCustomer) {
         await FirebaseFirestore.instance
@@ -391,6 +414,7 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
           'isDraft': true,
         }, SetOptions(merge: true));
       }
+
       // estimates에 동일한 estimateId로 저장
       await FirebaseFirestore.instance
           .collection('estimates')
@@ -416,6 +440,8 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
           'assignedTo': user.uid,
         }
       }, SetOptions(merge: true));
+
+      // estimateId를 URL에 포함하여 다음 페이지로 이동
       context.go('/main/addpage/spaceadd/$customerId/$estimateId',
           extra: {'name': _nameController.text});
     } catch (e) {
@@ -425,6 +451,36 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
           SnackBar(content: Text('다음 단계 저장 중 오류가 발생했습니다: $e')),
         );
       }
+    }
+  }
+
+  // 고객 정보 업데이트 함수 추가
+  Future<void> _updateCustomerInfo() async {
+    try {
+      final user = ref.read(UserProvider.currentUserProvider).value;
+      if (user == null) throw Exception('로그인이 필요합니다');
+
+      await FirebaseFirestore.instance
+          .collection('customers')
+          .doc(widget.customerId)
+          .update({
+        'name': _nameController.text,
+        'phone': _phoneController.text,
+        'email':
+            '${_emailController.text}@${selectedDomain ?? _directDomainController.text}',
+        'address':
+            '${_addressController.text} ${_detailAddressController.text}',
+        'businessLicenseUrl': _businessLicenseUrl ?? '',
+        'otherDocumentUrls': _otherDocumentUrls,
+        'note': _noteController.text,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // customerDataProvider 새로고침
+      ref.refresh(customerDataProvider);
+    } catch (e) {
+      print('고객 정보 업데이트 오류: $e');
+      rethrow;
     }
   }
 
@@ -494,8 +550,71 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
         _textLength = _noteController.text.length;
       });
     });
-    // 컴포넌트가 마운트될 때 임시 저장 데이터 불러오기
-    _loadTempSavedData();
+
+    // 수정 모드일 때 기존 고객 정보 불러오기
+    if (widget.isEditMode && widget.customerId != null) {
+      _loadExistingCustomerData();
+    } else {
+      // 컴포넌트가 마운트될 때 임시 저장 데이터 불러오기
+      _loadTempSavedData();
+    }
+  }
+
+  // 기존 고객 정보 불러오기 함수 추가
+  Future<void> _loadExistingCustomerData() async {
+    try {
+      final customerDoc = await FirebaseFirestore.instance
+          .collection('customers')
+          .doc(widget.customerId)
+          .get();
+
+      if (customerDoc.exists) {
+        final data = customerDoc.data()!;
+        setState(() {
+          _nameController.text = data['name'] ?? '';
+          _phoneController.text = data['phone'] ?? '';
+
+          // 이메일 처리
+          if (data['email'] != null) {
+            final emailParts = data['email'].split('@');
+            if (emailParts.length == 2) {
+              _emailController.text = emailParts[0];
+              final domain = emailParts[1];
+              if ([
+                'gmail.com',
+                'naver.com',
+                'kakao.com',
+                'nate.com',
+                'hanmail.net',
+                'daum.net'
+              ].contains(domain)) {
+                selectedDomain = domain;
+                isDirectInput = false;
+              } else {
+                _directDomainController.text = domain;
+                selectedDomain = null;
+                isDirectInput = true;
+              }
+            }
+          }
+
+          // 주소 처리
+          if (data['address'] != null) {
+            final addressParts = data['address'].split(' ');
+            _addressController.text =
+                addressParts.take(addressParts.length - 1).join(' ');
+            _detailAddressController.text = addressParts.last;
+          }
+
+          _noteController.text = data['note'] ?? '';
+          _businessLicenseUrl = data['businessLicenseUrl'];
+          _otherDocumentUrls =
+              List<String>.from(data['otherDocumentUrls'] ?? []);
+        });
+      }
+    } catch (e) {
+      print('기존 고객 정보 불러오기 오류: $e');
+    }
   }
 
   @override
@@ -778,9 +897,9 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
                               ),
                             ),
                             const SizedBox(height: 56),
-                            const Text(
-                              '고객 정보 입력',
-                              style: TextStyle(
+                            Text(
+                              widget.isEditMode ? '고객 정보 수정' : '고객 정보 입력',
+                              style: const TextStyle(
                                   fontSize: 24,
                                   fontWeight: FontWeight.w600,
                                   color: AppColor.font1),
@@ -1203,31 +1322,38 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
                                   ),
                                 ),
                                 const SizedBox(width: 8),
-                                InkWell(
-                                  onTap: _saveTempCustomer,
-                                  child: Container(
-                                    width: 87,
-                                    height: 48,
-                                    decoration: BoxDecoration(
-                                      color: Colors.transparent,
-                                      border: Border.all(color: AppColor.line1),
-                                    ),
-                                    child: const Center(
-                                      child: Text(
-                                        '임시 저장',
-                                        style: TextStyle(
-                                            color: AppColor.primary,
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w600),
+                                // 수정 모드가 아닐 때만 임시저장 버튼 표시
+                                if (!widget.isEditMode) ...[
+                                  InkWell(
+                                    onTap: () {
+                                      // 임시 저장 처리
+                                      _saveTempCustomer();
+                                    },
+                                    child: Container(
+                                      width: 87,
+                                      height: 48,
+                                      decoration: BoxDecoration(
+                                        color: Colors.transparent,
+                                        border:
+                                            Border.all(color: AppColor.line1),
+                                      ),
+                                      child: const Center(
+                                        child: Text(
+                                          '임시 저장',
+                                          style: TextStyle(
+                                              color: AppColor.primary,
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w600),
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ),
-                                const SizedBox(width: 8),
+                                  const SizedBox(width: 8),
+                                ],
                                 InkWell(
                                   onTap: () {
                                     // 고객 추가 처리
-                                    _saveCustomer();
+                                    _goNext();
                                   },
                                   child: Container(
                                     width: 60,
@@ -1236,10 +1362,10 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
                                       color: AppColor.primary,
                                       border: Border.all(color: AppColor.line1),
                                     ),
-                                    child: const Center(
+                                    child: Center(
                                       child: Text(
-                                        '다음',
-                                        style: TextStyle(
+                                        widget.isEditMode ? '수정' : '다음',
+                                        style: const TextStyle(
                                             color: Colors.white,
                                             fontSize: 16,
                                             fontWeight: FontWeight.w600),

@@ -52,10 +52,10 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
           .getCustomer(widget.customerId);
       if (customer == null) throw Exception('고객 정보를 찾을 수 없습니다');
 
-      // 견적 정보 가져오기
+      // 견적 정보 가져오기 (URL에서 전달받은 estimateId 사용)
       final estimateDoc = await FirebaseFirestore.instance
           .collection('estimates')
-          .doc(customer.estimateIds[0])
+          .doc(widget.estimateId)
           .get();
 
       if (!estimateDoc.exists) throw Exception('견적 정보를 찾을 수 없습니다');
@@ -946,7 +946,7 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
                 _buildPDFHeader(ttfBold),
                 pw.SizedBox(height: 56),
                 pw.Text(
-                  '견적서',
+                  '출고증',
                   style: pw.TextStyle(
                       fontSize: 24,
                       font: ttfBold,

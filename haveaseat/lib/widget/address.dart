@@ -17,7 +17,7 @@ class AddressSearchField extends StatefulWidget {
     Key? key,
     required this.controller,
     required this.detailController,
-    this.labelText = '배송지 주소',
+    this.labelText = '주소 입력',
     this.focusNode, // 생성자에 추가
     this.detailFocusNode, // 생성자에 추가
     this.nextFocusNode, // 생성자에 추가

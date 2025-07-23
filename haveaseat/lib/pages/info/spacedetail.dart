@@ -64,8 +64,14 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
   @override
   void initState() {
     super.initState();
-    selectedBusinessType = null;
     _loadTempEstimate();
+  }
+
+  // 편집 모드인지 확인하는 getter
+  bool get isEditMode {
+    final currentPath =
+        GoRouter.of(context).routerDelegate.currentConfiguration.uri.path;
+    return currentPath.contains('/edit');
   }
 
   Widget _buildConceptButton(String text) {
@@ -124,24 +130,50 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
 
         if (estimateDoc.exists) {
           final data = estimateDoc.data()!;
-          setState(() {
-            _minBudgetController.text = data['minBudget']?.toString() ?? '';
-            _maxBudgetController.text = data['maxBudget']?.toString() ?? '';
-            selectedUnit = data['spaceUnit'] ?? '평';
-            _areaController.text = data['spaceArea']?.toString() ?? '';
+          print('수정 모드 데이터 로딩: $data'); // 디버깅 로그
 
-            final concepts = data['concept'] as List<dynamic>?;
+          // 수정 모드일 때는 spaceDetailInfo 하위 맵에서 데이터를 불러옴
+          Map<String, dynamic> spaceData;
+          if (isEditMode) {
+            // 수정 모드일 때는 최상위 필드에서 먼저 찾고, 없으면 spaceDetailInfo에서 찾음
+            if (data['minBudget'] != null ||
+                data['maxBudget'] != null ||
+                data['spaceArea'] != null) {
+              spaceData = data;
+              print('수정 모드: 최상위 필드에서 데이터 로딩'); // 디버깅 로그
+            } else if (data['spaceDetailInfo'] != null) {
+              spaceData = data['spaceDetailInfo'] as Map<String, dynamic>;
+              print('수정 모드: spaceDetailInfo에서 데이터 로딩'); // 디버깅 로그
+            } else {
+              spaceData = data;
+              print('수정 모드: 데이터가 없어서 빈 상태로 설정'); // 디버깅 로그
+            }
+          } else {
+            spaceData = data; // 최상위 필드에서 불러옴
+            print('새 생성 모드: 최상위 필드에서 데이터 로딩'); // 디버깅 로그
+          }
+
+          setState(() {
+            _minBudgetController.text =
+                spaceData['minBudget']?.toString() ?? '';
+            _maxBudgetController.text =
+                spaceData['maxBudget']?.toString() ?? '';
+            selectedUnit = spaceData['spaceUnit'] ?? '평';
+            _areaController.text = spaceData['spaceArea']?.toString() ?? '';
+
+            final concepts = spaceData['concept'] as List<dynamic>?;
             if (concepts != null) {
               selectedConcepts = concepts.map((e) => e.toString()).toSet();
             }
 
-            final targetAgeGroups = data['targetAgeGroups'] as List<dynamic>?;
+            final targetAgeGroups =
+                spaceData['targetAgeGroups'] as List<dynamic>?;
             selectedAgeRange =
                 (targetAgeGroups != null && targetAgeGroups.isNotEmpty)
                     ? targetAgeGroups[0]
                     : '10대';
 
-            final businessType = data['businessType'];
+            final businessType = spaceData['businessType'];
             if (businessType != null) {
               final foundType = businessTypes.firstWhere(
                   (type) => type['label'] == businessType,
@@ -152,10 +184,15 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
                       : null;
             }
 
-            _noteController.text = data['detailNotes'] ?? '';
+            _noteController.text = spaceData['detailNotes'] ?? '';
             _otherDocumentUrls =
-                List<String>.from(data['designFileUrls'] ?? []);
+                List<String>.from(spaceData['designFileUrls'] ?? []);
+
+            print(
+                'UI 업데이트 완료 - minBudget: ${_minBudgetController.text}, maxBudget: ${_maxBudgetController.text}, area: ${_areaController.text}'); // 디버깅 로그
           });
+        } else {
+          print('견적 문서가 존재하지 않음: $targetEstimateId'); // 디버깅 로그
         }
         return;
       }
@@ -544,6 +581,7 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
   Future<void> _saveSpaceDetailInfo() async {
     if (!_validateInputs()) return;
     try {
+      // estimateId가 없으면 새로 생성
       String estimateId = widget.estimateId ?? '';
       if (estimateId.isEmpty) {
         final estimateRef =
@@ -558,6 +596,7 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
           'updatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
       }
+
       final estimateData = {
         'minBudget': double.parse(_minBudgetController.text),
         'maxBudget': double.parse(_maxBudgetController.text),
@@ -572,9 +611,24 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
         'designFileUrls': _otherDocumentUrls,
         'status': EstimateStatus.IN_PROGRESS.toString(),
         'updatedAt': FieldValue.serverTimestamp(),
-        'isDraft': false,
         'customerId': widget.customerId,
         'estimateId': estimateId,
+        // 새로 생성할 때만 isDraft: false로 설정 (정식저장)
+        if (!isEditMode) 'isDraft': false,
+        // spaceDetailInfo 하위 맵에도 저장
+        'spaceDetailInfo': {
+          'minBudget': double.parse(_minBudgetController.text),
+          'maxBudget': double.parse(_maxBudgetController.text),
+          'spaceArea': double.parse(_areaController.text),
+          'spaceUnit': selectedUnit,
+          'targetAgeGroups': [selectedAgeRange],
+          'businessType': businessTypes.firstWhere(
+              (type) => type['value'] == selectedBusinessType,
+              orElse: () => {'label': ''})['label'],
+          'concept': selectedConcepts.toList(),
+          'detailNotes': _noteController.text,
+          'designFileUrls': _otherDocumentUrls,
+        }
       };
       await FirebaseFirestore.instance
           .collection('estimates')
@@ -602,14 +656,15 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
       }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('저장되었습니다')),
+          SnackBar(content: Text(isEditMode ? '공간 상세 정보가 수정되었습니다' : '저장되었습니다')),
         );
-        if (widget.estimateId != null) {
-          context.go(
-              '/main/customer/${widget.customerId}/estimate/${widget.estimateId}/edit/space-detail/furniture');
+        if (isEditMode) {
+          // 편집 모드일 때는 customer 화면으로 돌아가기
+          context.go('/main/customer/${widget.customerId}');
         } else {
+          // 새로 생성된 estimateId를 URL에 포함하여 전달
           context.go(
-              '/main/addpage/spaceadd/${widget.customerId}/space-detail/furniture');
+              '/main/addpage/spaceadd/${widget.customerId}/$estimateId/space-detail/furniture');
         }
       }
     } catch (e) {
@@ -1382,7 +1437,14 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
                             children: [
                               InkWell(
                                 onTap: () {
-                                  GoRouter.of(context).go('/main');
+                                  if (isEditMode) {
+                                    // 편집 모드일 때는 customer 화면으로 돌아가기
+                                    context.go(
+                                        '/main/customer/${widget.customerId}');
+                                  } else {
+                                    // 새로 생성 모드일 때는 메인 화면으로
+                                    GoRouter.of(context).go('/main');
+                                  }
                                 },
                                 child: Container(
                                   width: 60,
@@ -1391,10 +1453,10 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
                                     color: Colors.transparent,
                                     border: Border.all(color: AppColor.line1),
                                   ),
-                                  child: const Center(
+                                  child: Center(
                                     child: Text(
-                                      '취소',
-                                      style: TextStyle(
+                                      isEditMode ? '이전' : '취소',
+                                      style: const TextStyle(
                                           color: AppColor.primary,
                                           fontSize: 16,
                                           fontWeight: FontWeight.w600),
@@ -1403,30 +1465,32 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              InkWell(
-                                onTap: () {
-                                  // 임시 저장 처리
-                                  _saveTempDetailInfo();
-                                },
-                                child: Container(
-                                  width: 87,
-                                  height: 48,
-                                  decoration: BoxDecoration(
-                                    color: Colors.transparent,
-                                    border: Border.all(color: AppColor.line1),
-                                  ),
-                                  child: const Center(
-                                    child: Text(
-                                      '임시 저장',
-                                      style: TextStyle(
-                                          color: AppColor.primary,
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w600),
+                              if (!isEditMode) ...[
+                                InkWell(
+                                  onTap: () {
+                                    // 임시 저장 처리
+                                    _saveTempDetailInfo();
+                                  },
+                                  child: Container(
+                                    width: 87,
+                                    height: 48,
+                                    decoration: BoxDecoration(
+                                      color: Colors.transparent,
+                                      border: Border.all(color: AppColor.line1),
+                                    ),
+                                    child: const Center(
+                                      child: Text(
+                                        '임시 저장',
+                                        style: TextStyle(
+                                            color: AppColor.primary,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600),
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                              const SizedBox(width: 8),
+                                const SizedBox(width: 8),
+                              ],
                               InkWell(
                                 onTap: () {
                                   // 고객 추가 처리
@@ -1439,10 +1503,10 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
                                     color: AppColor.primary,
                                     border: Border.all(color: AppColor.line1),
                                   ),
-                                  child: const Center(
+                                  child: Center(
                                     child: Text(
-                                      '다음',
-                                      style: TextStyle(
+                                      isEditMode ? '수정' : '다음',
+                                      style: const TextStyle(
                                           color: Colors.white,
                                           fontSize: 16,
                                           fontWeight: FontWeight.w600),

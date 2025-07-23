@@ -194,7 +194,12 @@ class _EstimateEditPageState extends ConsumerState<EstimateEditPage> {
           .doc(widget.estimateId)
           .set(estimateData, SetOptions(merge: true));
 
-      _nextStep();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('공간 기본 정보가 수정되었습니다')),
+        );
+        context.go('/main/customer/${widget.customerId}');
+      }
     } catch (e) {
       print('Error saving space basic info: $e');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -224,7 +229,12 @@ class _EstimateEditPageState extends ConsumerState<EstimateEditPage> {
           .doc(widget.estimateId)
           .set(estimateData, SetOptions(merge: true));
 
-      _nextStep();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('공간 상세 정보가 수정되었습니다')),
+        );
+        context.go('/main/customer/${widget.customerId}');
+      }
     } catch (e) {
       print('Error saving space detail info: $e');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -248,7 +258,7 @@ class _EstimateEditPageState extends ConsumerState<EstimateEditPage> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('견적이 저장되었습니다')),
+          const SnackBar(content: Text('가구 정보가 수정되었습니다')),
         );
         context.go('/main/customer/${widget.customerId}');
       }
@@ -492,9 +502,28 @@ class _EstimateEditPageState extends ConsumerState<EstimateEditPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                '공간 기본 정보',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    '공간 기본 정보',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+                  ),
+                  InkWell(
+                    onTap: () {
+                      context.go(
+                          '/main/customer/${widget.customerId}/estimate/${widget.estimateId}/edit/space-basic');
+                    },
+                    child: const Text(
+                      '수정하기',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
+                        color: Color(0xff757575),
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 24),
 
@@ -673,7 +702,7 @@ class _EstimateEditPageState extends ConsumerState<EstimateEditPage> {
                       backgroundColor: Colors.grey,
                       foregroundColor: Colors.white,
                     ),
-                    child: const Text('취소'),
+                    child: const Text('이전'),
                   ),
                   ElevatedButton(
                     onPressed: _saveSpaceBasicInfo,
@@ -681,7 +710,7 @@ class _EstimateEditPageState extends ConsumerState<EstimateEditPage> {
                       backgroundColor: AppColor.main,
                       foregroundColor: Colors.white,
                     ),
-                    child: const Text('다음'),
+                    child: const Text('수정'),
                   ),
                 ],
               ),
@@ -700,9 +729,28 @@ class _EstimateEditPageState extends ConsumerState<EstimateEditPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              '공간 상세 정보',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  '공간 상세 정보',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+                ),
+                InkWell(
+                  onTap: () {
+                    context.go(
+                        '/main/customer/${widget.customerId}/estimate/${widget.estimateId}/edit/space-detail');
+                  },
+                  child: const Text(
+                    '수정하기',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                      color: Color(0xff757575),
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 24),
 
@@ -822,7 +870,7 @@ class _EstimateEditPageState extends ConsumerState<EstimateEditPage> {
                     backgroundColor: AppColor.main,
                     foregroundColor: Colors.white,
                   ),
-                  child: const Text('다음'),
+                  child: const Text('수정'),
                 ),
               ],
             ),
@@ -846,14 +894,33 @@ class _EstimateEditPageState extends ConsumerState<EstimateEditPage> {
                 '가구 정보',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
               ),
-              ElevatedButton.icon(
-                onPressed: _addFurniture,
-                icon: const Icon(Icons.add),
-                label: const Text('가구 추가'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColor.main,
-                  foregroundColor: Colors.white,
-                ),
+              Row(
+                children: [
+                  InkWell(
+                    onTap: () {
+                      context.go(
+                          '/main/customer/${widget.customerId}/estimate/${widget.estimateId}/edit/space-detail/furniture');
+                    },
+                    child: const Text(
+                      '수정하기',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
+                        color: Color(0xff757575),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  ElevatedButton.icon(
+                    onPressed: _addFurniture,
+                    icon: const Icon(Icons.add),
+                    label: const Text('가구 추가'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColor.main,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -954,7 +1021,7 @@ class _EstimateEditPageState extends ConsumerState<EstimateEditPage> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
                 ),
-                child: const Text('저장'),
+                child: const Text('수정'),
               ),
             ],
           ),

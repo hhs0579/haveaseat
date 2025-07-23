@@ -288,7 +288,20 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
   Widget _buildCustomerSection(Map<String, dynamic> data) {
     final customer = data['customer'] as Customer;
     final estimate = data['estimate'] as Map<String, dynamic>;
-
+    final customerInfo = estimate['customerInfo'] as Map<String, dynamic>?;
+    // 우선순위: customerInfo > customer
+    final customerName = customerInfo?['name'] ?? customer.name;
+    final customerPhone = customerInfo?['phone'] ?? customer.phone;
+    final customerEmail = customerInfo?['email'] ?? customer.email;
+    final customerAddress = customerInfo?['address'] ?? customer.address;
+    final businessLicenseUrl = customerInfo?['businessLicenseUrl'] ?? customer.businessLicenseUrl;
+    final otherDocumentUrls = customerInfo?['otherDocumentUrls'] ?? customer.otherDocumentUrls;
+    final customerNote = customerInfo?['note'] ?? customer.note;
+    // 수령자/연락처: spaceBasicInfo > estimate 최상위
+    final spaceBasic = estimate['spaceBasicInfo'] as Map<String, dynamic>?;
+    final recipient = spaceBasic?['recipient'] ?? estimate['recipient'] ?? '';
+    final contactNumber = spaceBasic?['contactNumber'] ?? estimate['contactNumber'] ?? '';
+    final siteAddress = spaceBasic?['siteAddress'] ?? estimate['siteAddress'] ?? '';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -307,31 +320,17 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
         LayoutBuilder(
           builder: (context, constraints) {
             final cellWidth = (constraints.maxWidth - 48) / 2;
-
             return Column(
               children: [
                 Row(
                   children: [
                     SizedBox(
                       width: cellWidth,
-                      child: _buildInfoCell('고객명', customer.name),
+                      child: _buildInfoCell('고객명', customerName),
                     ),
                     SizedBox(
                       width: cellWidth,
-                      child: _buildInfoCell('연락처', customer.phone),
-                    ),
-                  ],
-                ),
-                Row(
-                  children: [
-                    SizedBox(
-                      width: cellWidth,
-                      child: _buildInfoCell('수령자', estimate['recipient'] ?? ''),
-                    ),
-                    SizedBox(
-                      width: cellWidth,
-                      child: _buildInfoCell(
-                          '수령자 연락처', estimate['contactNumber'] ?? ''),
+                      child: _buildInfoCell('연락처', customerPhone),
                     ),
                   ],
                 ),
@@ -339,12 +338,11 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                   children: [
                     SizedBox(
                       width: cellWidth,
-                      child:
-                          _buildInfoCell('배송지', estimate['siteAddress'] ?? ''),
+                      child: _buildInfoCell('수령자', recipient),
                     ),
                     SizedBox(
                       width: cellWidth,
-                      child: _buildFileCell('사업자등록증', customer.businessLicenseUrl),
+                      child: _buildInfoCell('수령자 연락처', contactNumber),
                     ),
                   ],
                 ),
@@ -352,12 +350,23 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                   children: [
                     SizedBox(
                       width: cellWidth,
-                      child: _buildFileCell(
-                          '기타서류', customer.otherDocumentUrls.join(', ')),
+                      child: _buildInfoCell('배송지', siteAddress),
                     ),
                     SizedBox(
                       width: cellWidth,
-                      child: _buildInfoCell('기타입력사항', customer.note),
+                      child: _buildFileCell('사업자등록증', businessLicenseUrl),
+                    ),
+                  ],
+                ),
+                Row(
+                  children: [
+                    SizedBox(
+                      width: cellWidth,
+                      child: _buildFileCell('기타서류', (otherDocumentUrls is List ? otherDocumentUrls.join(', ') : otherDocumentUrls?.toString() ?? '')),
+                    ),
+                    SizedBox(
+                      width: cellWidth,
+                      child: _buildInfoCell('기타입력사항', customerNote),
                     ),
                   ],
                 ),
@@ -372,7 +381,14 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
 // 웹 화면의 현장정보 섹션 수정 - 2열 구성
   Widget _buildSiteSection(Map<String, dynamic> data) {
     final estimate = data['estimate'] as Map<String, dynamic>;
-
+    final spaceBasic = estimate['spaceBasicInfo'] as Map<String, dynamic>?;
+    final siteAddress = spaceBasic?['siteAddress'] ?? estimate['siteAddress'] ?? '';
+    final openingDate = spaceBasic?['openingDate'] ?? estimate['openingDate'];
+    final recipient = spaceBasic?['recipient'] ?? estimate['recipient'] ?? '';
+    final contactNumber = spaceBasic?['contactNumber'] ?? estimate['contactNumber'] ?? '';
+    final shippingMethod = spaceBasic?['shippingMethod'] ?? estimate['shippingMethod'] ?? '';
+    final paymentMethod = spaceBasic?['paymentMethod'] ?? estimate['paymentMethod'] ?? '';
+    final basicNotes = spaceBasic?['basicNotes'] ?? estimate['basicNotes'] ?? '';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -391,7 +407,6 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
         LayoutBuilder(
           builder: (context, constraints) {
             final cellWidth = (constraints.maxWidth - 48) / 2;
-
             return Column(
               children: [
                 // 1행: 현장주소 | 공간오픈일정
@@ -399,13 +414,11 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                   children: [
                     SizedBox(
                       width: cellWidth,
-                      child:
-                          _buildInfoCell('현장주소', estimate['siteAddress'] ?? ''),
+                      child: _buildInfoCell('현장주소', siteAddress),
                     ),
                     SizedBox(
                       width: cellWidth,
-                      child: _buildInfoCell(
-                          '공간오픈일정', _formatDate(estimate['openingDate'])),
+                      child: _buildInfoCell('공간오픈일정', _formatDate(openingDate)),
                     ),
                   ],
                 ),
@@ -415,12 +428,12 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                     SizedBox(
                       width: cellWidth,
                       child: _buildInfoCell('예산',
-                          '${_formatNumber(estimate['minBudget'] ?? 0)}원 ~ ${_formatNumber(estimate['maxBudget'] ?? 0)}원'),
+                          '${_formatNumber(estimate['minBudget'] ?? estimate['spaceDetailInfo']?['minBudget'] ?? 0)}원 ~ ${_formatNumber(estimate['maxBudget'] ?? estimate['spaceDetailInfo']?['maxBudget'] ?? 0)}원'),
                     ),
                     SizedBox(
                       width: cellWidth,
                       child: _buildInfoCell('공간면적',
-                          '${estimate['spaceArea']?.toString() ?? '0'} ${estimate['spaceUnit'] ?? '평'}'),
+                          '${estimate['spaceArea'] ?? estimate['spaceDetailInfo']?['spaceArea'] ?? '0'} ${estimate['spaceUnit'] ?? estimate['spaceDetailInfo']?['spaceUnit'] ?? '평'}'),
                     ),
                   ],
                 ),
@@ -431,14 +444,14 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                       width: cellWidth,
                       child: _buildInfoCell(
                           '소비자타깃',
-                          (estimate['targetAgeGroups'] as List<dynamic>?)
+                          ((estimate['targetAgeGroups'] ?? estimate['spaceDetailInfo']?['targetAgeGroups']) as List<dynamic>?)
                                   ?.join(', ') ??
                               ''),
                     ),
                     SizedBox(
                       width: cellWidth,
                       child:
-                          _buildInfoCell('업종', estimate['businessType'] ?? ''),
+                          _buildInfoCell('업종', estimate['businessType'] ?? estimate['spaceDetailInfo']?['businessType'] ?? ''),
                     ),
                   ],
                 ),
@@ -449,14 +462,14 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                       width: cellWidth,
                       child: _buildInfoCell(
                           '공간컨셉',
-                          (estimate['concept'] as List<dynamic>?)?.join(', ') ??
+                          ((estimate['concept'] ?? estimate['spaceDetailInfo']?['concept']) as List<dynamic>?)?.join(', ') ??
                               ''),
                     ),
                     SizedBox(
                       width: cellWidth,
                       child: _buildFileCell(
                           '공간도면',
-                          (estimate['designFileUrls'] as List<dynamic>?)
+                          ((estimate['designFileUrls'] ?? estimate['spaceDetailInfo']?['designFileUrls']) as List<dynamic>?)
                                   ?.join(', ') ??
                               ''),
                     ),
@@ -467,12 +480,12 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                   children: [
                     SizedBox(
                       width: cellWidth,
-                      child: _buildInfoCell('수령자', estimate['recipient'] ?? ''),
+                      child: _buildInfoCell('수령자', recipient),
                     ),
                     SizedBox(
                       width: cellWidth,
                       child: _buildInfoCell(
-                          '수령자 연락처', estimate['contactNumber'] ?? ''),
+                          '수령자 연락처', contactNumber),
                     ),
                   ],
                 ),
@@ -482,17 +495,17 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                     SizedBox(
                       width: cellWidth,
                       child: _buildInfoCell(
-                          '배송방법', estimate['shippingMethod'] ?? ''),
+                          '배송방법', shippingMethod),
                     ),
                     SizedBox(
                       width: cellWidth,
                       child: _buildInfoCell(
-                          '결제방법', estimate['paymentMethod'] ?? ''),
+                          '결제방법', paymentMethod),
                     ),
                   ],
                 ),
                 // 7행: 기타입력사항 (전체 너비)
-                _buildFullWidthCell('기타입력사항', estimate['detailNotes'] ?? ''),
+                _buildFullWidthCell('기타입력사항', basicNotes),
               ],
             );
           },
@@ -503,7 +516,22 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
 
   Widget _buildSpaceSection(Map<String, dynamic> data) {
     final estimate = data['estimate'] as Map<String, dynamic>;
-
+    final spaceDetail = estimate['spaceDetailInfo'] as Map<String, dynamic>?;
+    final minBudget = spaceDetail?['minBudget'] ?? estimate['minBudget'] ?? 0;
+    final maxBudget = spaceDetail?['maxBudget'] ?? estimate['maxBudget'] ?? 0;
+    final spaceArea = spaceDetail?['spaceArea'] ?? estimate['spaceArea'] ?? 0;
+    final spaceUnit = spaceDetail?['spaceUnit'] ?? estimate['spaceUnit'] ?? '평';
+    final targetAgeGroups = (spaceDetail?['targetAgeGroups'] ?? estimate['targetAgeGroups']) as List<dynamic>?;
+    final businessType = spaceDetail?['businessType'] ?? estimate['businessType'] ?? '';
+    final concept = (spaceDetail?['concept'] ?? estimate['concept']) as List<dynamic>?;
+    final detailNotes = spaceDetail?['detailNotes'] ?? estimate['detailNotes'] ?? '';
+    final designFileUrls = (spaceDetail?['designFileUrls'] ?? estimate['designFileUrls']) as List<dynamic>?;
+    final recipient = estimate['spaceBasicInfo']?['recipient'] ?? estimate['recipient'] ?? '';
+    final contactNumber = estimate['spaceBasicInfo']?['contactNumber'] ?? estimate['contactNumber'] ?? '';
+    final shippingMethod = estimate['spaceBasicInfo']?['shippingMethod'] ?? estimate['shippingMethod'] ?? '';
+    final paymentMethod = estimate['spaceBasicInfo']?['paymentMethod'] ?? estimate['paymentMethod'] ?? '';
+    final siteAddress = estimate['spaceBasicInfo']?['siteAddress'] ?? estimate['siteAddress'] ?? '';
+    final openingDate = estimate['spaceBasicInfo']?['openingDate'] ?? estimate['openingDate'];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -522,20 +550,17 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
         LayoutBuilder(
           builder: (context, constraints) {
             final cellWidth = (constraints.maxWidth - 48) / 2;
-
             return Column(
               children: [
                 Row(
                   children: [
                     SizedBox(
                       width: cellWidth,
-                      child:
-                          _buildInfoCell('현장주소', estimate['siteAddress'] ?? ''),
+                      child: _buildInfoCell('현장주소', siteAddress),
                     ),
                     SizedBox(
                       width: cellWidth,
-                      child: _buildInfoCell(
-                          '공간오픈일정', _formatDate(estimate['openingDate'])),
+                      child: _buildInfoCell('공간오픈일정', _formatDate(openingDate)),
                     ),
                   ],
                 ),
@@ -543,13 +568,11 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                   children: [
                     SizedBox(
                       width: cellWidth,
-                      child: _buildInfoCell('예산',
-                          '${estimate['minBudget']?.toString() ?? '0'} ~ ${estimate['maxBudget']?.toString() ?? '0'}원'),
+                      child: _buildInfoCell('예산', '${_formatNumber(minBudget)}원 ~ ${_formatNumber(maxBudget)}원'),
                     ),
                     SizedBox(
                       width: cellWidth,
-                      child: _buildInfoCell('공간면적',
-                          '${estimate['spaceArea']?.toString() ?? '0'} ㎡'),
+                      child: _buildInfoCell('공간면적', '${spaceArea.toString()} $spaceUnit'),
                     ),
                   ],
                 ),
@@ -557,13 +580,11 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                   children: [
                     SizedBox(
                       width: cellWidth,
-                      child:
-                          _buildInfoCell('업종', estimate['businessType'] ?? ''),
+                      child: _buildInfoCell('업종', businessType),
                     ),
                     SizedBox(
                       width: cellWidth,
-                      child: _buildInfoCell(
-                          '공간컨셉', estimate['concept']?.join(', ') ?? ''),
+                      child: _buildInfoCell('공간컨셉', concept?.join(', ') ?? ''),
                     ),
                   ],
                 ),
@@ -571,12 +592,11 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                   children: [
                     SizedBox(
                       width: cellWidth,
-                      child: _buildInfoCell('수령자', estimate['recipient'] ?? ''),
+                      child: _buildInfoCell('수령자', recipient),
                     ),
                     SizedBox(
                       width: cellWidth,
-                      child: _buildInfoCell(
-                          '연락처', estimate['contactNumber'] ?? ''),
+                      child: _buildInfoCell('연락처', contactNumber),
                     ),
                   ],
                 ),
@@ -584,22 +604,16 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                   children: [
                     SizedBox(
                       width: cellWidth,
-                      child: _buildInfoCell(
-                          '배송방법', estimate['shippingMethod'] ?? ''),
+                      child: _buildInfoCell('배송방법', shippingMethod),
                     ),
                     SizedBox(
                       width: cellWidth,
-                      child: _buildInfoCell(
-                          '결제방법', estimate['paymentMethod'] ?? ''),
+                      child: _buildInfoCell('결제방법', paymentMethod),
                     ),
                   ],
                 ),
-                _buildFileCell(
-                    '공간도면 및 설계파일',
-                    (estimate['designFileUrls'] as List<dynamic>?)
-                            ?.join(', ') ??
-                        ''),
-                _buildFullWidthCell('기타입력사항', estimate['basicNotes'] ?? ''),
+                _buildFileCell('공간도면 및 설계파일', designFileUrls?.join(', ') ?? ''),
+                _buildFullWidthCell('기타입력사항', detailNotes),
               ],
             );
           },

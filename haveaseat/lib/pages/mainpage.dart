@@ -266,7 +266,14 @@ class _MainPageState extends ConsumerState<MainPage> {
           padding: const EdgeInsets.all(12),
           child: Theme(
             // Theme 위젯 추가
-            data: ThemeData.light(), // 라이트 테마 적용
+            data: ThemeData.light().copyWith(
+              colorScheme: const ColorScheme.light(
+                primary: AppColor.main,
+                onPrimary: Colors.white,
+                surface: Colors.white,
+                onSurface: AppColor.font1,
+              ),
+            ),
             child: CalendarDatePicker(
               initialDate: isStartDate
                   ? (_startDate ?? DateTime.now())
@@ -379,9 +386,13 @@ class _MainPageState extends ConsumerState<MainPage> {
 // status별 고객 수를 계산하는 메서드
   Map<CustomerStatus, int> _getStatusCounts(List<Customer> customers) {
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-    final myCustomers =
-        customers.where((c) => c.assignedTo == currentUserId).toList();
-
+    final myCustomers = customers
+        .where((c) => c.assignedTo == currentUserId)
+        .where((c) => c.isDraft != true)
+        .where((c) => c.estimateIds.isNotEmpty)
+        .toList();
+    // 견적이 1개 이상이고, 그 견적이 모두 isDraft==false인 경우만 카운트
+    // (여기서는 고객의 isDraft만 체크, 견적의 isDraft는 상세 쿼리에서 추가로 체크 필요)
     return Map.fromEntries(
       CustomerStatus.values.map((status) => MapEntry(
             status,
@@ -393,11 +404,11 @@ class _MainPageState extends ConsumerState<MainPage> {
 // 필터링 메서드 수정
   List<Customer> _filterCustomers(List<Customer> customers) {
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-
-    // 담당 고객만 필터링 후, 임시저장 제외
+    // 담당 고객만 필터링 후, 임시저장 제외, 견적 1개 이상만
     var filteredCustomers = customers
         .where((customer) => customer.assignedTo == currentUserId)
-        .where((customer) => customer.isDraft != true) // isDraft==false만 남김
+        .where((customer) => customer.isDraft != true)
+        .where((customer) => customer.estimateIds.isNotEmpty)
         .toList();
 
     // Status filter
@@ -1023,7 +1034,7 @@ class _MainPageState extends ConsumerState<MainPage> {
                                                       onTap: () => context
                                                           .go('/main/addpage'),
                                                       child: Container(
-                                                        color: AppColor.primary,
+                                                        color: AppColor.main,
                                                         width: 141,
                                                         height: 44,
                                                         padding:
@@ -1168,18 +1179,31 @@ class _MainPageState extends ConsumerState<MainPage> {
                                                 borderRadius:
                                                     BorderRadius.circular(8),
                                               ),
-                                              child: CalendarDatePicker(
-                                                initialDate: _startDate ??
-                                                    DateTime.now(),
-                                                firstDate: DateTime(2000),
-                                                lastDate: DateTime(2100),
-                                                onDateChanged: (DateTime date) {
-                                                  setState(() {
-                                                    _startDate = date;
-                                                    _showStartDatePicker =
-                                                        false;
-                                                  });
-                                                },
+                                              child: Theme(
+                                                data:
+                                                    ThemeData.light().copyWith(
+                                                  colorScheme:
+                                                      const ColorScheme.light(
+                                                    primary: AppColor.main,
+                                                    onPrimary: Colors.white,
+                                                    surface: Colors.white,
+                                                    onSurface: AppColor.font1,
+                                                  ),
+                                                ),
+                                                child: CalendarDatePicker(
+                                                  initialDate: _startDate ??
+                                                      DateTime.now(),
+                                                  firstDate: DateTime(2000),
+                                                  lastDate: DateTime(2100),
+                                                  onDateChanged:
+                                                      (DateTime date) {
+                                                    setState(() {
+                                                      _startDate = date;
+                                                      _showStartDatePicker =
+                                                          false;
+                                                    });
+                                                  },
+                                                ),
                                               ),
                                             ),
                                           ),
@@ -1200,17 +1224,31 @@ class _MainPageState extends ConsumerState<MainPage> {
                                                 borderRadius:
                                                     BorderRadius.circular(8),
                                               ),
-                                              child: CalendarDatePicker(
-                                                initialDate:
-                                                    _endDate ?? DateTime.now(),
-                                                firstDate: DateTime(2000),
-                                                lastDate: DateTime(2100),
-                                                onDateChanged: (DateTime date) {
-                                                  setState(() {
-                                                    _endDate = date;
-                                                    _showEndDatePicker = false;
-                                                  });
-                                                },
+                                              child: Theme(
+                                                data:
+                                                    ThemeData.light().copyWith(
+                                                  colorScheme:
+                                                      const ColorScheme.light(
+                                                    primary: AppColor.main,
+                                                    onPrimary: Colors.white,
+                                                    surface: Colors.white,
+                                                    onSurface: AppColor.font1,
+                                                  ),
+                                                ),
+                                                child: CalendarDatePicker(
+                                                  initialDate: _endDate ??
+                                                      DateTime.now(),
+                                                  firstDate: DateTime(2000),
+                                                  lastDate: DateTime(2100),
+                                                  onDateChanged:
+                                                      (DateTime date) {
+                                                    setState(() {
+                                                      _endDate = date;
+                                                      _showEndDatePicker =
+                                                          false;
+                                                    });
+                                                  },
+                                                ),
                                               ),
                                             ),
                                           ),

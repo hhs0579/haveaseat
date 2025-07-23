@@ -70,6 +70,13 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
     _loadTempEstimate();
   }
 
+  // 편집 모드인지 확인하는 getter
+  bool get isEditMode {
+    final currentPath =
+        GoRouter.of(context).routerDelegate.currentConfiguration.uri.path;
+    return currentPath.contains('/edit');
+  }
+
   Future<void> _handleLogout() async {
     try {
       await FirebaseAuth.instance.signOut();
@@ -103,23 +110,36 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
 
       if (docSnapshot.exists) {
         final data = docSnapshot.data()!;
+
+        // 수정 모드일 때는 spaceBasicInfo 하위 맵에서 데이터를 불러옴
+        Map<String, dynamic> spaceData;
+        if (isEditMode && data['spaceBasicInfo'] != null) {
+          spaceData = data['spaceBasicInfo'] as Map<String, dynamic>;
+        } else {
+          spaceData = data; // 최상위 필드에서 불러옴
+        }
+
         setState(() {
           // 주소 처리
-          if (data['siteAddress'] != null) {
-            final addressParts = data['siteAddress'].split(' ');
-            _siteAddressController.text =
-                addressParts.take(addressParts.length - 1).join(' ');
-            _detailSiteAddressController.text = addressParts.last;
+          if (spaceData['siteAddress'] != null) {
+            final addressParts = spaceData['siteAddress'].split(' ');
+            if (addressParts.length > 1) {
+              _siteAddressController.text =
+                  addressParts.take(addressParts.length - 1).join(' ');
+              _detailSiteAddressController.text = addressParts.last;
+            } else {
+              _siteAddressController.text = spaceData['siteAddress'];
+            }
           }
           // 날짜 처리
-          if (data['openingDate'] != null) {
-            _openingDate = (data['openingDate'] as Timestamp).toDate();
+          if (spaceData['openingDate'] != null) {
+            _openingDate = (spaceData['openingDate'] as Timestamp).toDate();
           }
-          _recipientController.text = data['recipient'] ?? '';
-          _contactNumberController.text = data['contactNumber'] ?? '';
-          _shippingMethod = data['shippingMethod'];
-          _paymentMethod = data['paymentMethod'];
-          _additionalNotesController.text = data['basicNotes'] ?? '';
+          _recipientController.text = spaceData['recipient'] ?? '';
+          _contactNumberController.text = spaceData['contactNumber'] ?? '';
+          _shippingMethod = spaceData['shippingMethod'];
+          _paymentMethod = spaceData['paymentMethod'];
+          _additionalNotesController.text = spaceData['basicNotes'] ?? '';
           // 고객명 등은 필요시 data['customerInfo']에서 사용
         });
       }
@@ -212,14 +232,14 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
           .collection('users')
           .doc(user.uid)
           .get();
+
+      // estimateId가 없으면 새로 생성
       String estimateId = widget.estimateId ?? '';
       if (estimateId.isEmpty) {
         final estimateRef =
             FirebaseFirestore.instance.collection('estimates').doc();
         estimateId = estimateRef.id;
-      }
-      // customers.estimateIds는 최초 생성시에만 추가
-      if (widget.estimateId == null) {
+        // 견적 최초 생성시에만 customers.estimateIds 추가
         await FirebaseFirestore.instance
             .collection('customers')
             .doc(widget.customerId)
@@ -228,6 +248,7 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
           'updatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
       }
+
       final estimateData = {
         'siteAddress':
             '${_siteAddressController.text} ${_detailSiteAddressController.text}',
@@ -242,24 +263,50 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
         'updatedAt': FieldValue.serverTimestamp(),
         'managerName': userData.data()?['name'] ?? '',
         'managerPhone': userData.data()?['phoneNumber'] ?? '',
-        'isDraft': true,
         'customerId': widget.customerId,
         'estimateId': estimateId,
+        // 새로 생성할 때만 isDraft: true로 설정
+        if (!isEditMode) 'isDraft': true,
+        // spaceBasicInfo 하위 맵에도 저장
+        'spaceBasicInfo': {
+          'siteAddress':
+              '${_siteAddressController.text} ${_detailSiteAddressController.text}',
+          'openingDate':
+              _openingDate != null ? Timestamp.fromDate(_openingDate!) : null,
+          'recipient': _recipientController.text,
+          'contactNumber': _contactNumberController.text,
+          'shippingMethod': _shippingMethod ?? '',
+          'paymentMethod': _paymentMethod ?? '',
+          'basicNotes': _additionalNotesController.text,
+        }
       };
+
+      // 수정 모드일 때는 기존 spaceDetailInfo를 유지
+      if (isEditMode) {
+        final existingDoc = await FirebaseFirestore.instance
+            .collection('estimates')
+            .doc(estimateId)
+            .get();
+        if (existingDoc.exists) {
+          final existingData = existingDoc.data()!;
+          if (existingData['spaceDetailInfo'] != null) {
+            estimateData['spaceDetailInfo'] = existingData['spaceDetailInfo'];
+          }
+        }
+      }
+
       await FirebaseFirestore.instance
           .collection('estimates')
           .doc(estimateId)
           .set(estimateData, SetOptions(merge: true));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('임시 저장되었습니다')),
+          SnackBar(content: Text(isEditMode ? '공간 기본 정보가 수정되었습니다' : '저장되었습니다')),
         );
-        if (widget.estimateId != null) {
+        if (!isEditMode) {
+          // 새로 생성된 estimateId를 URL에 포함하여 전달
           context.go(
-              '/main/customer/${widget.customerId}/estimate/${widget.estimateId}/edit/space-detail');
-        } else {
-          context
-              .go('/main/addpage/spaceadd/${widget.customerId}/space-detail');
+              '/main/addpage/spaceadd/${widget.customerId}/$estimateId/space-detail');
         }
       }
     } catch (e) {
@@ -981,7 +1028,14 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                             children: [
                               InkWell(
                                 onTap: () {
-                                  GoRouter.of(context).go('/main');
+                                  if (isEditMode) {
+                                    // 편집 모드일 때는 customer 화면으로 돌아가기
+                                    context.go(
+                                        '/main/customer/${widget.customerId}');
+                                  } else {
+                                    // 새로 생성 모드일 때는 메인 화면으로
+                                    GoRouter.of(context).go('/main');
+                                  }
                                 },
                                 child: Container(
                                   width: 60,
@@ -990,10 +1044,10 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                                     color: Colors.transparent,
                                     border: Border.all(color: AppColor.line1),
                                   ),
-                                  child: const Center(
+                                  child: Center(
                                     child: Text(
-                                      '취소',
-                                      style: TextStyle(
+                                      isEditMode ? '이전' : '취소',
+                                      style: const TextStyle(
                                           color: AppColor.primary,
                                           fontSize: 16,
                                           fontWeight: FontWeight.w600),
@@ -1002,34 +1056,43 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              InkWell(
-                                onTap: () {
-                                  // 임시 저장 처리
-                                  _saveTempBasicInfo();
-                                },
-                                child: Container(
-                                  width: 87,
-                                  height: 48,
-                                  decoration: BoxDecoration(
-                                    color: Colors.transparent,
-                                    border: Border.all(color: AppColor.line1),
-                                  ),
-                                  child: const Center(
-                                    child: Text(
-                                      '임시 저장',
-                                      style: TextStyle(
-                                          color: AppColor.primary,
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w600),
+                              if (!isEditMode) ...[
+                                InkWell(
+                                  onTap: () {
+                                    // 임시 저장 처리
+                                    _saveTempBasicInfo();
+                                  },
+                                  child: Container(
+                                    width: 87,
+                                    height: 48,
+                                    decoration: BoxDecoration(
+                                      color: Colors.transparent,
+                                      border: Border.all(color: AppColor.line1),
+                                    ),
+                                    child: const Center(
+                                      child: Text(
+                                        '임시 저장',
+                                        style: TextStyle(
+                                            color: AppColor.primary,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600),
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                              const SizedBox(width: 8),
+                                const SizedBox(width: 8),
+                              ],
                               InkWell(
                                 onTap: () {
-                                  // 고객 추가 처리
-                                  _saveSpaceBasicInfo();
+                                  if (isEditMode) {
+                                    // 편집 모드일 때는 공간 상세정보로 이동
+                                    _saveSpaceBasicInfo();
+                                    context.go(
+                                        '/main/customer/${widget.customerId}/estimate/${widget.estimateId}/edit/space-detail');
+                                  } else {
+                                    // 새로 생성 모드일 때는 기존 로직
+                                    _saveSpaceBasicInfo();
+                                  }
                                 },
                                 child: Container(
                                   width: 60,
@@ -1038,10 +1101,10 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                                     color: AppColor.primary,
                                     border: Border.all(color: AppColor.line1),
                                   ),
-                                  child: const Center(
+                                  child: Center(
                                     child: Text(
-                                      '다음',
-                                      style: TextStyle(
+                                      isEditMode ? '다음' : '다음',
+                                      style: const TextStyle(
                                           color: Colors.white,
                                           fontSize: 16,
                                           fontWeight: FontWeight.w600),

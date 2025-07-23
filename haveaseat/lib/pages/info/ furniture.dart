@@ -144,10 +144,12 @@ class _furniturePageState extends ConsumerState<furniturePage> {
         throw Exception('가구 정보를 입력해주세요');
       }
       String estimateId = widget.estimateId ?? '';
+      bool isNewEstimate = false;
       if (estimateId.isEmpty) {
         final estimateRef =
             FirebaseFirestore.instance.collection('estimates').doc();
         estimateId = estimateRef.id;
+        isNewEstimate = true;
         // 견적 최초 생성시에만 customers.estimateIds 추가
         await FirebaseFirestore.instance
             .collection('customers')
@@ -226,14 +228,16 @@ class _furniturePageState extends ConsumerState<furniturePage> {
         ...customFurnitureList
       ];
 
-      // 기존 데이터 가져오기
-      final estimateDoc = await FirebaseFirestore.instance
-          .collection('estimates')
-          .doc(estimateId)
-          .get();
+      // 새로 생성한 estimateId가 아닌 경우에만 기존 문서 존재 여부 확인
+      if (!isNewEstimate) {
+        final estimateDoc = await FirebaseFirestore.instance
+            .collection('estimates')
+            .doc(estimateId)
+            .get();
 
-      if (!estimateDoc.exists) {
-        throw Exception('견적서를 찾을 수 없습니다');
+        if (!estimateDoc.exists) {
+          throw Exception('견적서를 찾을 수 없습니다');
+        }
       }
 
       // estimate 컬렉션에 저장 - memo 필드 추가
@@ -246,15 +250,6 @@ class _furniturePageState extends ConsumerState<furniturePage> {
         'memo': memo, // 메모 필드 추가
       }, SetOptions(merge: true));
 
-      // customers 컬렉션에도 isDraft: false로 저장 (정식저장 시)
-      // 견적 완료 시점에 isDraft를 false로 확실하게 업데이트
-      if (widget.customerId.isNotEmpty) {
-        await FirebaseFirestore.instance
-            .collection('customers')
-            .doc(widget.customerId)
-            .set({'isDraft': false}, SetOptions(merge: true));
-      }
-
       // 임시 저장 데이터 삭제 (새 고객 모드일 때만)
       if (widget.estimateId == null) {
         await FirebaseFirestore.instance
@@ -265,16 +260,17 @@ class _furniturePageState extends ConsumerState<furniturePage> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('저장되었습니다')),
+          SnackBar(content: Text(isEditMode ? '가구 정보가 수정되었습니다' : '저장되었습니다')),
         );
 
         // 다음 페이지 이동 경로 분기
-        if (widget.estimateId != null) {
-          context.go(
-              '/main/customer/${widget.customerId}/estimate/${widget.estimateId}/edit/space-detail/furniture/estimate');
+        if (isEditMode) {
+          // 편집 모드일 때는 customer 화면으로 돌아가기
+          context.go('/main/customer/${widget.customerId}');
         } else {
+          // 새로 생성된 estimateId를 URL에 포함하여 전달
           context.go(
-              '/main/addpage/spaceadd/${widget.customerId}/space-detail/furniture/estimate',
+              '/main/addpage/spaceadd/${widget.customerId}/$estimateId/space-detail/furniture/estimate',
               extra: {'companyName': widget.name ?? '무제'});
         }
       }
@@ -853,6 +849,13 @@ class _furniturePageState extends ConsumerState<furniturePage> {
     _loadExistingEstimateData();
   }
 
+  // 편집 모드인지 확인하는 getter
+  bool get isEditMode {
+    final currentPath =
+        GoRouter.of(context).routerDelegate.currentConfiguration.uri.path;
+    return currentPath.contains('/edit');
+  }
+
   @override
   void dispose() {
     // 컨트롤러 정리
@@ -1405,7 +1408,14 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                               children: [
                                 InkWell(
                                   onTap: () {
-                                    GoRouter.of(context).go('/main');
+                                    if (isEditMode) {
+                                      // 편집 모드일 때는 customer 화면으로 돌아가기
+                                      context.go(
+                                          '/main/customer/${widget.customerId}');
+                                    } else {
+                                      // 새로 생성 모드일 때는 메인 화면으로
+                                      GoRouter.of(context).go('/main');
+                                    }
                                   },
                                   child: Container(
                                     width: 60,
@@ -1414,10 +1424,10 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                                       color: Colors.transparent,
                                       border: Border.all(color: AppColor.line1),
                                     ),
-                                    child: const Center(
+                                    child: Center(
                                       child: Text(
-                                        '취소',
-                                        style: TextStyle(
+                                        isEditMode ? '이전' : '취소',
+                                        style: const TextStyle(
                                             color: AppColor.primary,
                                             fontSize: 16,
                                             fontWeight: FontWeight.w600),
@@ -1426,30 +1436,33 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                                   ),
                                 ),
                                 const SizedBox(width: 8),
-                                InkWell(
-                                  onTap: () {
-                                    // 임시 저장 처리
-                                    _saveTempFurniture();
-                                  },
-                                  child: Container(
-                                    width: 87,
-                                    height: 48,
-                                    decoration: BoxDecoration(
-                                      color: Colors.transparent,
-                                      border: Border.all(color: AppColor.line1),
-                                    ),
-                                    child: const Center(
-                                      child: Text(
-                                        '임시 저장',
-                                        style: TextStyle(
-                                            color: AppColor.primary,
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w600),
+                                if (!isEditMode) ...[
+                                  InkWell(
+                                    onTap: () {
+                                      // 임시 저장 처리
+                                      _saveTempFurniture();
+                                    },
+                                    child: Container(
+                                      width: 87,
+                                      height: 48,
+                                      decoration: BoxDecoration(
+                                        color: Colors.transparent,
+                                        border:
+                                            Border.all(color: AppColor.line1),
+                                      ),
+                                      child: const Center(
+                                        child: Text(
+                                          '임시 저장',
+                                          style: TextStyle(
+                                              color: AppColor.primary,
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w600),
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ),
-                                const SizedBox(width: 8),
+                                  const SizedBox(width: 8),
+                                ],
                                 InkWell(
                                   onTap: () {
                                     // 저장 처리
@@ -1462,10 +1475,10 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                                       color: AppColor.primary,
                                       border: Border.all(color: AppColor.line1),
                                     ),
-                                    child: const Center(
+                                    child: Center(
                                       child: Text(
-                                        '다음',
-                                        style: TextStyle(
+                                        isEditMode ? '수정' : '다음',
+                                        style: const TextStyle(
                                             color: Colors.white,
                                             fontSize: 16,
                                             fontWeight: FontWeight.w600),

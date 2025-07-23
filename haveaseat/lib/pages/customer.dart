@@ -372,6 +372,12 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
 
   Future<void> _addNewEstimateToExistingCustomer() async {
     try {
+      // 고객 정보 가져오기
+      final customer = await ref
+          .read(customerDataProvider.notifier)
+          .getCustomer(widget.customerId);
+      if (customer == null) throw Exception('고객 정보를 찾을 수 없습니다');
+
       final now = DateTime.now();
       final estimateRef =
           FirebaseFirestore.instance.collection('estimates').doc();
@@ -425,9 +431,10 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
           const SnackBar(content: Text('새로운 견적이 추가되었습니다')),
         );
 
-        // 견적 편집 페이지로 이동
+        // 새로 생성된 견적을 새로 생성 플로우로 이동
         context.go(
-            '/main/customer/${widget.customerId}/estimate/${estimateRef.id}/edit');
+            '/main/addpage/spaceadd/${widget.customerId}/${estimateRef.id}',
+            extra: {'name': customer.name});
       }
     } catch (e) {
       print('Error adding new estimate: $e');
@@ -748,6 +755,12 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
 
       for (var doc in snapshot.docs) {
         final data = doc.data();
+
+        // 임시저장된 견적은 제외 (isDraft가 true인 경우)
+        if (data['isDraft'] == true) {
+          continue;
+        }
+
         final furnitureList = data['furnitureList'] as List<dynamic>? ?? [];
 
         // 가구 목록이 비어있어도 견적은 표시 (빈 견적도 보여줌)
@@ -985,10 +998,13 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   const SizedBox(height: 40),
-                  SizedBox(
-                    width: 137,
-                    height: 17,
-                    child: Image.asset('assets/images/logo.png'),
+                  InkWell(
+                    onTap: () => context.go('/main'),
+                    child: SizedBox(
+                      width: 137,
+                      height: 17,
+                      child: Image.asset('assets/images/logo.png'),
+                    ),
                   ),
                   const SizedBox(height: 56),
                   userData.when(
@@ -1093,7 +1109,7 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
                     height: 48,
                   ),
                   InkWell(
-                    onTap: () {},
+                    onTap: () => context.go('/temp'),
                     child: Container(
                         width: 200,
                         height: 48,
@@ -1253,7 +1269,10 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
                                                 color: Colors.black),
                                           ),
                                           InkWell(
-                                            onTap: () {},
+                                            onTap: () {
+                                              context.go(
+                                                  '/main/customer/${customer.id}/edit');
+                                            },
                                             child: const Text(
                                               '수정하기',
                                               style: TextStyle(
@@ -1744,24 +1763,38 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
                                                               BorderRadius
                                                                   .circular(8),
                                                         ),
-                                                        child:
-                                                            CalendarDatePicker(
-                                                          initialDate:
-                                                              _startDate ??
-                                                                  DateTime
-                                                                      .now(),
-                                                          firstDate:
-                                                              DateTime(2000),
-                                                          lastDate:
-                                                              DateTime(2100),
-                                                          onDateChanged:
-                                                              (DateTime date) {
-                                                            setState(() {
-                                                              _startDate = date;
-                                                              _showStartDatePicker =
-                                                                  false;
-                                                            });
-                                                          },
+                                                        child: Theme(
+                                                          data:
+                                                              ThemeData.light()
+                                                                  .copyWith(
+                                                            colorScheme:
+                                                                const ColorScheme
+                                                                    .light(
+                                                              primary:
+                                                                  AppColor.main,
+                                                            ),
+                                                          ),
+                                                          child:
+                                                              CalendarDatePicker(
+                                                            initialDate:
+                                                                _startDate ??
+                                                                    DateTime
+                                                                        .now(),
+                                                            firstDate:
+                                                                DateTime(2000),
+                                                            lastDate:
+                                                                DateTime(2100),
+                                                            onDateChanged:
+                                                                (DateTime
+                                                                    date) {
+                                                              setState(() {
+                                                                _startDate =
+                                                                    date;
+                                                                _showStartDatePicker =
+                                                                    false;
+                                                              });
+                                                            },
+                                                          ),
                                                         ),
                                                       ),
                                                     ),
@@ -1785,24 +1818,37 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
                                                               BorderRadius
                                                                   .circular(8),
                                                         ),
-                                                        child:
-                                                            CalendarDatePicker(
-                                                          initialDate:
-                                                              _endDate ??
-                                                                  DateTime
-                                                                      .now(),
-                                                          firstDate:
-                                                              DateTime(2000),
-                                                          lastDate:
-                                                              DateTime(2100),
-                                                          onDateChanged:
-                                                              (DateTime date) {
-                                                            setState(() {
-                                                              _endDate = date;
-                                                              _showEndDatePicker =
-                                                                  false;
-                                                            });
-                                                          },
+                                                        child: Theme(
+                                                          data:
+                                                              ThemeData.light()
+                                                                  .copyWith(
+                                                            colorScheme:
+                                                                const ColorScheme
+                                                                    .light(
+                                                              primary:
+                                                                  AppColor.main,
+                                                            ),
+                                                          ),
+                                                          child:
+                                                              CalendarDatePicker(
+                                                            initialDate:
+                                                                _endDate ??
+                                                                    DateTime
+                                                                        .now(),
+                                                            firstDate:
+                                                                DateTime(2000),
+                                                            lastDate:
+                                                                DateTime(2100),
+                                                            onDateChanged:
+                                                                (DateTime
+                                                                    date) {
+                                                              setState(() {
+                                                                _endDate = date;
+                                                                _showEndDatePicker =
+                                                                    false;
+                                                              });
+                                                            },
+                                                          ),
                                                         ),
                                                       ),
                                                     ),

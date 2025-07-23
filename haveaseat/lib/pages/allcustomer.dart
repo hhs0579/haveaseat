@@ -265,7 +265,14 @@ class _AllCustomerPageState extends ConsumerState<AllCustomerPage> {
           padding: const EdgeInsets.all(12),
           child: Theme(
             // Theme 위젯 추가
-            data: ThemeData.light(), // 라이트 테마 적용
+            data: ThemeData.light().copyWith(
+              colorScheme: const ColorScheme.light(
+                primary: AppColor.main,
+                onPrimary: Colors.white,
+                surface: Colors.white,
+                onSurface: AppColor.font1,
+              ),
+            ),
             child: CalendarDatePicker(
               initialDate: isStartDate
                   ? (_startDate ?? DateTime.now())
@@ -378,19 +385,25 @@ class _AllCustomerPageState extends ConsumerState<AllCustomerPage> {
 // status별 고객 수를 계산하는 메서드
   Map<CustomerStatus, int> _getStatusCounts(List<Customer> customers) {
     // Remove the assignedTo filter and count all customers
+    final filtered = customers
+        .where((c) => c.isDraft != true)
+        .where((c) => c.estimateIds.isNotEmpty)
+        .toList();
     return Map.fromEntries(
       CustomerStatus.values.map((status) => MapEntry(
             status,
-            customers.where((customer) => customer.status == status).length,
+            filtered.where((customer) => customer.status == status).length,
           )),
     );
   }
 
 // 필터링 메서드 수정
   List<Customer> _filterCustomers(List<Customer> customers) {
-    // 전체 고객에서 isDraft == false인 고객만 남김
-    var filteredCustomers =
-        customers.where((customer) => customer.isDraft == false).toList();
+    // 전체 고객에서 isDraft == false인 고객만 남김, 견적 1개 이상만
+    var filteredCustomers = customers
+        .where((customer) => customer.isDraft == false)
+        .where((customer) => customer.estimateIds.isNotEmpty)
+        .toList();
 
     // Status filter
     if (_selectedStatus != null) {
@@ -512,10 +525,13 @@ class _AllCustomerPageState extends ConsumerState<AllCustomerPage> {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   const SizedBox(height: 40),
-                  SizedBox(
-                    width: 137,
-                    height: 17,
-                    child: Image.asset('assets/images/logo.png'),
+                  InkWell(
+                    onTap: () => context.go('/main'),
+                    child: SizedBox(
+                      width: 137,
+                      height: 17,
+                      child: Image.asset('assets/images/logo.png'),
+                    ),
                   ),
                   const SizedBox(height: 56),
                   userData.when(
@@ -624,7 +640,7 @@ class _AllCustomerPageState extends ConsumerState<AllCustomerPage> {
                     height: 48,
                   ),
                   InkWell(
-                    onTap: () {},
+                    onTap: () => context.go('/temp'),
                     child: Container(
                         width: 200,
                         height: 48,
@@ -1010,7 +1026,7 @@ class _AllCustomerPageState extends ConsumerState<AllCustomerPage> {
                                                       onTap: () => context
                                                           .go('/main/addpage'),
                                                       child: Container(
-                                                        color: AppColor.primary,
+                                                        color: AppColor.main,
                                                         width: 141,
                                                         height: 44,
                                                         padding:
@@ -1018,12 +1034,12 @@ class _AllCustomerPageState extends ConsumerState<AllCustomerPage> {
                                                                 .symmetric(
                                                                 vertical: 10,
                                                                 horizontal: 16),
-                                                        child: Row(
+                                                        child: const Row(
                                                           mainAxisAlignment:
                                                               MainAxisAlignment
                                                                   .spaceBetween,
                                                           children: [
-                                                            const Text(
+                                                            Text(
                                                               '고객정보입력',
                                                               style: TextStyle(
                                                                 fontSize: 14,
@@ -1034,15 +1050,12 @@ class _AllCustomerPageState extends ConsumerState<AllCustomerPage> {
                                                                     .white,
                                                               ),
                                                             ),
-                                                            SizedBox(
-                                                                width: 13,
-                                                                height: 13,
-                                                                child:
-                                                                    Image.asset(
-                                                                  'assets/images/plus.png',
-                                                                  color: Colors
-                                                                      .white,
-                                                                ))
+                                                            Icon(
+                                                              Icons.add,
+                                                              color:
+                                                                  Colors.white,
+                                                              size: 16, // 크기 명시
+                                                            ),
                                                           ],
                                                         ),
                                                       ),
@@ -1166,18 +1179,31 @@ class _AllCustomerPageState extends ConsumerState<AllCustomerPage> {
                                                 borderRadius:
                                                     BorderRadius.circular(8),
                                               ),
-                                              child: CalendarDatePicker(
-                                                initialDate: _startDate ??
-                                                    DateTime.now(),
-                                                firstDate: DateTime(2000),
-                                                lastDate: DateTime(2100),
-                                                onDateChanged: (DateTime date) {
-                                                  setState(() {
-                                                    _startDate = date;
-                                                    _showStartDatePicker =
-                                                        false;
-                                                  });
-                                                },
+                                              child: Theme(
+                                                data:
+                                                    ThemeData.light().copyWith(
+                                                  colorScheme:
+                                                      const ColorScheme.light(
+                                                    primary: AppColor.main,
+                                                    onPrimary: Colors.white,
+                                                    surface: Colors.white,
+                                                    onSurface: AppColor.font1,
+                                                  ),
+                                                ),
+                                                child: CalendarDatePicker(
+                                                  initialDate: _startDate ??
+                                                      DateTime.now(),
+                                                  firstDate: DateTime(2000),
+                                                  lastDate: DateTime(2100),
+                                                  onDateChanged:
+                                                      (DateTime date) {
+                                                    setState(() {
+                                                      _startDate = date;
+                                                      _showStartDatePicker =
+                                                          false;
+                                                    });
+                                                  },
+                                                ),
                                               ),
                                             ),
                                           ),
@@ -1198,17 +1224,31 @@ class _AllCustomerPageState extends ConsumerState<AllCustomerPage> {
                                                 borderRadius:
                                                     BorderRadius.circular(8),
                                               ),
-                                              child: CalendarDatePicker(
-                                                initialDate:
-                                                    _endDate ?? DateTime.now(),
-                                                firstDate: DateTime(2000),
-                                                lastDate: DateTime(2100),
-                                                onDateChanged: (DateTime date) {
-                                                  setState(() {
-                                                    _endDate = date;
-                                                    _showEndDatePicker = false;
-                                                  });
-                                                },
+                                              child: Theme(
+                                                data:
+                                                    ThemeData.light().copyWith(
+                                                  colorScheme:
+                                                      const ColorScheme.light(
+                                                    primary: AppColor.main,
+                                                    onPrimary: Colors.white,
+                                                    surface: Colors.white,
+                                                    onSurface: AppColor.font1,
+                                                  ),
+                                                ),
+                                                child: CalendarDatePicker(
+                                                  initialDate: _endDate ??
+                                                      DateTime.now(),
+                                                  firstDate: DateTime(2000),
+                                                  lastDate: DateTime(2100),
+                                                  onDateChanged:
+                                                      (DateTime date) {
+                                                    setState(() {
+                                                      _endDate = date;
+                                                      _showEndDatePicker =
+                                                          false;
+                                                    });
+                                                  },
+                                                ),
                                               ),
                                             ),
                                           ),

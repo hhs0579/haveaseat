@@ -221,6 +221,17 @@ final routerProvider = Provider<GoRouter>((ref) {
               customerId: state.pathParameters['id']!,
             ),
             routes: [
+              // 고객 정보 수정 라우트 추가
+              GoRoute(
+                path: 'edit',
+                builder: (context, state) {
+                  final customerId = state.pathParameters['id']!;
+                  return addCustomerPage(
+                    customerId: customerId,
+                    isEditMode: true,
+                  );
+                },
+              ),
               GoRoute(
                 path: 'estimate/:estimateId',
                 builder: (context, state) => CustomerEstimatePage(
@@ -252,6 +263,30 @@ final routerProvider = Provider<GoRouter>((ref) {
                       customerId: customerId, estimateId: estimateId);
                 },
                 routes: [
+                  // 공간 기본 정보 수정
+                  GoRoute(
+                    path: 'space-basic',
+                    builder: (context, state) {
+                      final customerId = state.pathParameters['id']!;
+                      final estimateId = state.pathParameters['estimateId']!;
+                      return SpaceAddPage(
+                          customerId: customerId, estimateId: estimateId);
+                    },
+                    routes: [
+                      // 공간 상세 정보 수정으로 연결
+                      GoRoute(
+                        path: 'space-detail',
+                        builder: (context, state) {
+                          final customerId = state.pathParameters['id']!;
+                          final estimateId =
+                              state.pathParameters['estimateId']!;
+                          return SpaceDetailPage(
+                              customerId: customerId, estimateId: estimateId);
+                        },
+                      ),
+                    ],
+                  ),
+                  // 공간 상세 정보 수정 (직접 접근용)
                   GoRoute(
                     path: 'space-detail',
                     builder: (context, state) {
