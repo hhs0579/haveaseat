@@ -110,280 +110,296 @@ class _FindIdPageState extends ConsumerState<FindIdPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('아이디 찾기'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
-        ),
-      ),
       body: ResponsiveLayout(
         mobile: const SingleChildScrollView(),
-        desktop: SingleChildScrollView(
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 100, top: 50),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    SizedBox(
-                      width: 249,
-                      height: 31,
-                      child: Image.asset('assets/images/logo.png'),
-                    ),
-                    const SizedBox(height: 56),
-                    const Text(
-                      '아이디 찾기',
-                      style: TextStyle(
-                        color: AppColor.font1,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 24,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      '회원가입 시 입력한 정보를 입력해주세요',
-                      style: TextStyle(
-                        color: AppColor.font2,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-                    if (_foundEmail != null) ...[
-                      Container(
-                        width: 360,
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Colors.green.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.green.shade200),
-                        ),
-                        child: Column(
-                          children: [
-                            const Icon(
-                              Icons.check_circle,
-                              color: Colors.green,
-                              size: 48,
-                            ),
-                            const SizedBox(height: 16),
-                            const Text(
-                              '아이디를 찾았습니다!',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.green,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              _foundEmail!,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: AppColor.font1,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      Row(
+        desktop: Column(
+          children: [
+            Expanded(
+              child: Center(
+                child: SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 100, top: 50),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Expanded(
+                          GestureDetector(
+                            onTap: () => context.go('/'),
                             child: SizedBox(
-                              height: 48,
-                              child: ElevatedButton(
-                                onPressed: () => context.go('/login'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColor.primary,
-                                  shape: const RoundedRectangleBorder(
-                                    borderRadius:
-                                        BorderRadius.all(Radius.circular(4)),
-                                  ),
-                                ),
-                                child: const Text(
-                                  '로그인하기',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
+                              width: 249,
+                              height: 31,
+                              child: Image.asset('assets/images/logo.png'),
                             ),
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: SizedBox(
-                              height: 48,
-                              child: OutlinedButton(
-                                onPressed: () => context.go('/find-password'),
-                                style: OutlinedButton.styleFrom(
-                                  side:
-                                      const BorderSide(color: AppColor.primary),
-                                  shape: const RoundedRectangleBorder(
-                                    borderRadius:
-                                        BorderRadius.all(Radius.circular(4)),
-                                  ),
-                                ),
-                                child: const Text(
-                                  '비밀번호 찾기',
-                                  style: TextStyle(
-                                    color: AppColor.primary,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
+                          const SizedBox(height: 56),
+                          const Text(
+                            '아이디 찾기',
+                            style: TextStyle(
+                              color: AppColor.font1,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 24,
                             ),
                           ),
-                        ],
-                      ),
-                    ] else ...[
-                      SizedBox(
-                        width: 360,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              '이름',
-                              style: TextStyle(
-                                color: AppColor.font1,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            TextFormField(
-                              controller: _nameController,
-                              validator: (value) {
-                                if (value?.isEmpty ?? true) {
-                                  return '이름을 입력해주세요';
-                                }
-                                return null;
-                              },
-                              decoration: InputDecoration(
-                                hintText: '이름을 입력해 주세요',
-                                hintStyle: const TextStyle(
-                                  color: AppColor.font2,
-                                  fontSize: 14,
+                          const SizedBox(height: 8),
+                          const SizedBox(height: 32),
+                          if (_foundEmail != null) ...[
+                            Center(
+                              child: Container(
+                                width: 360,
+                                padding: const EdgeInsets.all(20),
+                                decoration: BoxDecoration(
+                                  color: Colors.green.shade50,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border:
+                                      Border.all(color: Colors.green.shade200),
                                 ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(4),
-                                  borderSide:
-                                      const BorderSide(color: AppColor.line1),
+                                child: Column(
+                                  children: [
+                                    const Icon(
+                                      Icons.check_circle,
+                                      color: Colors.green,
+                                      size: 48,
+                                    ),
+                                    const SizedBox(height: 16),
+                                    const Text(
+                                      '아이디를 찾았습니다!',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.green,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      _foundEmail!,
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColor.font1,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(4),
-                                  borderSide:
-                                      const BorderSide(color: AppColor.line1),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(4),
-                                  borderSide:
-                                      const BorderSide(color: AppColor.line1),
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 12,
-                                ),
-                                errorStyle: const TextStyle(height: 0),
                               ),
                             ),
                             const SizedBox(height: 24),
-                            const Text(
-                              '전화번호',
-                              style: TextStyle(
-                                color: AppColor.font1,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            TextFormField(
-                              controller: _phoneController,
-                              keyboardType: TextInputType.number,
-                              validator: (value) {
-                                if (value?.isEmpty ?? true) {
-                                  return '전화번호를 입력해주세요';
-                                }
-                                // 숫자만 입력 검증 (10-11자리)
-                                if (!RegExp(r'^\d{10,11}$').hasMatch(value!)) {
-                                  return '올바른 전화번호를 입력해주세요 (10-11자리 숫자)';
-                                }
-                                return null;
-                              },
-                              decoration: InputDecoration(
-                                hintText: '01012345678',
-                                hintStyle: const TextStyle(
-                                  color: AppColor.font2,
-                                  fontSize: 14,
-                                ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(4),
-                                  borderSide:
-                                      const BorderSide(color: AppColor.line1),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(4),
-                                  borderSide:
-                                      const BorderSide(color: AppColor.line1),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(4),
-                                  borderSide:
-                                      const BorderSide(color: AppColor.line1),
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 12,
-                                ),
-                                errorStyle: const TextStyle(height: 0),
-                              ),
-                            ),
-                            const SizedBox(height: 36),
-                            SizedBox(
-                              width: double.infinity,
-                              height: 48,
-                              child: ElevatedButton(
-                                onPressed: _isLoading ? null : _findId,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColor.primary,
-                                  shape: const RoundedRectangleBorder(
-                                    borderRadius:
-                                        BorderRadius.all(Radius.circular(4)),
-                                  ),
-                                ),
-                                child: _isLoading
-                                    ? const SizedBox(
-                                        width: 20,
-                                        height: 20,
-                                        child: CircularProgressIndicator(
-                                          color: Colors.white,
-                                          strokeWidth: 2,
-                                        ),
-                                      )
-                                    : const Text(
-                                        '아이디 찾기',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
+                            Center(
+                              child: SizedBox(
+                                width: 360,
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: SizedBox(
+                                        height: 48,
+                                        child: ElevatedButton(
+                                          onPressed: () => context.go('/login'),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: AppColor.primary,
+                                            shape: const RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.all(
+                                                  Radius.circular(4)),
+                                            ),
+                                          ),
+                                          child: const Text(
+                                            '로그인하기',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
                                         ),
                                       ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: SizedBox(
+                                        height: 48,
+                                        child: OutlinedButton(
+                                          onPressed: () =>
+                                              context.go('/find-password'),
+                                          style: OutlinedButton.styleFrom(
+                                            side: const BorderSide(
+                                                color: AppColor.primary),
+                                            shape: const RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.all(
+                                                  Radius.circular(4)),
+                                            ),
+                                          ),
+                                          child: const Text(
+                                            '비밀번호 찾기',
+                                            style: TextStyle(
+                                              color: AppColor.primary,
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ] else ...[
+                            Center(
+                              child: SizedBox(
+                                width: 360,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      '이름',
+                                      style: TextStyle(
+                                        color: AppColor.font1,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    TextFormField(
+                                      controller: _nameController,
+                                      validator: (value) {
+                                        if (value?.isEmpty ?? true) {
+                                          return '이름을 입력해주세요';
+                                        }
+                                        return null;
+                                      },
+                                      decoration: InputDecoration(
+                                        hintText: '이름을 입력해 주세요',
+                                        hintStyle: const TextStyle(
+                                          color: AppColor.font2,
+                                          fontSize: 14,
+                                        ),
+                                        border: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(4),
+                                          borderSide: const BorderSide(
+                                              color: AppColor.line1),
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(4),
+                                          borderSide: const BorderSide(
+                                              color: AppColor.line1),
+                                        ),
+                                        enabledBorder: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(4),
+                                          borderSide: const BorderSide(
+                                              color: AppColor.line1),
+                                        ),
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                          vertical: 12,
+                                        ),
+                                        errorStyle: const TextStyle(height: 0),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 24),
+                                    const Text(
+                                      '전화번호',
+                                      style: TextStyle(
+                                        color: AppColor.font1,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    TextFormField(
+                                      controller: _phoneController,
+                                      keyboardType: TextInputType.number,
+                                      validator: (value) {
+                                        if (value?.isEmpty ?? true) {
+                                          return '전화번호를 입력해주세요';
+                                        }
+                                        // 숫자만 입력 검증 (10-11자리)
+                                        if (!RegExp(r'^\d{10,11}$')
+                                            .hasMatch(value!)) {
+                                          return '올바른 전화번호를 입력해주세요 (10-11자리 숫자)';
+                                        }
+                                        return null;
+                                      },
+                                      decoration: InputDecoration(
+                                        hintText: '휴대폰 번호를 입력해주세요(-제외)',
+                                        hintStyle: const TextStyle(
+                                          color: AppColor.font2,
+                                          fontSize: 14,
+                                        ),
+                                        border: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(4),
+                                          borderSide: const BorderSide(
+                                              color: AppColor.line1),
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(4),
+                                          borderSide: const BorderSide(
+                                              color: AppColor.line1),
+                                        ),
+                                        enabledBorder: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(4),
+                                          borderSide: const BorderSide(
+                                              color: AppColor.line1),
+                                        ),
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                          vertical: 12,
+                                        ),
+                                        errorStyle: const TextStyle(height: 0),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 36),
+                                    SizedBox(
+                                      width: double.infinity,
+                                      height: 48,
+                                      child: ElevatedButton(
+                                        onPressed: _isLoading ? null : _findId,
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: AppColor.main,
+                                          shape: const RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.all(
+                                                Radius.circular(4)),
+                                          ),
+                                        ),
+                                        child: _isLoading
+                                            ? const SizedBox(
+                                                width: 20,
+                                                height: 20,
+                                                child:
+                                                    CircularProgressIndicator(
+                                                  color: Colors.white,
+                                                  strokeWidth: 2,
+                                                ),
+                                              )
+                                            : const Text(
+                                                '아이디 찾기',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ],
-                        ),
+                        ],
                       ),
-                    ],
-                  ],
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
+          ],
         ),
       ),
     );
