@@ -169,12 +169,13 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
       final confirm = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
+          backgroundColor: Colors.white,
           title: const Text('고객 삭제'),
           content: Text('선택한 ${_selectedCustomers.length}명의 고객을 삭제하시겠습니까?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('취소'),
+              child: const Text('취소', style: TextStyle(color: Colors.black)),
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),
@@ -312,12 +313,13 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
       final confirm = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
+          backgroundColor: Colors.white,
           title: const Text('견적 삭제'),
           content: Text('선택한 ${_selectedEstimates.length}개의 견적을 삭제하시겠습니까?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('취소'),
+              child: const Text('취소', style: TextStyle(color: Colors.black)),
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),

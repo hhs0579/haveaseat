@@ -51,12 +51,13 @@ class _loginState extends ConsumerState<login> {
         await showDialog(
           context: context,
           builder: (_) => AlertDialog(
+            backgroundColor: Colors.white,
             title: const Text('승인 대기'),
             content: const Text('관리자의 승인을 받으세요.'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: const Text('확인'),
+                child: const Text('확인', style: TextStyle(color: AppColor.main)),
               ),
             ],
           ),
@@ -102,6 +103,7 @@ class _loginState extends ConsumerState<login> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       body: ResponsiveLayout(
         mobile: const SingleChildScrollView(),
         desktop: Column(

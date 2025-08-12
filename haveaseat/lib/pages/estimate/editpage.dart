@@ -1033,8 +1033,10 @@ class _EstimateEditPageState extends ConsumerState<EstimateEditPage> {
   // 가구 추가 다이얼로그
   void _addFurniture() {
     showDialog(
+      
       context: context,
       builder: (context) => _FurnitureDialog(
+        
         onSave: (furniture) {
           setState(() {
             _furnitureList.add(furniture);

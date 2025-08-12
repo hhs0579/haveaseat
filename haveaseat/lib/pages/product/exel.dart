@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:haveaseat/components/colors.dart';
 import 'package:haveaseat/pages/product/repo.dart';
 import 'package:haveaseat/riverpod/product.dart';
+import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 
 class ProductExcelPage extends StatefulWidget {
   const ProductExcelPage({super.key});
@@ -15,7 +17,10 @@ class _ProductExcelPageState extends State<ProductExcelPage> {
   final _repo = ProductRepository();
 
   bool _loading = false;
+// 파일 상단 import는 이미 있음: import 'package:intl/intl.dart';
 
+  final _moneyFmt = NumberFormat.decimalPattern('ko_KR');
+  String _fmtMoney(num? v) => v == null ? '-' : _moneyFmt.format(v);
   // 검색 & 목록
   final _searchCtrl = TextEditingController();
   String _searchText = ''; // IME 조합 문제 방지: 조합 종료 시에만 갱신
@@ -191,7 +196,7 @@ class _ProductExcelPageState extends State<ProductExcelPage> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
               children: [
-                Text('총 $filteredCount건'),
+                Text('총 ${_moneyFmt.format(filteredCount)}건'),
                 const Spacer(),
                 const Text('페이지당'),
                 const SizedBox(width: 8),
@@ -269,7 +274,7 @@ class _ProductExcelPageState extends State<ProductExcelPage> {
                           return ListTile(
                             title: Text('${p.name} (${p.code})'),
                             subtitle: Text(
-                              '공급사: ${p.supplier ?? '-'} · 공급가: ${p.supplyPrice?.toStringAsFixed(0) ?? '-'} · 판매가: ${p.salePrice.toStringAsFixed(0)}',
+                              '공급사: ${p.supplier ?? '-'} · 공급가: ${_fmtMoney(p.supplyPrice)}원 · 판매가: ${_fmtMoney(p.salePrice)}원',
                             ),
                             trailing: IconButton(
                               icon:
@@ -320,6 +325,7 @@ class _ProductEditDialogState extends State<_ProductEditDialog> {
   late final TextEditingController salePriceCtrl;
 
   @override
+  @override
   void initState() {
     super.initState();
     codeCtrl = TextEditingController(text: widget.initial?.code ?? '');
@@ -330,6 +336,10 @@ class _ProductEditDialogState extends State<_ProductEditDialog> {
         text: widget.initial?.supplyPrice?.toString() ?? '');
     salePriceCtrl = TextEditingController(
         text: widget.initial?.salePrice.toString() ?? '0');
+
+    // 초기 표시도 12,345 형태로
+    supplyPriceCtrl.text = _fmtNum(supplyPriceCtrl.text);
+    salePriceCtrl.text = _fmtNum(salePriceCtrl.text);
   }
 
   @override
@@ -345,40 +355,81 @@ class _ProductEditDialogState extends State<_ProductEditDialog> {
 
   @override
   Widget build(BuildContext context) {
+    InputDecoration dec(String label) => InputDecoration(
+          labelText: label,
+          isDense: false,
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(color: AppColor.main.withOpacity(0.25)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: AppColor.main, width: 1.5),
+          ),
+        );
+
     return AlertDialog(
-      backgroundColor: Colors.white, // 흰색 바탕
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.transparent, // ← 연핑크/틴트 제거
       title: Text(
         widget.initial == null ? '제품 추가' : '제품 수정',
         style:
             const TextStyle(color: AppColor.main, fontWeight: FontWeight.w600),
       ),
       content: SizedBox(
-        width: 420,
+        width: 480, // 살짝 넓게
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
-                  controller: codeCtrl,
-                  decoration: const InputDecoration(labelText: '상품코드')),
+                controller: codeCtrl,
+                textAlignVertical: TextAlignVertical.center,
+                decoration: dec('상품코드'),
+              ),
+              const SizedBox(height: 12),
               TextField(
-                  controller: nameCtrl,
-                  decoration: const InputDecoration(labelText: '제품명')),
+                controller: nameCtrl,
+                textAlignVertical: TextAlignVertical.center,
+                decoration: dec('제품명'),
+              ),
+              const SizedBox(height: 12),
               TextField(
-                  controller: specCtrl,
-                  decoration: const InputDecoration(labelText: '제품 스펙')),
+                controller: specCtrl,
+                textAlignVertical: TextAlignVertical.center,
+                decoration: dec('제품 스펙'),
+              ),
+              const SizedBox(height: 12),
               TextField(
-                  controller: supplierCtrl,
-                  decoration: const InputDecoration(labelText: '공급사')),
+                controller: supplierCtrl,
+                textAlignVertical: TextAlignVertical.center,
+                decoration: dec('공급사'),
+              ),
+              const SizedBox(height: 12),
               TextField(
                 controller: supplyPriceCtrl,
-                decoration: const InputDecoration(labelText: '공급가액'),
+                textAlignVertical: TextAlignVertical.center,
                 keyboardType: TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9,]')),
+                  ThousandsSeparatorInputFormatter(),
+                ],
+                decoration: dec('공급가액'),
               ),
+              const SizedBox(height: 12),
               TextField(
                 controller: salePriceCtrl,
-                decoration: const InputDecoration(labelText: '판매가액'),
+                textAlignVertical: TextAlignVertical.center,
                 keyboardType: TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9,]')),
+                  ThousandsSeparatorInputFormatter(),
+                ],
+                decoration: dec('판매가액'),
               ),
             ],
           ),
@@ -400,7 +451,7 @@ class _ProductEditDialogState extends State<_ProductEditDialog> {
               supplier: supplierCtrl.text.trim().isEmpty
                   ? null
                   : supplierCtrl.text.trim(),
-              supplyPrice: _toDouble(supplyPriceCtrl.text),
+              supplyPrice: _toDouble(supplyPriceCtrl.text), // 콤마 제거 파서 그대로 OK
               salePrice: _toDouble(salePriceCtrl.text) ?? 0,
             );
             Navigator.pop(context, p);
@@ -414,11 +465,35 @@ class _ProductEditDialogState extends State<_ProductEditDialog> {
       ],
     );
   }
-}
 
 // 공용 파서
-double? _toDouble(dynamic v) {
-  if (v == null) return null;
-  if (v is num) return v.toDouble();
-  return double.tryParse(v.toString().replaceAll(',', ''));
+  double? _toDouble(dynamic v) {
+    if (v == null) return null;
+    if (v is num) return v.toDouble();
+    return double.tryParse(v.toString().replaceAll(',', ''));
+  }
+
+  String _fmtNum(String? raw) {
+    final s = (raw ?? '').replaceAll(RegExp(r'[^0-9]'), '');
+    if (s.isEmpty) return '';
+    return NumberFormat.decimalPattern().format(int.parse(s));
+  }
+}
+
+class ThousandsSeparatorInputFormatter extends TextInputFormatter {
+  final NumberFormat _f = NumberFormat.decimalPattern();
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    final digits = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.isEmpty) {
+      return const TextEditingValue(text: '');
+    }
+    final formatted = _f.format(int.parse(digits));
+    // 커서를 끝으로 (간단/안전한 방식)
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
 }

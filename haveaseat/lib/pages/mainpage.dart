@@ -108,12 +108,13 @@ class _MainPageState extends ConsumerState<MainPage> {
       final confirm = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
+          backgroundColor: Colors.white,
           title: const Text('고객 삭제'),
           content: Text('선택한 ${_selectedCustomers.length}명의 고객을 삭제하시겠습니까?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('취소'),
+          child: const Text('취소', style: TextStyle(color: Colors.black)),
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),
@@ -935,7 +936,7 @@ class _MainPageState extends ConsumerState<MainPage> {
                   ),
                   const SizedBox(height: 16),
                   // Excel 데이터 업로드 버튼
-                
+
                   const Spacer(),
                   Padding(
                     padding: const EdgeInsets.only(bottom: 24.0),

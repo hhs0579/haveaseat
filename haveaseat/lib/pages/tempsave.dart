@@ -94,12 +94,13 @@ class _TempSavePageState extends ConsumerState<TempSavePage> {
       final confirm = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
+          backgroundColor: Colors.white,
           title: const Text('임시저장 삭제'),
           content: Text('선택한 ${_selectedItems.length}개의 항목을 삭제하시겠습니까?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('취소'),
+  child: const Text('취소', style: TextStyle(color: Colors.black)),
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),
