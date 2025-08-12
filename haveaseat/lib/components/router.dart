@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:haveaseat/pages/admin/admin.dart';
 import 'package:haveaseat/pages/estimate/editpage.dart';
 import 'package:haveaseat/pages/estimate/mainest.dart';
 import 'package:haveaseat/pages/estimate/order.dart';
@@ -19,6 +20,7 @@ import 'package:haveaseat/pages/mainpage.dart';
 import 'package:haveaseat/pages/login/signup.dart';
 import 'package:haveaseat/pages/info/spaceadd.dart';
 import 'package:haveaseat/pages/info/spacedetail.dart';
+import 'package:haveaseat/pages/product/exel.dart';
 import 'package:haveaseat/pages/tempsave.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -72,9 +74,18 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const FindPasswordPage(),
       ),
       GoRoute(
+        path: '/admin',
+        builder: (context, state) => const AdminPage(),
+      ),
+      GoRoute(
         path: '/main',
         builder: (context, state) => const MainPage(),
         routes: [
+          GoRoute(
+            path: 'product-excel',
+            name: 'productExcel',
+            builder: (context, state) => const ProductExcelPage(),
+          ),
           GoRoute(
             path: 'addpage',
             builder: (context, state) => const addCustomerPage(),

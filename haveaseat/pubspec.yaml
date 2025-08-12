@@ -34,6 +34,7 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.2
+  excel: ^2.1.0
 
 dev_dependencies:
   flutter_test:
@@ -63,6 +64,8 @@ dev_dependencies:
   file_picker:
   uuid:
   flutter_localization:
+  excel:
+  path_provider:
 
   screenshot:
   pdf:
@@ -79,6 +82,9 @@ flutter:
   assets:
     - assets/images/
     - assets/fonts/
+    - assets/data.xlsx
+    - assets/20241223_상품목록_전달용.xlsx
+
   fonts:
     - family: Pretendard
       fonts:

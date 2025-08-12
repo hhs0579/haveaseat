@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'dart:math';
-import 'package:haveaseat/riverpod/product.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:haveaseat/components/colors.dart';
@@ -12,8 +11,32 @@ import 'package:haveaseat/riverpod/customermodel.dart';
 import 'package:haveaseat/riverpod/usermodel.dart';
 import 'package:flutter/gestures.dart';
 import 'package:intl/intl.dart';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
+
+// ✅ Firestore 제품 모델(하드코딩/리버팟 provider 대체)
+class ProductRef {
+  final String id;
+  final String name;
+  final int price;
+  ProductRef({required this.id, required this.name, required this.price});
+
+  factory ProductRef.fromDoc(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>? ?? {};
+    final name = (data['name'] ?? '').toString();
+    final priceVal = data['price'];
+    int price;
+    if (priceVal is int) {
+      price = priceVal;
+    } else if (priceVal is double) {
+      price = priceVal.round();
+    } else if (priceVal is String) {
+      price = int.tryParse(priceVal.replaceAll(',', '')) ?? 0;
+    } else {
+      price = 0;
+    }
+    return ProductRef(id: doc.id, name: name, price: price);
+  }
+}
 
 enum FurnitureType { existing, custom }
 
@@ -35,7 +58,7 @@ class furniturePage extends ConsumerStatefulWidget {
 class FurnitureField {
   final TextEditingController searchController;
   final TextEditingController quantityController;
-  List<dynamic> filteredProducts;
+  List<ProductRef> filteredProducts;
 
   FurnitureField()
       : searchController = TextEditingController(),
@@ -66,6 +89,75 @@ class _furniturePageState extends ConsumerState<furniturePage> {
 
   // PageController 추가
   late PageController _pageController;
+
+  final _currency = NumberFormat('#,###');
+
+  // ===== Firestore 검색 =====
+  Future<List<ProductRef>> _searchProductsFS(String query) async {
+    final q = query.trim();
+    if (q.isEmpty) return [];
+    try {
+      final qLower = q.toLowerCase();
+
+      // 1) prefix 검색 (성능 우선)
+      final pref = await FirebaseFirestore.instance
+          .collection('products')
+          .orderBy('name')
+          .startAt([q])
+          .endAt(['$q\\uf8ff'])
+          .limit(50)
+          .get();
+      final prefixHits = pref.docs.map((d) => ProductRef.fromDoc(d)).toList();
+
+      // 2) 부분 포함(contains) 보강: 상위 N개 스캔 후 클라 필터
+      final scan = await FirebaseFirestore.instance
+          .collection('products')
+          .orderBy('name')
+          .limit(500) // 데이터가 매우 많다면 줄이세요
+          .get();
+      final containsHits = scan.docs
+          .map((d) => ProductRef.fromDoc(d))
+          .where((p) => p.name.toLowerCase().contains(qLower))
+          .toList();
+
+      // 3) 통합 + 중복 제거
+      final Map<String, ProductRef> map = {
+        for (final p in prefixHits) p.id: p,
+        for (final p in containsHits) p.id: p,
+      };
+      final merged = map.values.toList();
+
+      // 4) 간단 정렬: 포함여부 > 이름길이
+      merged.sort((a, b) {
+        final aC = a.name.toLowerCase().contains(qLower) ? 1 : 0;
+        final bC = b.name.toLowerCase().contains(qLower) ? 1 : 0;
+        if (aC != bC) return bC - aC;
+        return a.name.length.compareTo(b.name.length);
+      });
+
+      return merged.take(50).toList();
+    } catch (e) {
+      debugPrint('searchProductsFS error: $e');
+      return [];
+    }
+  }
+
+  Future<ProductRef?> _getProductByName(String name) async {
+    final q = name.trim();
+    if (q.isEmpty) return null;
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('products')
+          .where('name', isEqualTo: q)
+          .limit(1)
+          .get();
+      if (snap.docs.isEmpty) return null;
+      return ProductRef.fromDoc(snap.docs.first);
+    } catch (e) {
+      debugPrint('getProductByName error: $e');
+      return null;
+    }
+  }
 
   // 임시 저장
   Future<void> _saveTempFurniture() async {
@@ -98,14 +190,13 @@ class _furniturePageState extends ConsumerState<furniturePage> {
       final tempData = {
         'customerId': widget.customerId,
         'estimateId': estimateId,
-        'status': EstimateStatus.IN_PROGRESS.toString(),
+        'status': 'IN_PROGRESS', // EstimateStatus가 외부에 있으면 맞춰 수정하세요
         'lastUpdated': FieldValue.serverTimestamp(),
         'isDraft': true,
         'type': '가구',
         'name': nameValue,
         'furnitureList': [],
       };
-      print('임시저장 tempData: $tempData');
       await estimateRef.set(tempData, SetOptions(merge: true));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -127,7 +218,6 @@ class _furniturePageState extends ConsumerState<furniturePage> {
       await FirebaseAuth.instance.signOut();
       context.go('/login'); // 로그인 페이지로 이동
     } catch (e) {
-      print('Error during logout: $e');
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('로그아웃 중 오류가 발생했습니다')),
@@ -170,21 +260,13 @@ class _furniturePageState extends ConsumerState<furniturePage> {
         memo = _customFurnitureFields[0].descriptionController.text;
       }
 
-      // 기존 가구 정보 처리
+      // 기존 가구 정보 처리 (Firestore에서 실제 제품 확인)
       for (var field in _existingFurnitureFields) {
         if (field.searchController.text.isEmpty) {
           continue; // 빈 필드는 건너뛰기
         }
 
-        // 선택된 제품 찾기
-        final product = ref
-            .read(productProvider.notifier)
-            .searchProducts(field.searchController.text)
-            .cast<Product?>()
-            .firstWhere(
-              (p) => p != null && p.name == field.searchController.text,
-              orElse: () => null,
-            );
+        final product = await _getProductByName(field.searchController.text);
         if (product == null) {
           throw Exception('선택된 제품을 찾을 수 없습니다: ${field.searchController.text}');
         }
@@ -260,7 +342,7 @@ class _furniturePageState extends ConsumerState<furniturePage> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(isEditMode ? '가구 정보가 수정되었습니다' : '저장되었습니다')),
+          const SnackBar(content: Text('저장되었습니다')),
         );
 
         // 다음 페이지 이동 경로 분기
@@ -283,7 +365,7 @@ class _furniturePageState extends ConsumerState<furniturePage> {
     }
   }
 
-  // 기존 가구 검색 필드 위젯
+  // 기존 가구 검색 필드 위젯 (UI 그대로 유지)
   Widget buildExistingFurnitureSearchField(int index) {
     final field = _existingFurnitureFields[index];
     return Row(
@@ -299,9 +381,9 @@ class _furniturePageState extends ConsumerState<furniturePage> {
               ),
               child: TextField(
                 controller: field.searchController,
-                onChanged: (value) {
-                  final products =
-                      ref.read(productProvider.notifier).searchProducts(value);
+                onChanged: (value) async {
+                  final products = await _searchProductsFS(value);
+                  if (!mounted) return;
                   setState(() {
                     field.filteredProducts = products;
                   });
@@ -393,7 +475,7 @@ class _furniturePageState extends ConsumerState<furniturePage> {
     );
   }
 
-  // 기존 가구 수량 입력 위젯
+  // 기존 가구 수량 입력 위젯 (UI 그대로 유지)
   Widget buildExistingFurnitureQuantityField(int index) {
     final field = _existingFurnitureFields[index];
     return Container(
@@ -458,7 +540,7 @@ class _furniturePageState extends ConsumerState<furniturePage> {
     );
   }
 
-  // 제작 가구 필드 생성 위젯
+  // 제작 가구 필드 생성 위젯 (UI 그대로 유지)
   Widget buildCustomFurnitureField(int index) {
     final field = _customFurnitureFields[index];
     return Column(
@@ -487,8 +569,6 @@ class _furniturePageState extends ConsumerState<furniturePage> {
           ),
         ),
         const SizedBox(height: 16),
-
-        // 상세 설명 필드
 
         // 수량 입력 필드
         const Text(
@@ -735,7 +815,7 @@ class _furniturePageState extends ConsumerState<furniturePage> {
           }
         }
       } catch (e) {
-        print('Error loading existing estimate data: $e');
+        debugPrint('Error loading existing estimate data: $e');
       }
     }
   }
@@ -762,7 +842,7 @@ class _furniturePageState extends ConsumerState<furniturePage> {
       final tempData = {
         'customerId': widget.customerId,
         'estimateId': estimateId,
-        'status': EstimateStatus.IN_PROGRESS.toString(),
+        'status': 'IN_PROGRESS',
         'lastUpdated': FieldValue.serverTimestamp(),
         'isDraft': true,
         'type': '견적',
@@ -822,13 +902,12 @@ class _furniturePageState extends ConsumerState<furniturePage> {
           .doc(customerId)
           .get();
       if (customerDoc.exists) {
-        final data = customerDoc.data()!;
         setState(() {
           // customers 필드 복원 (필요시 확장)
         });
       }
     } catch (e) {
-      print('이전 데이터 불러오기 오류: $e');
+      debugPrint('이전 데이터 불러오기 오류: $e');
     }
   }
 
@@ -1251,14 +1330,15 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                                                   CrossAxisAlignment.start,
                                               children: [
                                                 if (index > 0)
-                                                  const SizedBox(height: 24),
+                                                  if (index > 0)
+                                                    const SizedBox(height: 24),
                                                 const Text(
                                                   '견적종류',
                                                   style: TextStyle(
-                                                      fontSize: 14,
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                      color: Colors.black),
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: Colors.black,
+                                                  ),
                                                 ),
                                                 const SizedBox(height: 8),
                                                 buildExistingFurnitureSearchField(
@@ -1267,10 +1347,10 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                                                 const Text(
                                                   '수량',
                                                   style: TextStyle(
-                                                      fontSize: 14,
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                      color: Colors.black),
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: Colors.black,
+                                                  ),
                                                 ),
                                                 const SizedBox(height: 8),
                                                 buildExistingFurnitureQuantityField(
@@ -1305,10 +1385,10 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                                               child: Text(
                                                 '가구 추가 +',
                                                 style: TextStyle(
-                                                    color: AppColor.primary,
-                                                    fontSize: 16,
-                                                    fontWeight:
-                                                        FontWeight.w600),
+                                                  color: AppColor.primary,
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
                                               ),
                                             ),
                                           ),
@@ -1385,10 +1465,10 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                                               child: Text(
                                                 '제작 상품 추가 +',
                                                 style: TextStyle(
-                                                    color: AppColor.primary,
-                                                    fontSize: 16,
-                                                    fontWeight:
-                                                        FontWeight.w600),
+                                                  color: AppColor.primary,
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
                                               ),
                                             ),
                                           ),
@@ -1400,9 +1480,8 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                               ),
                             ),
 
-                            const SizedBox(
-                              height: 32,
-                            ),
+                            const SizedBox(height: 32),
+
                             // 하단 버튼들
                             Row(
                               children: [
@@ -1428,9 +1507,10 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                                       child: Text(
                                         isEditMode ? '이전' : '취소',
                                         style: const TextStyle(
-                                            color: AppColor.primary,
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w600),
+                                          color: AppColor.primary,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -1438,10 +1518,7 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                                 const SizedBox(width: 8),
                                 if (!isEditMode) ...[
                                   InkWell(
-                                    onTap: () {
-                                      // 임시 저장 처리
-                                      _saveTempFurniture();
-                                    },
+                                    onTap: _saveTempFurniture, // 임시 저장
                                     child: Container(
                                       width: 87,
                                       height: 48,
@@ -1454,9 +1531,10 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                                         child: Text(
                                           '임시 저장',
                                           style: TextStyle(
-                                              color: AppColor.primary,
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.w600),
+                                            color: AppColor.primary,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600,
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -1464,10 +1542,7 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                                   const SizedBox(width: 8),
                                 ],
                                 InkWell(
-                                  onTap: () {
-                                    // 저장 처리
-                                    _saveFurniture();
-                                  },
+                                  onTap: _saveFurniture, // 저장/다음
                                   child: Container(
                                     width: 60,
                                     height: 48,
@@ -1479,9 +1554,10 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                                       child: Text(
                                         isEditMode ? '수정' : '다음',
                                         style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w600),
+                                          color: Colors.white,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
                                     ),
                                   ),

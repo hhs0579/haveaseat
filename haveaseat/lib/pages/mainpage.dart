@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:haveaseat/components/colors.dart';
 import 'package:haveaseat/components/screensize.dart';
@@ -5,11 +7,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:haveaseat/riverpod/customermodel.dart';
 import 'package:haveaseat/riverpod/usermodel.dart';
+import 'package:haveaseat/riverpod/product.dart';
 import 'dart:html' as html;
 import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:math' show max;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter/services.dart';
+import 'package:excel/excel.dart' as excel_pkg;
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:convert';
+import 'package:crypto/crypto.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/services.dart';
+import 'package:excel/excel.dart' as excel_pkg;
 
 class MainPage extends ConsumerStatefulWidget {
   const MainPage({super.key});
@@ -383,6 +394,253 @@ class _MainPageState extends ConsumerState<MainPage> {
 
   CustomerStatus? _selectedStatus; // 선택된 status 저장
 
+  // Excel 데이터 업로드 함수
+
+  Future<void> uploadProductsFromExcel() async {
+    try {
+      print('🚀 Excel → Firestore 업로드 (문서ID=상품명)');
+
+      // ===== 0) 엑셀 로드 =====
+      final bytes = await rootBundle.load('assets/20241223_상품목록_전달용.xlsx');
+      final book = excel_pkg.Excel.decodeBytes(bytes.buffer.asUint8List());
+      if (book.tables.isEmpty) {
+        print('❌ 시트 없음');
+        return;
+      }
+
+      // 가장 데이터 많은 시트 선택
+      final sheets = book.tables.values.toList()
+        ..sort(
+            (a, b) => (b.maxRows * b.maxCols).compareTo(a.maxRows * a.maxCols));
+      final sheet = sheets.first;
+      if (sheet.maxRows < 2) {
+        print('❌ 데이터 없음');
+        return;
+      }
+
+      dynamic cell(int c, int r) => sheet
+          .cell(
+              excel_pkg.CellIndex.indexByColumnRow(columnIndex: c, rowIndex: r))
+          .value;
+
+      // ===== 1) 유틸 =====
+      String? str(dynamic v) {
+        if (v == null) return null;
+        final s = v.toString().trim();
+        return s.isEmpty ? null : s;
+      }
+
+      int? parseInt(dynamic v) {
+        if (v == null) return null;
+        final s = v.toString().replaceAll(',', '').trim();
+        if (s.isEmpty) return null;
+        final d = double.tryParse(s);
+        if (d != null) return d.round();
+        return int.tryParse(s);
+      }
+
+      String sanitizeId(String input) => input
+          .replaceAll('/', '_')
+          .replaceAll('.', '_')
+          .replaceAll('#', '_')
+          .replaceAll(r'$', '_')
+          .replaceAll('[', '_')
+          .replaceAll(']', '_')
+          .trim();
+      String truncateUtf8(String s, int maxBytes) {
+        final bytes = utf8.encode(s);
+        if (bytes.length <= maxBytes) return s;
+        int end = maxBytes;
+        while (end > 0) {
+          try {
+            return utf8.decode(bytes.sublist(0, end));
+          } catch (_) {
+            end--;
+          }
+        }
+        return '';
+      }
+
+      String buildSafeIdFromName(String name, {int maxBytes = 200}) {
+        final cleaned = sanitizeId(name);
+        if (cleaned.isEmpty) return cleaned;
+        final len = utf8.encode(cleaned).length;
+        if (len <= maxBytes) return cleaned;
+        final hash =
+            sha1.convert(utf8.encode(cleaned)).toString().substring(0, 8);
+        final room = maxBytes - utf8.encode('-$hash').length;
+        final base = truncateUtf8(cleaned, room);
+        return '$base-$hash';
+      }
+
+      String norm(String s) => s
+          .replaceAll(RegExp(r'\s+'), '')
+          .replaceAll(RegExp(r'[^0-9a-zA-Z가-힣]'), '')
+          .toLowerCase();
+
+      print('📊 선택 시트: ${sheet.maxRows}행 x ${sheet.maxCols}열');
+
+      // ===== 2) 헤더 탐지 =====
+      // “제품명 = 상품명”을 최우선으로 잡되, 보조로 ‘제품명’ 등도 허용
+      final alias = <String, Set<String>>{
+        '상품코드': {'상품코드', '제품코드', 'sku', 'code', 'productcode', '상품id', '상품아이디'}
+            .map(norm)
+            .toSet(),
+        '상품명': {
+          '상품명',
+          '제품명',
+          '품명',
+          'name',
+          'productname',
+          '상품명국문',
+          '국문상품명',
+          '상품명한글',
+          '한글상품명'
+        }.map(norm).toSet(),
+        '제품 스펙': {
+          '제품스펙',
+          '제품 스펙',
+          '스펙',
+          '사양',
+          '규격',
+          'spec',
+          '상품간략설명',
+          '상품 간략설명',
+          '간략설명',
+          '상품설명',
+          '설명'
+        }.map(norm).toSet(),
+        '판매가액': {'판매가액', '판매가', '가격', 'price', 'saleprice', '정가', '소비자가'}
+            .map(norm)
+            .toSet(),
+      };
+
+      // 헤더 행: 상위 5행 중 매칭 최다
+      int headerRow = 0, bestHits = -1;
+      for (int r = 0; r < sheet.maxRows && r < 5; r++) {
+        int hits = 0;
+        for (int c = 0; c < sheet.maxCols; c++) {
+          final h = str(cell(c, r));
+          if (h == null) continue;
+          final n = norm(h);
+          if (alias.values.any((set) => set.contains(n))) hits++;
+        }
+        if (hits > bestHits) {
+          bestHits = hits;
+          headerRow = r;
+        }
+      }
+
+      // 컬럼 인덱스 매핑
+      int? colCode, colName, colSpec, colSale;
+      final headers = <int, String>{};
+      for (int c = 0; c < sheet.maxCols; c++) {
+        final h = str(cell(c, headerRow));
+        if (h == null) continue;
+        headers[c] = h.trim();
+        final n = norm(h);
+        if (alias['상품코드']!.contains(n)) colCode = c;
+        // ✅ 제품명 = "상품명" 우선, 보조로 "제품명" 등도 허용
+        if (alias['상품명']!.contains(n)) colName = c;
+        if (alias['제품 스펙']!.contains(n)) colSpec = c;
+        if (alias['판매가액']!.contains(n)) colSale = c;
+      }
+      print('🧭 헤더행=$headerRow, 헤더=$headers');
+      print('🔎 인덱스: 코드=$colCode, 이름(상품명)=$colName, 스펙=$colSpec, 판매가=$colSale');
+
+      // 데이터 시작 행 자동 감지 (헤더 아래 공백행 스킵)
+      int dataStart = headerRow + 1;
+      while (dataStart < sheet.maxRows) {
+        final hasAny = [
+          if (colName != null) str(cell(colName, dataStart)),
+          if (colCode != null) str(cell(colCode, dataStart)),
+          if (colSale != null) str(cell(colSale, dataStart)),
+          if (colSpec != null) str(cell(colSpec, dataStart)),
+        ].any((e) => e != null && e.toString().isNotEmpty);
+        if (hasAny) break;
+        dataStart++;
+      }
+      print('➡️ 데이터 시작 행: $dataStart');
+
+      // ===== 3) 행 수집 =====
+      final rows = <Map<String, dynamic>>[];
+      int skipNoName = 0, skipEmptyId = 0;
+      for (int r = dataStart; r < sheet.maxRows; r++) {
+        final name = colName != null ? str(cell(colName, r)) : null; // ← 상품명
+        if (name == null || name.isEmpty) {
+          skipNoName++;
+          continue;
+        }
+
+        final code = colCode != null ? str(cell(colCode, r)) : null;
+        final spec =
+            colSpec != null ? str(cell(colSpec, r)) : null; // 상품 간략설명 → 제품 스펙
+        final sale =
+            colSale != null ? parseInt(cell(colSale, r)) : null; // 판매가액/판매가
+
+        final id = buildSafeIdFromName(name);
+        if (id.isEmpty) {
+          skipEmptyId++;
+          continue;
+        }
+
+        rows.add({
+          'id': id,
+          '상품코드': code,
+          '제품명': name, // 🔥 Firestore "제품명"
+          '제품 스펙': spec, // 🔥 Firestore "제품 스펙"
+          '공급사': null, // 없으면 null
+          '공급가액': null, // 없으면 null
+          '판매가액': sale, // 🔥 Firestore "판매가액"
+          // 호환 필드
+          'name': name,
+          'price': sale,
+        });
+      }
+      print(
+          '📥 수집=${rows.length}, 스킵(상품명 없음)=$skipNoName, 스킵(빈 ID)=$skipEmptyId');
+
+      if (rows.isEmpty) {
+        print('❌ 업로드할 데이터가 없습니다. (상품명 인식 실패 가능)');
+        return;
+      }
+
+      // ===== 4) 400개 청크 배치 커밋 =====
+      final col = FirebaseFirestore.instance.collection('products');
+      const chunkSize = 400;
+      int success = 0;
+      for (int start = 0; start < rows.length; start += chunkSize) {
+        final end =
+            (start + chunkSize < rows.length) ? start + chunkSize : rows.length;
+        final chunk = rows.sublist(start, end);
+        final batch = FirebaseFirestore.instance.batch();
+        for (final row in chunk) {
+          batch.set(
+              col.doc(row['id'] as String),
+              {
+                '상품코드': row['상품코드'],
+                '제품명': row['제품명'],
+                '제품 스펙': row['제품 스펙'],
+                '공급사': row['공급사'],
+                '공급가액': row['공급가액'],
+                '판매가액': row['판매가액'],
+                'name': row['name'],
+                'price': row['price'],
+                'updatedAt': FieldValue.serverTimestamp(),
+              },
+              SetOptions(merge: true));
+        }
+        await batch.commit();
+        success += chunk.length;
+        print('✅ 커밋: $start ~ ${end - 1} (누적 $success)');
+      }
+
+      print('🎉 전체 업로드 완료: $success 건 (문서ID=상품명)');
+    } catch (e) {
+      print('❌ 전체 실패: $e');
+    }
+  }
+
 // status별 고객 수를 계산하는 메서드
   Map<CustomerStatus, int> _getStatusCounts(List<Customer> customers) {
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
@@ -675,6 +933,9 @@ class _MainPageState extends ConsumerState<MainPage> {
                           ],
                         )),
                   ),
+                  const SizedBox(height: 16),
+                  // Excel 데이터 업로드 버튼
+                
                   const Spacer(),
                   Padding(
                     padding: const EdgeInsets.only(bottom: 24.0),

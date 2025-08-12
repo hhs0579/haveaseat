@@ -53,6 +53,7 @@ class SignUpNotifier extends StateNotifier<AsyncValue<void>> {
         'email': email,
         'phoneNumber': phoneNumber,
         'role': 'user',
+        'approved': false, // 기본 승인 상태
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
         'isActive': true,
