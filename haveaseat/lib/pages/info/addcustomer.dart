@@ -202,9 +202,6 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
           '_saveTempCustomer: 저장된 데이터 확인 - estimateId: $estimateId, customerId: $customerId'); // 디버깅 로그
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('임시 저장되었습니다')),
-        );
         context.go('/temp');
       }
     } catch (e) {
@@ -272,6 +269,13 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
                     isDirectInput = true;
                   }
                 }
+              } else {
+                // email이 null인 경우 directDomain에서 직접 로드
+                if (customerInfo['directDomain'] != null) {
+                  _directDomainController.text = customerInfo['directDomain'];
+                  selectedDomain = null;
+                  isDirectInput = true;
+                }
               }
 
               // 주소 처리
@@ -306,28 +310,23 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
         throw Exception('로그인이 필요합니다');
       }
 
-      // 로딩 상태 표시
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('고객 정보를 저장하고 있습니다...')),
-        );
-      }
-
       // 고객 정보 저장 및 ID 반환 받기
-      final customerId =
-          await ref.read(customerDataProvider.notifier).addCustomer(
-                name: _nameController.text.trim(),
-                phone: _phoneController.text.trim(),
-                email:
-                    '${_emailController.text.trim()}@${selectedDomain ?? _directDomainController.text.trim()}',
-                address:
-                    '${_addressController.text.trim()} ${_detailAddressController.text.trim()}',
-                businessLicenseUrl: _businessLicenseUrl ?? '',
-                otherDocumentUrls: _otherDocumentUrls,
-                note: _noteController.text.trim(),
-                assignedTo: user.uid,
-                isDraft: false, // 정식 고객으로 저장
-              );
+      final customerId = await ref
+          .read(customerDataProvider.notifier)
+          .addCustomer(
+            name: _nameController.text.trim(),
+            phone: _phoneController.text.trim(),
+            email:
+                '${_emailController.text.trim()}@${selectedDomain ?? _directDomainController.text.trim()}',
+            directDomain: selectedDomain ?? _directDomainController.text.trim(),
+            address:
+                '${_addressController.text.trim()} ${_detailAddressController.text.trim()}',
+            businessLicenseUrl: _businessLicenseUrl ?? '',
+            otherDocumentUrls: _otherDocumentUrls,
+            note: _noteController.text.trim(),
+            assignedTo: user.uid,
+            isDraft: false, // 정식 고객으로 저장
+          );
 
       // estimates 컬렉션에 isDraft: false로 저장 (정식저장)
       await FirebaseFirestore.instance
@@ -348,9 +347,6 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
 
       if (mounted) {
         print('고객 저장 완료 - ID: $customerId');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('고객 정보가 성공적으로 저장되었습니다')),
-        );
         // 공간 기본정보 페이지로 이동
         context.go('/main/addpage/spaceadd/$customerId');
       }
@@ -445,19 +441,9 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
       if (widget.isEditMode && widget.customerId != null) {
         await _updateCustomerInfo();
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('고객 정보가 수정되었습니다')),
-          );
           context.pop(); // 이전 페이지로 돌아가기
         }
         return;
-      }
-
-      // 로딩 상태 표시
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('고객 정보를 저장하고 있습니다...')),
-        );
       }
 
       // estimateId가 없으면 새로 생성
@@ -512,9 +498,6 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
       if (mounted) {
         print(
             '고객 저장 완료 (goNext) - customerId: $customerId, estimateId: $estimateId');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('고객 정보가 성공적으로 저장되었습니다')),
-        );
 
         // estimateId를 URL에 포함하여 다음 페이지로 이동
         context.go('/main/addpage/spaceadd/$customerId/$estimateId',
@@ -536,13 +519,6 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
       final user = ref.read(UserProvider.currentUserProvider).value;
       if (user == null) throw Exception('로그인이 필요합니다');
 
-      // 로딩 상태 표시
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('고객 정보를 업데이트하고 있습니다...')),
-        );
-      }
-
       await FirebaseFirestore.instance
           .collection('customers')
           .doc(widget.customerId)
@@ -551,6 +527,7 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
         'phone': _phoneController.text.trim(),
         'email':
             '${_emailController.text.trim()}@${selectedDomain ?? _directDomainController.text.trim()}',
+        'directDomain': selectedDomain ?? _directDomainController.text.trim(),
         'address':
             '${_addressController.text.trim()} ${_detailAddressController.text.trim()}',
         'businessLicenseUrl': _businessLicenseUrl ?? '',
@@ -629,6 +606,13 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
                       isDirectInput = true;
                     }
                   }
+                } else {
+                  // email이 null인 경우 directDomain에서 직접 로드
+                  if (customerInfo['directDomain'] != null) {
+                    _directDomainController.text = customerInfo['directDomain'];
+                    selectedDomain = null;
+                    isDirectInput = true;
+                  }
                 }
 
                 // 주소 처리
@@ -672,6 +656,13 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
                       selectedDomain = null;
                       isDirectInput = true;
                     }
+                  }
+                } else {
+                  // email이 null인 경우 directDomain에서 직접 로드
+                  if (data['directDomain'] != null) {
+                    _directDomainController.text = data['directDomain'];
+                    selectedDomain = null;
+                    isDirectInput = true;
                   }
                 }
 
@@ -736,6 +727,13 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
                   isDirectInput = true;
                 }
               }
+            } else {
+              // email이 null인 경우 directDomain에서 직접 로드
+              if (data['directDomain'] != null) {
+                _directDomainController.text = data['directDomain'];
+                selectedDomain = null;
+                isDirectInput = true;
+              }
             }
 
             _addressController.text = data['address']?.split(' ').first ?? '';
@@ -770,6 +768,7 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
     // estimateId가 있으면 임시저장 데이터 불러오기 (이어서 작성 모드)
     if (widget.estimateId != null) {
       _loadTempSavedData();
+      _loadPreviousData(); // 이전 데이터도 함께 로드
     } else if (widget.isEditMode && widget.customerId != null) {
       // 수정 모드일 때 기존 고객 정보 불러오기
       _loadExistingCustomerData();
@@ -811,6 +810,13 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
                 selectedDomain = null;
                 isDirectInput = true;
               }
+            }
+          } else {
+            // email이 null인 경우 directDomain에서 직접 로드
+            if (data['directDomain'] != null) {
+              _directDomainController.text = data['directDomain'];
+              selectedDomain = null;
+              isDirectInput = true;
             }
           }
 
@@ -942,7 +948,7 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
                                       height: 16.25,
                                       child: Image.asset(
                                         'assets/images/user.png',
-                        color: AppColor.font1,
+                                        color: AppColor.font1,
                                       )),
                                   const SizedBox(
                                     width: 3.85,

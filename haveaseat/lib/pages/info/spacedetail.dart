@@ -584,9 +584,6 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
       };
       print('임시저장 tempData: $tempData');
       await estimateRef.set(tempData, SetOptions(merge: true));
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('임시 저장되었습니다')),
-      );
       context.go('/temp');
     } catch (e) {
       print('임시 저장 중 오류: $e');
@@ -721,9 +718,6 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
             .delete();
       }
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(isEditMode ? '공간 상세 정보가 수정되었습니다' : '저장되었습니다')),
-        );
         if (isEditMode) {
           // 편집 모드일 때는 customer 화면으로 돌아가기
           context.go('/main/customer/${widget.customerId}');

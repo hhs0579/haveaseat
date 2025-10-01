@@ -112,9 +112,7 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('저장되었습니다')),
-        );
+        // 성공적으로 저장됨
       }
     } catch (e) {
       print('Error saving release status: $e');

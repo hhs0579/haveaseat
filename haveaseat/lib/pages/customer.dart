@@ -392,6 +392,21 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
         'status': EstimateStatus.IN_PROGRESS.toString(),
         'managerName': '',
         'managerPhone': '',
+        'type': '고객정보',
+        'isDraft': true,
+        // 고객 정보 추가
+        'customerInfo': {
+          'name': customer.name,
+          'phone': customer.phone,
+          'email': customer.email,
+          'directDomain': customer.directDomain,
+          'address': customer.address,
+          'businessLicenseUrl': customer.businessLicenseUrl,
+          'otherDocumentUrls': customer.otherDocumentUrls,
+          'note': customer.note,
+          'createdAt': customer.createdAt,
+          'updatedAt': customer.updatedAt,
+        },
         // 공간 기본 정보
         'siteAddress': '',
         'openingDate': FieldValue.serverTimestamp(),

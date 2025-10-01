@@ -195,9 +195,6 @@ class _EstimateEditPageState extends ConsumerState<EstimateEditPage> {
           .set(estimateData, SetOptions(merge: true));
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('공간 기본 정보가 수정되었습니다')),
-        );
         context.go('/main/customer/${widget.customerId}');
       }
     } catch (e) {
@@ -230,9 +227,6 @@ class _EstimateEditPageState extends ConsumerState<EstimateEditPage> {
           .set(estimateData, SetOptions(merge: true));
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('공간 상세 정보가 수정되었습니다')),
-        );
         context.go('/main/customer/${widget.customerId}');
       }
     } catch (e) {
@@ -257,9 +251,6 @@ class _EstimateEditPageState extends ConsumerState<EstimateEditPage> {
           .set(estimateData, SetOptions(merge: true));
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('가구 정보가 수정되었습니다')),
-        );
         context.go('/main/customer/${widget.customerId}');
       }
     } catch (e) {

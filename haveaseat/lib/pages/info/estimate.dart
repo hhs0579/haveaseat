@@ -94,6 +94,7 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
           name: customerInfo['name'] ?? '',
           phone: customerInfo['phone'] ?? '',
           email: customerInfo['email'] ?? '',
+          directDomain: customerInfo['directDomain'] ?? '',
           address: customerInfo['address'] ?? '',
           businessLicenseUrl: customerInfo['businessLicenseUrl'] ?? '',
           otherDocumentUrls:
@@ -197,6 +198,11 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
       final user = ref.read(UserProvider.currentUserProvider).value;
       if (user == null) throw Exception('로그인이 필요합니다');
 
+      // 사용자 데이터 가져오기
+      final userData = await UserProvider.getUserData(user.uid);
+      final managerName = userData?['name'] ?? '';
+      final managerPhone = userData?['phoneNumber'] ?? '';
+
       // 현재 견적 데이터 가져오기
       String targetEstimateId = widget.estimateId ?? '';
       Customer? customer;
@@ -245,24 +251,41 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
 
       if (customerInfo == null) throw Exception('고객 정보를 찾을 수 없습니다');
 
+      // 기존 고객 정보가 있는지 확인
+      final existingCustomerDoc = await FirebaseFirestore.instance
+          .collection('customers')
+          .doc(widget.customerId)
+          .get();
+
       // 고객 정보를 customers 컬렉션에 정식으로 저장
       final customerData = {
         'name': customerInfo['name'] ?? '',
         'phone': customerInfo['phone'] ?? '',
         'email': customerInfo['email'] ?? '',
+        'directDomain': customerInfo['directDomain'] ?? '',
         'address': customerInfo['address'] ?? '',
         'businessLicenseUrl': customerInfo['businessLicenseUrl'] ?? '',
         'otherDocumentUrls':
             List<String>.from(customerInfo['otherDocumentUrls'] ?? []),
         'note': customerInfo['note'] ?? '',
         'assignedTo': user.uid, // 확인 버튼을 누른 사람이 담당자가 됨
-        'managerName': user.displayName ?? '', // 확인 버튼을 누른 사람의 이름
-        'managerPhone': user.phoneNumber ?? '', // 확인 버튼을 누른 사람의 전화번호
-        'createdAt': FieldValue.serverTimestamp(),
+        'managerName': managerName, // 확인 버튼을 누른 사람의 이름
+        'managerPhone': managerPhone, // 확인 버튼을 누른 사람의 전화번호
         'updatedAt': FieldValue.serverTimestamp(),
-        'estimateIds': [targetEstimateId],
         'isDraft': false, // 정식 고객으로 저장
       };
+
+      // 기존 고객이 있으면 createdAt과 estimateIds 보존, 없으면 새로 생성
+      if (existingCustomerDoc.exists) {
+        final existingData = existingCustomerDoc.data()!;
+        customerData['createdAt'] = existingData['createdAt'];
+        customerData['estimateIds'] =
+            List<String>.from(existingData['estimateIds'] ?? [])
+              ..add(targetEstimateId);
+      } else {
+        customerData['createdAt'] = FieldValue.serverTimestamp();
+        customerData['estimateIds'] = [targetEstimateId];
+      }
 
       await FirebaseFirestore.instance
           .collection('customers')
@@ -283,7 +306,14 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('고객 정보가 정식으로 저장되었습니다')),
+          const SnackBar(
+            content: Text(
+              '저장되었습니다',
+              style: TextStyle(color: Colors.white),
+            ),
+            backgroundColor: AppColor.main,
+            duration: Duration(seconds: 2),
+          ),
         );
       }
     } catch (e) {

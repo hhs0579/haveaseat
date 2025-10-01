@@ -222,9 +222,6 @@ class _furniturePageState extends ConsumerState<furniturePage> {
       };
       await estimateRef.set(tempData, SetOptions(merge: true));
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('임시 저장되었습니다')),
-        );
         context.go('/temp');
       }
     } catch (e) {
@@ -357,10 +354,6 @@ class _furniturePageState extends ConsumerState<furniturePage> {
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('저장되었습니다')),
-        );
-
         // 다음 페이지 이동 경로 분기
         if (isEditMode) {
           // 편집 모드일 때는 customer 화면으로 돌아가기
@@ -1110,7 +1103,7 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                                   height: 16.25,
                                   child: Image.asset(
                                     'assets/images/user.png',
-          color: AppColor.font1,
+                                    color: AppColor.font1,
                                   )),
                               const SizedBox(
                                 width: 3.85,
@@ -1119,7 +1112,7 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                                 '담당 고객정보',
                                 style: TextStyle(
                                     fontWeight: FontWeight.w600,
-                    color: AppColor.font1,
+                                    color: AppColor.font1,
                                     fontSize: 16),
                               ),
                             ],

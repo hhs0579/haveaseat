@@ -33,6 +33,7 @@ class Customer {
   final String name;
   final String phone;
   final String email;
+  final String directDomain;
   final String address;
   final String businessLicenseUrl;
   final List<String> otherDocumentUrls;
@@ -49,6 +50,7 @@ class Customer {
     required this.name,
     required this.phone,
     required this.email,
+    required this.directDomain,
     required this.address,
     required this.businessLicenseUrl,
     required this.otherDocumentUrls,
@@ -79,6 +81,7 @@ class Customer {
       name: json['name'] ?? '',
       phone: json['phone'] ?? '',
       email: json['email'] ?? '',
+      directDomain: json['directDomain'] ?? '',
       address: json['address'] ?? '',
       businessLicenseUrl: json['businessLicenseUrl'] ?? '',
       otherDocumentUrls: List<String>.from(json['otherDocumentUrls'] ?? []),
@@ -98,6 +101,7 @@ class Customer {
       'name': name,
       'phone': phone,
       'email': email,
+      'directDomain': directDomain,
       'address': address,
       'businessLicenseUrl': businessLicenseUrl,
       'otherDocumentUrls': otherDocumentUrls,
@@ -837,6 +841,7 @@ class CustomerNotifier extends AsyncNotifier<List<Customer>> {
     required String name,
     required String phone,
     required String email,
+    required String directDomain,
     required String address,
     required String businessLicenseUrl,
     required List<String> otherDocumentUrls,
@@ -862,6 +867,7 @@ class CustomerNotifier extends AsyncNotifier<List<Customer>> {
         'name': name,
         'phone': phone,
         'email': email,
+        'directDomain': directDomain,
         'address': address,
         'businessLicenseUrl': businessLicenseUrl,
         'otherDocumentUrls': otherDocumentUrls,
@@ -893,6 +899,7 @@ class CustomerNotifier extends AsyncNotifier<List<Customer>> {
     required String name,
     required String phone,
     required String email,
+    required String directDomain,
     required String address,
     String? businessLicenseUrl,
     List<String>? otherDocumentUrls,
@@ -905,6 +912,7 @@ class CustomerNotifier extends AsyncNotifier<List<Customer>> {
         'name': name,
         'phone': phone,
         'email': email,
+        'directDomain': directDomain,
         'address': address,
         'note': note,
         'updatedAt': FieldValue.serverTimestamp(),

@@ -224,9 +224,6 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
       print('임시저장 tempData: $tempData');
       await estimateRef.set(tempData, SetOptions(merge: true));
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('임시 저장되었습니다')),
-        );
         context.go('/temp');
       }
     } catch (e) {
@@ -310,9 +307,6 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
           .doc(estimateId)
           .set(estimateData, SetOptions(merge: true));
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(isEditMode ? '공간 기본 정보가 수정되었습니다' : '저장되었습니다')),
-        );
         if (!isEditMode) {
           // 새로 생성된 estimateId를 URL에 포함하여 전달
           context.go(
@@ -669,7 +663,7 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                                       height: 16.25,
                                       child: Image.asset(
                                         'assets/images/user.png',
-                                              color: AppColor.font1,
+                                        color: AppColor.font1,
                                       )),
                                   const SizedBox(
                                     width: 3.85,
