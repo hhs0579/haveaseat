@@ -842,7 +842,7 @@ class CustomerNotifier extends AsyncNotifier<List<Customer>> {
     required List<String> otherDocumentUrls,
     required String note,
     required String assignedTo,
-    bool isDraft = false, // 추가: 정식저장/임시저장 구분
+    bool isDraft = false, // 매개변수는 유지하지만 실제로는 사용하지 않음
   }) async {
     try {
       state = const AsyncValue.loading();
@@ -870,15 +870,13 @@ class CustomerNotifier extends AsyncNotifier<List<Customer>> {
         'createdAt': now,
         'updatedAt': now,
         'estimateIds': [estimateRef.id],
-        'isDraft': isDraft, // 추가
+        'isDraft': false, // 항상 정식 고객으로 저장
       };
 
-      // 임시/정식 모두 customers 문서 생성
+      // 고객 문서 생성
       await customerRef.set(customerData);
-      // 정식저장일 때만 estimates 문서도 같이 생성
-      if (!isDraft) {
-        await estimateRef.set(estimateData);
-      }
+      // 견적 문서도 생성
+      await estimateRef.set(estimateData);
 
       state = AsyncValue.data(await _fetchCustomers());
       return customerRef.id;

@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:haveaseat/components/colors.dart';
 import 'package:haveaseat/components/screensize.dart';
@@ -11,7 +10,6 @@ import 'package:haveaseat/riverpod/usermodel.dart';
 import 'package:haveaseat/widget/address.dart';
 import 'package:haveaseat/widget/fileupload.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:uuid/uuid.dart';
 
 class addCustomerPage extends ConsumerStatefulWidget {
   final String? customerId;
@@ -45,9 +43,7 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
   int _textLength = 0;
   final List<Widget> _additionalFiles = [];
   final List<String> _uploadedUrls = []; // URL 저장용 리스트
-  File? _businessLicenseFile; // 추가
   List<File?> otherDocumentFiles = []; // 추가
-  final List<File> _otherDocumentFiles = [];
   int _fileFieldCounter = 0;
   final _formKey = GlobalKey<FormState>(); // Form Key 추가
   List<String> _otherDocumentUrls = []; // URL 저장용 리스트 추가
@@ -61,9 +57,7 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
   final FocusNode _detailAddressFocus = FocusNode();
   final FocusNode _noteFocus = FocusNode();
   void onBusinessLicenseUploaded(File file) {
-    setState(() {
-      _businessLicenseFile = file;
-    });
+    // 파일 업로드 처리 (필요시 구현)
   }
 
   void onOtherDocumentUploaded(File file) {
@@ -134,36 +128,34 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
   Future<void> _saveTempCustomer() async {
     try {
       final user = ref.read(UserProvider.currentUserProvider).value;
+      print('_saveTempCustomer: user = $user'); // 디버깅 로그
       if (user == null) throw Exception('로그인이 필요합니다');
+
+      // users 컬렉션에서 실제 사용자 정보 가져오기
+      final userData = await UserProvider.getUserData(user.uid);
+      print('_saveTempCustomer: userData = $userData'); // 디버깅 로그
+
+      final managerName = userData?['name'] ?? user.displayName ?? '담당자 미정';
+      final managerPhone = userData?['phoneNumber'] ?? user.phoneNumber ?? '';
+
+      print('_saveTempCustomer: managerName = $managerName'); // 디버깅 로그
+      print('_saveTempCustomer: managerPhone = $managerPhone'); // 디버깅 로그
+
+      // 로딩 상태 표시
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('임시 저장 중입니다...')),
+        );
+      }
+
       final estimateId = widget.estimateId ??
           FirebaseFirestore.instance.collection('estimates').doc().id;
       final customerId = widget.customerId ??
           FirebaseFirestore.instance.collection('customers').doc().id;
-      final isNewCustomer = widget.customerId == null;
-      // 고객 최초 생성시에만 estimateIds 추가
-      if (isNewCustomer) {
-        await FirebaseFirestore.instance
-            .collection('customers')
-            .doc(customerId)
-            .set({
-          'name': _nameController.text.trim().isNotEmpty
-              ? _nameController.text.trim()
-              : '이름없음',
-          'phone': _phoneController.text,
-          'email':
-              '${_emailController.text}@${selectedDomain ?? _directDomainController.text}',
-          'address':
-              '${_addressController.text} ${_detailAddressController.text}',
-          'businessLicenseUrl': _businessLicenseUrl ?? '',
-          'otherDocumentUrls': _otherDocumentUrls,
-          'note': _noteController.text,
-          'assignedTo': user.uid,
-          'createdAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
-          'estimateIds': [estimateId],
-          'isDraft': true,
-        }, SetOptions(merge: true));
-      }
+      // final isNewCustomer = widget.customerId == null; // 사용하지 않음
+
+      // 임시저장에서는 고객 정보를 저장하지 않음 (estimates에만 저장)
+
       // estimates에 동일한 estimateId로 저장
       await FirebaseFirestore.instance
           .collection('estimates')
@@ -173,35 +165,53 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
         'estimateId': estimateId,
         'status': EstimateStatus.IN_PROGRESS.toString(),
         'lastUpdated': FieldValue.serverTimestamp(),
-        'isDraft': true,
+        'isDraft': true, // 임시저장
         'type': '고객정보',
         'name': _nameController.text.trim().isNotEmpty
             ? _nameController.text.trim()
             : '이름없음',
+        'managerName': managerName,
+        'managerPhone': managerPhone,
         'customerInfo': {
           'name': _nameController.text.trim().isNotEmpty
               ? _nameController.text.trim()
               : '이름없음',
+          'phone': _phoneController.text.trim(),
+          'email':
+              '${_emailController.text.trim()}@${selectedDomain ?? _directDomainController.text.trim()}',
+          'address':
+              '${_addressController.text.trim()} ${_detailAddressController.text.trim()}',
+          'businessLicenseUrl': _businessLicenseUrl ?? '',
+          'otherDocumentUrls': _otherDocumentUrls,
+          'note': _noteController.text.trim(),
           'assignedTo': user.uid,
+          'managerName': managerName,
+          'managerPhone': managerPhone,
         },
         'otherDocumentUrls': _otherDocumentUrls,
         'businessLicenseUrl': _businessLicenseUrl ?? '',
-        'note': _noteController.text,
+        'note': _noteController.text.trim(),
         'address':
-            '${_addressController.text} ${_detailAddressController.text}',
-        'phone': _phoneController.text,
+            '${_addressController.text.trim()} ${_detailAddressController.text.trim()}',
+        'phone': _phoneController.text.trim(),
         'email':
-            '${_emailController.text}@${selectedDomain ?? _directDomainController.text}',
+            '${_emailController.text.trim()}@${selectedDomain ?? _directDomainController.text.trim()}',
       }, SetOptions(merge: true));
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('임시 저장되었습니다')),
-      );
-      context.go('/temp');
+
+      print(
+          '_saveTempCustomer: 저장된 데이터 확인 - estimateId: $estimateId, customerId: $customerId'); // 디버깅 로그
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('임시 저장되었습니다')),
+        );
+        context.go('/temp');
+      }
     } catch (e) {
       print('임시 저장 중 오류: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('임시 저장 중 오류가 발생했습니다: $e')),
+          SnackBar(content: Text('임시 저장 중 오류가 발생했습니다: ${e.toString()}')),
         );
       }
     }
@@ -210,60 +220,75 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
 // 임시 저장 데이터 불러오기
   Future<void> _loadTempSavedData() async {
     try {
-      final user = ref.read(UserProvider.currentUserProvider).value;
-      if (user == null) return;
+      print(
+          '_loadTempSavedData: 함수 시작 - estimateId: ${widget.estimateId}'); // 디버깅 로그
+      // estimateId가 있으면 해당 문서에서 데이터 로드
+      if (widget.estimateId != null) {
+        print(
+            '_loadTempSavedData: estimates 컬렉션에서 데이터 조회 - estimateId: ${widget.estimateId}'); // 디버깅 로그
+        final estimateDoc = await FirebaseFirestore.instance
+            .collection('estimates')
+            .doc(widget.estimateId)
+            .get();
 
-      final tempDoc = await FirebaseFirestore.instance
-          .collection('temp_estimates')
-          .where('customerInfo.assignedTo', isEqualTo: user.uid)
-          .where('isTemp', isEqualTo: true)
-          .get();
+        if (estimateDoc.exists) {
+          final data = estimateDoc.data()!;
+          print('_loadTempSavedData: 로딩된 데이터: $data'); // 디버깅 로그
 
-      if (tempDoc.docs.isNotEmpty) {
-        final data = tempDoc.docs.first.data();
-        final customerInfo = data['customerInfo'] as Map<String, dynamic>;
+          // customerInfo 하위 맵에서 먼저 찾고, 없으면 최상위 레벨에서 찾기
+          Map<String, dynamic> customerInfo;
+          if (data['customerInfo'] != null) {
+            customerInfo = data['customerInfo'] as Map<String, dynamic>;
+            print('_loadTempSavedData: customerInfo에서 데이터 로딩'); // 디버깅 로그
+          } else {
+            customerInfo = data;
+            print('_loadTempSavedData: 최상위 레벨에서 데이터 로딩'); // 디버깅 로그
+          }
 
-        setState(() {
-          _nameController.text = customerInfo['name'] ?? '';
-          _phoneController.text = customerInfo['phone'] ?? '';
+          if (customerInfo.isNotEmpty) {
+            setState(() {
+              _nameController.text = customerInfo['name'] ?? '';
+              _phoneController.text = customerInfo['phone'] ?? '';
 
-          // 이메일 처리
-          if (customerInfo['email'] != null) {
-            final emailParts = customerInfo['email'].split('@');
-            if (emailParts.length == 2) {
-              _emailController.text = emailParts[0];
-              final domain = emailParts[1];
-              if ([
-                'gmail.com',
-                'naver.com',
-                'kakao.com',
-                'nate.com',
-                'hanmail.net',
-                'daum.net'
-              ].contains(domain)) {
-                selectedDomain = domain;
-                isDirectInput = false;
-              } else {
-                _directDomainController.text = domain;
-                selectedDomain = null;
-                isDirectInput = true;
+              // 이메일 처리
+              if (customerInfo['email'] != null) {
+                final emailParts = customerInfo['email'].split('@');
+                if (emailParts.length == 2) {
+                  _emailController.text = emailParts[0];
+                  final domain = emailParts[1];
+                  if ([
+                    'gmail.com',
+                    'naver.com',
+                    'kakao.com',
+                    'nate.com',
+                    'hanmail.net',
+                    'daum.net'
+                  ].contains(domain)) {
+                    selectedDomain = domain;
+                    isDirectInput = false;
+                  } else {
+                    _directDomainController.text = domain;
+                    selectedDomain = null;
+                    isDirectInput = true;
+                  }
+                }
               }
-            }
-          }
 
-          // 주소 처리
-          if (customerInfo['address'] != null) {
-            final addressParts = customerInfo['address'].split(' ');
-            _addressController.text =
-                addressParts.take(addressParts.length - 1).join(' ');
-            _detailAddressController.text = addressParts.last;
-          }
+              // 주소 처리
+              if (customerInfo['address'] != null) {
+                final addressParts = customerInfo['address'].split(' ');
+                _addressController.text =
+                    addressParts.take(addressParts.length - 1).join(' ');
+                _detailAddressController.text = addressParts.last;
+              }
 
-          _noteController.text = customerInfo['note'] ?? '';
-          _businessLicenseUrl = customerInfo['businessLicenseUrl'];
-          _otherDocumentUrls =
-              List<String>.from(customerInfo['otherDocumentUrls'] ?? []);
-        });
+              _noteController.text = customerInfo['note'] ?? '';
+              _businessLicenseUrl = customerInfo['businessLicenseUrl'];
+              _otherDocumentUrls =
+                  List<String>.from(customerInfo['otherDocumentUrls'] ?? []);
+            });
+          }
+        }
       }
     } catch (e) {
       print('임시 저장 데이터 로드 중 오류: $e');
@@ -272,6 +297,7 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
 
 // 고객 정보 최종 저장
   Future<void> _saveCustomer() async {
+    // 입력값 검증 먼저 실행
     if (!_validateInputs()) return;
 
     try {
@@ -280,29 +306,34 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
         throw Exception('로그인이 필요합니다');
       }
 
-      // 고객 정보 저장 및 ID 반환 받기 (정식저장만 호출)
+      // 로딩 상태 표시
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('고객 정보를 저장하고 있습니다...')),
+        );
+      }
+
+      // 고객 정보 저장 및 ID 반환 받기
       final customerId =
           await ref.read(customerDataProvider.notifier).addCustomer(
-                name: _nameController.text,
-                phone: _phoneController.text,
+                name: _nameController.text.trim(),
+                phone: _phoneController.text.trim(),
                 email:
-                    '${_emailController.text}@${selectedDomain ?? _directDomainController.text}',
+                    '${_emailController.text.trim()}@${selectedDomain ?? _directDomainController.text.trim()}',
                 address:
-                    '${_addressController.text} ${_detailAddressController.text}',
+                    '${_addressController.text.trim()} ${_detailAddressController.text.trim()}',
                 businessLicenseUrl: _businessLicenseUrl ?? '',
                 otherDocumentUrls: _otherDocumentUrls,
-                note: _noteController.text,
+                note: _noteController.text.trim(),
                 assignedTo: user.uid,
-                isDraft: true, // 임시고객임을 명시(실제 customers에는 저장하지 않음)
+                isDraft: false, // 정식 고객으로 저장
               );
 
-      // estimates 컬렉션에만 isDraft: true로 저장 (임시저장)
+      // estimates 컬렉션에 isDraft: false로 저장 (정식저장)
       await FirebaseFirestore.instance
           .collection('estimates')
           .doc(customerId)
-          .set({'isDraft': true}, SetOptions(merge: true));
-
-      // customers 컬렉션에는 저장하지 않음!
+          .set({'isDraft': false}, SetOptions(merge: true));
 
       // 임시 저장 데이터 삭제
       if (_tempSaveDocId != null) {
@@ -312,9 +343,13 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
             .delete();
       }
 
+      // 고객 데이터 새로고침
+      ref.refresh(customerDataProvider);
+
       if (mounted) {
+        print('고객 저장 완료 - ID: $customerId');
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('고객 정보가 임시저장되었습니다')),
+          const SnackBar(content: Text('고객 정보가 성공적으로 저장되었습니다')),
         );
         // 공간 기본정보 페이지로 이동
         context.go('/main/addpage/spaceadd/$customerId');
@@ -323,7 +358,7 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
       print('저장 중 오류: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('저장 중 오류가 발생했습니다: $e')),
+          SnackBar(content: Text('저장 중 오류가 발생했습니다: ${e.toString()}')),
         );
       }
     }
@@ -331,31 +366,62 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
 
 // 입력값 검증
   bool _validateInputs() {
-    if (_nameController.text.isEmpty) {
+    // 고객명 검증
+    if (_nameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('고객명을 입력해주세요')),
       );
+      _nameFocus.requestFocus();
       return false;
     }
 
-    if (_phoneController.text.isEmpty) {
+    // 연락처 검증
+    if (_phoneController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('연락처를 입력해주세요')),
       );
+      _phoneFocus.requestFocus();
       return false;
     }
 
-    if (_emailController.text.isEmpty) {
+    // 연락처 형식 검증 (기본적인 숫자만 포함)
+    final phoneRegex = RegExp(r'^[0-9-+\s]+$');
+    if (!phoneRegex.hasMatch(_phoneController.text.trim())) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('올바른 연락처 형식을 입력해주세요')),
+      );
+      _phoneFocus.requestFocus();
+      return false;
+    }
+
+    // 이메일 검증
+    if (_emailController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('이메일을 입력해주세요')),
       );
+      _emailFocus.requestFocus();
       return false;
     }
 
-    if (_addressController.text.isEmpty) {
+    // 이메일 형식 검증
+    final emailRegex =
+        RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+    final fullEmail =
+        '${_emailController.text.trim()}@${selectedDomain ?? _directDomainController.text.trim()}';
+    if (!emailRegex.hasMatch(fullEmail)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('올바른 이메일 형식을 입력해주세요')),
+      );
+      _emailFocus.requestFocus();
+      return false;
+    }
+
+    // 주소 검증
+    if (_addressController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('주소를 입력해주세요')),
       );
+      _addressFocus.requestFocus();
       return false;
     }
 
@@ -364,9 +430,16 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
 
   // 다음 버튼 클릭 시
   void _goNext() async {
+    // 입력값 검증 먼저 실행
+    if (!_validateInputs()) {
+      return;
+    }
+
     try {
       final user = ref.read(UserProvider.currentUserProvider).value;
-      if (user == null) throw Exception('로그인이 필요합니다');
+      if (user == null) {
+        throw Exception('로그인이 필요합니다');
+      }
 
       // 수정 모드일 때는 고객 정보 업데이트 후 이전 페이지로 돌아가기
       if (widget.isEditMode && widget.customerId != null) {
@@ -380,6 +453,13 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
         return;
       }
 
+      // 로딩 상태 표시
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('고객 정보를 저장하고 있습니다...')),
+        );
+      }
+
       // estimateId가 없으면 새로 생성
       String estimateId = widget.estimateId ?? '';
       if (estimateId.isEmpty) {
@@ -390,65 +470,61 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
 
       final customerId = widget.customerId ??
           FirebaseFirestore.instance.collection('customers').doc().id;
-      final isNewCustomer = widget.customerId == null;
+      // final isNewCustomer = widget.customerId == null; // 사용하지 않음
 
-      // 고객 최초 생성시에만 estimateIds 추가
-      if (isNewCustomer) {
-        await FirebaseFirestore.instance
-            .collection('customers')
-            .doc(customerId)
-            .set({
-          'name': _nameController.text,
-          'phone': _phoneController.text,
-          'email':
-              '${_emailController.text}@${selectedDomain ?? _directDomainController.text}',
-          'address':
-              '${_addressController.text} ${_detailAddressController.text}',
-          'businessLicenseUrl': _businessLicenseUrl ?? '',
-          'otherDocumentUrls': _otherDocumentUrls,
-          'note': _noteController.text,
-          'assignedTo': user.uid,
-          'createdAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
-          'estimateIds': [estimateId],
-          'isDraft': true,
-        }, SetOptions(merge: true));
-      }
+      // 임시저장이므로 customers 컬렉션에 저장하지 않음
+      // 고객 정보는 estimates 컬렉션의 customerInfo 필드에만 저장
 
-      // estimates에 동일한 estimateId로 저장
-      await FirebaseFirestore.instance
-          .collection('estimates')
-          .doc(estimateId)
-          .set({
+      // estimates 컬렉션에 저장
+      final estimateData = {
         'customerId': customerId,
         'estimateId': estimateId,
         'status': EstimateStatus.IN_PROGRESS.toString(),
         'lastUpdated': FieldValue.serverTimestamp(),
-        'isDraft': true,
+        'isDraft': true, // 임시저장
         'type': '공간기본',
-        'name': _nameController.text.isNotEmpty ? _nameController.text : '이름없음',
+        'name': _nameController.text.trim().isNotEmpty
+            ? _nameController.text.trim()
+            : '이름없음',
         'customerInfo': {
-          'name': _nameController.text,
-          'phone': _phoneController.text,
+          'name': _nameController.text.trim(),
+          'phone': _phoneController.text.trim(),
           'email':
-              '${_emailController.text}@${selectedDomain ?? _directDomainController.text}',
+              '${_emailController.text.trim()}@${selectedDomain ?? _directDomainController.text.trim()}',
           'address':
-              '${_addressController.text} ${_detailAddressController.text}',
+              '${_addressController.text.trim()} ${_detailAddressController.text.trim()}',
           'businessLicenseUrl': _businessLicenseUrl ?? '',
           'otherDocumentUrls': _otherDocumentUrls,
-          'note': _noteController.text,
+          'note': _noteController.text.trim(),
           'assignedTo': user.uid,
         }
-      }, SetOptions(merge: true));
+      };
 
-      // estimateId를 URL에 포함하여 다음 페이지로 이동
-      context.go('/main/addpage/spaceadd/$customerId/$estimateId',
-          extra: {'name': _nameController.text});
+      await FirebaseFirestore.instance
+          .collection('estimates')
+          .doc(estimateId)
+          .set(estimateData, SetOptions(merge: true));
+
+      // 고객 데이터 새로고침
+      ref.refresh(customerDataProvider);
+
+      // 성공 메시지 표시
+      if (mounted) {
+        print(
+            '고객 저장 완료 (goNext) - customerId: $customerId, estimateId: $estimateId');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('고객 정보가 성공적으로 저장되었습니다')),
+        );
+
+        // estimateId를 URL에 포함하여 다음 페이지로 이동
+        context.go('/main/addpage/spaceadd/$customerId/$estimateId',
+            extra: {'name': _nameController.text.trim()});
+      }
     } catch (e) {
       print('다음 단계 저장 중 오류: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('다음 단계 저장 중 오류가 발생했습니다: $e')),
+          SnackBar(content: Text('저장 중 오류가 발생했습니다: ${e.toString()}')),
         );
       }
     }
@@ -460,19 +536,26 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
       final user = ref.read(UserProvider.currentUserProvider).value;
       if (user == null) throw Exception('로그인이 필요합니다');
 
+      // 로딩 상태 표시
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('고객 정보를 업데이트하고 있습니다...')),
+        );
+      }
+
       await FirebaseFirestore.instance
           .collection('customers')
           .doc(widget.customerId)
           .update({
-        'name': _nameController.text,
-        'phone': _phoneController.text,
+        'name': _nameController.text.trim(),
+        'phone': _phoneController.text.trim(),
         'email':
-            '${_emailController.text}@${selectedDomain ?? _directDomainController.text}',
+            '${_emailController.text.trim()}@${selectedDomain ?? _directDomainController.text.trim()}',
         'address':
-            '${_addressController.text} ${_detailAddressController.text}',
+            '${_addressController.text.trim()} ${_detailAddressController.text.trim()}',
         'businessLicenseUrl': _businessLicenseUrl ?? '',
         'otherDocumentUrls': _otherDocumentUrls,
-        'note': _noteController.text,
+        'note': _noteController.text.trim(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
@@ -480,6 +563,11 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
       ref.refresh(customerDataProvider);
     } catch (e) {
       print('고객 정보 업데이트 오류: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('고객 정보 업데이트 중 오류가 발생했습니다: ${e.toString()}')),
+        );
+      }
       rethrow;
     }
   }
@@ -487,58 +575,186 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
   // 이전 버튼 누르면 이전에 작성한 값 불러오기 (estimates → customers 순)
   void _loadPreviousData() async {
     try {
+      print(
+          '_loadPreviousData: 함수 시작 - estimateId: ${widget.estimateId}'); // 디버깅 로그
       final estimateId = widget.estimateId;
       if (estimateId != null) {
+        print(
+            '_loadPreviousData: estimates 컬렉션에서 데이터 조회 - estimateId: $estimateId'); // 디버깅 로그
         final estimateDoc = await FirebaseFirestore.instance
             .collection('estimates')
             .doc(estimateId)
             .get();
         if (estimateDoc.exists) {
           final data = estimateDoc.data()!;
-          setState(() {
-            _nameController.text = data['name'] ?? '';
-            _phoneController.text = data['phone'] ?? '';
-            _emailController.text = (data['email'] ?? '').split('@').first;
-            // 도메인 분리
-            final emailParts = (data['email'] ?? '').split('@');
-            if (emailParts.length == 2) {
-              selectedDomain = emailParts[1];
+          final type = data['type'] ?? '';
+          print(
+              '_loadPreviousData: estimates 데이터 존재 - type: $type, 전체 데이터: $data'); // 디버깅 로그
+
+          // 견적서 수정 모드에서는 모든 type의 데이터를 로드 가능하도록 수정
+          // 임시저장된 데이터의 type이 '고객정보'이거나 비어있거나, 견적서 수정 모드일 때 데이터 로드
+          // estimateId가 있으면 임시저장에서 이어서 작성하는 경우이므로 모든 type에서 로드
+          if (type == '고객정보' ||
+              type.isEmpty ||
+              widget.isEditMode ||
+              widget.estimateId != null) {
+            print(
+                '_loadPreviousData: 데이터 로드 조건 만족 - type: $type, estimateId: ${widget.estimateId}'); // 디버깅 로그
+            final customerInfo = data['customerInfo'] as Map<String, dynamic>?;
+            print('_loadPreviousData: customerInfo = $customerInfo'); // 디버깅 로그
+            if (customerInfo != null) {
+              setState(() {
+                _nameController.text = customerInfo['name'] ?? '';
+                _phoneController.text = customerInfo['phone'] ?? '';
+
+                // 이메일 처리
+                if (customerInfo['email'] != null) {
+                  final emailParts = customerInfo['email'].split('@');
+                  if (emailParts.length == 2) {
+                    _emailController.text = emailParts[0];
+                    final domain = emailParts[1];
+                    if ([
+                      'gmail.com',
+                      'naver.com',
+                      'kakao.com',
+                      'nate.com',
+                      'hanmail.net',
+                      'daum.net'
+                    ].contains(domain)) {
+                      selectedDomain = domain;
+                      isDirectInput = false;
+                    } else {
+                      _directDomainController.text = domain;
+                      selectedDomain = null;
+                      isDirectInput = true;
+                    }
+                  }
+                }
+
+                // 주소 처리
+                if (customerInfo['address'] != null) {
+                  final addressParts = customerInfo['address'].split(' ');
+                  _addressController.text =
+                      addressParts.take(addressParts.length - 1).join(' ');
+                  _detailAddressController.text = addressParts.last;
+                }
+
+                _noteController.text = customerInfo['note'] ?? '';
+                _businessLicenseUrl = customerInfo['businessLicenseUrl'];
+                _otherDocumentUrls =
+                    List<String>.from(customerInfo['otherDocumentUrls'] ?? []);
+              });
+            } else {
+              print(
+                  '_loadPreviousData: customerInfo가 null, 최상위 필드에서 데이터 로드'); // 디버깅 로그
+              setState(() {
+                _nameController.text = data['name'] ?? '';
+                _phoneController.text = data['phone'] ?? '';
+
+                // 이메일 처리
+                if (data['email'] != null) {
+                  final emailParts = data['email'].split('@');
+                  if (emailParts.length == 2) {
+                    _emailController.text = emailParts[0];
+                    final domain = emailParts[1];
+                    if ([
+                      'gmail.com',
+                      'naver.com',
+                      'kakao.com',
+                      'nate.com',
+                      'hanmail.net',
+                      'daum.net'
+                    ].contains(domain)) {
+                      selectedDomain = domain;
+                      isDirectInput = false;
+                    } else {
+                      _directDomainController.text = domain;
+                      selectedDomain = null;
+                      isDirectInput = true;
+                    }
+                  }
+                }
+
+                // 주소 처리
+                if (data['address'] != null) {
+                  final addressParts = data['address'].split(' ');
+                  _addressController.text =
+                      addressParts.take(addressParts.length - 1).join(' ');
+                  _detailAddressController.text = addressParts.last;
+                }
+
+                _noteController.text = data['note'] ?? '';
+                _businessLicenseUrl = data['businessLicenseUrl'];
+                _otherDocumentUrls =
+                    List<String>.from(data['otherDocumentUrls'] ?? []);
+              });
             }
-            _addressController.text = data['address']?.split(' ').first ?? '';
-            _detailAddressController.text =
-                data['address']?.split(' ').skip(1).join(' ') ?? '';
-            _noteController.text = data['note'] ?? '';
-          });
+          }
           return;
+        } else {
+          print(
+              '_loadPreviousData: estimates 문서가 존재하지 않음 - estimateId: $estimateId'); // 디버깅 로그
         }
+      } else {
+        print('_loadPreviousData: estimateId가 null'); // 디버깅 로그
       }
       // estimates에 없으면 customers에서 불러오기
       final customerId = widget.customerId;
+      print(
+          '_loadPreviousData: customers 컬렉션에서 데이터 조회 - customerId: $customerId'); // 디버깅 로그
       if (customerId != null) {
         final customerDoc = await FirebaseFirestore.instance
             .collection('customers')
             .doc(customerId)
             .get();
         if (customerDoc.exists) {
+          print('_loadPreviousData: customers 데이터 존재'); // 디버깅 로그
           final data = customerDoc.data()!;
           setState(() {
             _nameController.text = data['name'] ?? '';
             _phoneController.text = data['phone'] ?? '';
-            _emailController.text = (data['email'] ?? '').split('@').first;
-            // 도메인 분리
-            final emailParts = (data['email'] ?? '').split('@');
-            if (emailParts.length == 2) {
-              selectedDomain = emailParts[1];
+
+            // 이메일 처리
+            if (data['email'] != null) {
+              final emailParts = data['email'].split('@');
+              if (emailParts.length == 2) {
+                _emailController.text = emailParts[0];
+                final domain = emailParts[1];
+                if ([
+                  'gmail.com',
+                  'naver.com',
+                  'kakao.com',
+                  'nate.com',
+                  'hanmail.net',
+                  'daum.net'
+                ].contains(domain)) {
+                  selectedDomain = domain;
+                  isDirectInput = false;
+                } else {
+                  _directDomainController.text = domain;
+                  selectedDomain = null;
+                  isDirectInput = true;
+                }
+              }
             }
+
             _addressController.text = data['address']?.split(' ').first ?? '';
             _detailAddressController.text =
                 data['address']?.split(' ').skip(1).join(' ') ?? '';
             _noteController.text = data['note'] ?? '';
+            _businessLicenseUrl = data['businessLicenseUrl'];
+            _otherDocumentUrls =
+                List<String>.from(data['otherDocumentUrls'] ?? []);
           });
+        } else {
+          print(
+              '_loadPreviousData: customers 문서가 존재하지 않음 - customerId: $customerId'); // 디버깅 로그
         }
+      } else {
+        print('_loadPreviousData: customerId가 null'); // 디버깅 로그
       }
     } catch (e) {
-      print('이전 데이터 불러오기 오류: $e');
+      print('_loadPreviousData: 이전 데이터 불러오기 오류: $e'); // 디버깅 로그
     }
   }
 
@@ -551,12 +767,12 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
       });
     });
 
-    // 수정 모드일 때 기존 고객 정보 불러오기
-    if (widget.isEditMode && widget.customerId != null) {
-      _loadExistingCustomerData();
-    } else {
-      // 컴포넌트가 마운트될 때 임시 저장 데이터 불러오기
+    // estimateId가 있으면 임시저장 데이터 불러오기 (이어서 작성 모드)
+    if (widget.estimateId != null) {
       _loadTempSavedData();
+    } else if (widget.isEditMode && widget.customerId != null) {
+      // 수정 모드일 때 기존 고객 정보 불러오기
+      _loadExistingCustomerData();
     }
   }
 
@@ -715,7 +931,7 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
                           child: Container(
                               width: 200,
                               height: 48,
-                              color: const Color(0xffB18E72),
+                              color: Colors.transparent,
                               child: Row(
                                 children: [
                                   const SizedBox(
@@ -726,7 +942,7 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
                                       height: 16.25,
                                       child: Image.asset(
                                         'assets/images/user.png',
-                                        color: Colors.white,
+                        color: AppColor.font1,
                                       )),
                                   const SizedBox(
                                     width: 3.85,
@@ -735,7 +951,7 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
                                     '담당 고객정보',
                                     style: TextStyle(
                                         fontWeight: FontWeight.w600,
-                                        color: Colors.white,
+                                        color: AppColor.font1,
                                         fontSize: 16),
                                   ),
                                 ],
@@ -860,8 +1076,14 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
                                     MainAxisAlignment.spaceBetween,
                                 children: [
                                   InkWell(
-                                    onTap: () {
-                                      context.pop();
+                                    onTap: () async {
+                                      // estimateId가 있으면 임시저장에서 이어서 작성한 경우이므로 임시저장 페이지로 이동
+                                      if (widget.estimateId != null) {
+                                        context.go('/main');
+                                      } else {
+                                        // 새로 작성하는 경우이므로 메인 페이지로 이동
+                                        context.go('/main');
+                                      }
                                     },
                                     child: const Row(
                                       children: [
@@ -879,20 +1101,6 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
                                       ],
                                     ),
                                   ),
-                                  const Row(
-                                    children: [
-                                      Icon(
-                                        Icons.person_outline_sharp,
-                                        color: AppColor.font2,
-                                      ),
-                                      SizedBox(width: 16),
-                                      Icon(
-                                        Icons.notifications_none_outlined,
-                                        color: AppColor.font2,
-                                      ),
-                                      SizedBox(width: 43), // 오른쪽 여백 추가
-                                    ],
-                                  )
                                 ],
                               ),
                             ),
@@ -950,6 +1158,9 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
                                   contentPadding: EdgeInsets.symmetric(
                                       horizontal: 16, vertical: 14),
                                   border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                  hoverColor: Colors.transparent,
                                   hintText: '고객명을 입력해 주세요',
                                   hintStyle: TextStyle(
                                       color: AppColor.font2, fontSize: 14),
@@ -983,6 +1194,9 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
                                   contentPadding: EdgeInsets.symmetric(
                                       horizontal: 16, vertical: 14),
                                   border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                  hoverColor: Colors.transparent,
                                   hintText: '연락처를 입력해 주세요',
                                   hintStyle: TextStyle(
                                       color: AppColor.font2, fontSize: 14),
@@ -1020,6 +1234,9 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
                                       contentPadding: EdgeInsets.symmetric(
                                           horizontal: 16, vertical: 14),
                                       border: InputBorder.none,
+                                      enabledBorder: InputBorder.none,
+                                      focusedBorder: InputBorder.none,
+                                      hoverColor: Colors.transparent,
                                       hintText: '이메일 주소를 입력해주세요',
                                       hintStyle: TextStyle(
                                           color: AppColor.font2, fontSize: 14),
@@ -1058,6 +1275,9 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
                                                       horizontal: 16,
                                                       vertical: 14),
                                               border: InputBorder.none,
+                                              enabledBorder: InputBorder.none,
+                                              focusedBorder: InputBorder.none,
+                                              hoverColor: Colors.transparent,
                                               hintText: '직접 입력',
                                               hintStyle: TextStyle(
                                                   color: AppColor.font2,
@@ -1271,6 +1491,9 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
                                       isDense: true,
                                       contentPadding: EdgeInsets.all(16),
                                       border: InputBorder.none,
+                                      enabledBorder: InputBorder.none,
+                                      focusedBorder: InputBorder.none,
+                                      hoverColor: Colors.transparent,
                                       hintText: '내용을 입력해주세요',
                                       hintStyle: TextStyle(
                                         color: AppColor.font2,

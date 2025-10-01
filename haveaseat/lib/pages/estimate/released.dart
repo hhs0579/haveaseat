@@ -1504,7 +1504,7 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
                     child: Container(
                         width: 200,
                         height: 48,
-                        color: const Color(0xffB18E72),
+                        color: Colors.transparent,
                         child: Row(
                           children: [
                             const SizedBox(
@@ -1515,7 +1515,7 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
                                 height: 16.25,
                                 child: Image.asset(
                                   'assets/images/user.png',
-                                  color: Colors.white,
+                                  color: AppColor.font1,
                                 )),
                             const SizedBox(
                               width: 3.85,
@@ -1524,7 +1524,7 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
                               '담당 고객정보',
                               style: TextStyle(
                                   fontWeight: FontWeight.w600,
-                                  color: Colors.white,
+                                  color: AppColor.font1,
                                   fontSize: 16),
                             ),
                           ],
@@ -1677,17 +1677,6 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
                                             )
                                           ],
                                         ),
-                                      ),
-                                      const Row(
-                                        children: [
-                                          Icon(Icons.person_outline_sharp,
-                                              color: AppColor.font2),
-                                          SizedBox(width: 16),
-                                          Icon(
-                                              Icons.notifications_none_outlined,
-                                              color: AppColor.font2),
-                                          SizedBox(width: 16),
-                                        ],
                                       ),
                                     ],
                                   ),

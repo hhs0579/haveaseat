@@ -104,6 +104,9 @@ class _AddressSearchFieldState extends State<AddressSearchField> {
                     vertical: 14,
                   ),
                   border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  hoverColor: Colors.transparent,
                   hintText: '주소를 검색해 주세요',
                   hintStyle: TextStyle(
                     color: AppColor.font2,
@@ -160,6 +163,9 @@ class _AddressSearchFieldState extends State<AddressSearchField> {
                 vertical: 14,
               ),
               border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              hoverColor: Colors.transparent,
               hintText: '상세 주소를 입력해 주세요',
               hintStyle: TextStyle(
                 color: AppColor.font2,

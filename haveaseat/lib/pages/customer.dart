@@ -1234,18 +1234,6 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
                                                 ],
                                               ),
                                             ),
-                                            const Row(
-                                              children: [
-                                                Icon(Icons.person_outline_sharp,
-                                                    color: AppColor.font2),
-                                                SizedBox(width: 16),
-                                                Icon(
-                                                    Icons
-                                                        .notifications_none_outlined,
-                                                    color: AppColor.font2),
-                                                SizedBox(width: 16),
-                                              ],
-                                            ),
                                           ],
                                         ),
                                       ),

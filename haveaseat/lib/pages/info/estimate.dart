@@ -46,19 +46,71 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
 
   Future<Map<String, dynamic>> _loadEstimateData() async {
     try {
-      final customer = await ref
-          .read(customerDataProvider.notifier)
-          .getCustomer(widget.customerId);
-      if (customer == null) throw Exception('고객 정보를 찾을 수 없습니다');
+      String targetEstimateId = widget.estimateId ?? '';
+      Customer? customer;
 
-      String targetEstimateId;
+      // 먼저 customers 컬렉션에서 고객 정보를 찾아보기
+      try {
+        customer = await ref
+            .read(customerDataProvider.notifier)
+            .getCustomer(widget.customerId);
+      } catch (e) {
+        print('Customer not found in customers collection: $e');
+      }
 
-      // 견적 ID 결정
-      if (widget.estimateId != null) {
-        targetEstimateId = widget.estimateId!;
+      // 고객 정보가 없으면 estimates 컬렉션에서 찾기
+      if (customer == null) {
+        if (targetEstimateId.isEmpty) {
+          // estimateId가 없으면 customerId로 estimates 컬렉션에서 검색
+          final estimatesSnapshot = await FirebaseFirestore.instance
+              .collection('estimates')
+              .where('customerId', isEqualTo: widget.customerId)
+              .where('isDraft', isEqualTo: true)
+              .get();
+
+          if (estimatesSnapshot.docs.isNotEmpty) {
+            targetEstimateId = estimatesSnapshot.docs.first.id;
+          } else {
+            throw Exception('견적 정보를 찾을 수 없습니다');
+          }
+        }
+
+        final estimateDoc = await FirebaseFirestore.instance
+            .collection('estimates')
+            .doc(targetEstimateId)
+            .get();
+
+        if (!estimateDoc.exists) throw Exception('견적 정보를 찾을 수 없습니다');
+
+        final estimateData = estimateDoc.data()!;
+        final customerInfo =
+            estimateData['customerInfo'] as Map<String, dynamic>?;
+
+        if (customerInfo == null) throw Exception('고객 정보를 찾을 수 없습니다');
+
+        // 임시저장된 고객 정보로 Customer 객체 생성
+        customer = Customer(
+          id: widget.customerId,
+          name: customerInfo['name'] ?? '',
+          phone: customerInfo['phone'] ?? '',
+          email: customerInfo['email'] ?? '',
+          address: customerInfo['address'] ?? '',
+          businessLicenseUrl: customerInfo['businessLicenseUrl'] ?? '',
+          otherDocumentUrls:
+              List<String>.from(customerInfo['otherDocumentUrls'] ?? []),
+          note: customerInfo['note'] ?? '',
+          assignedTo: customerInfo['assignedTo'] ?? '',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+          estimateIds: [targetEstimateId],
+          isDraft: true,
+        );
       } else {
-        if (customer.estimateIds.isEmpty) throw Exception('견적 정보를 찾을 수 없습니다');
-        targetEstimateId = customer.estimateIds[0];
+        // 고객 정보가 있으면 기존 로직 사용
+        if (targetEstimateId.isEmpty) {
+          if (customer.estimateIds.isEmpty) throw Exception('견적 정보를 찾을 수 없습니다');
+          targetEstimateId = customer.estimateIds[0];
+        }
       }
 
       final estimateDoc = await FirebaseFirestore.instance
@@ -134,6 +186,111 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('로그아웃 중 오류가 발생했습니다')),
+        );
+      }
+    }
+  }
+
+  // 견적서 확인 시 고객을 정식으로 저장하는 함수
+  Future<void> _confirmAndSaveCustomer() async {
+    try {
+      final user = ref.read(UserProvider.currentUserProvider).value;
+      if (user == null) throw Exception('로그인이 필요합니다');
+
+      // 현재 견적 데이터 가져오기
+      String targetEstimateId = widget.estimateId ?? '';
+      Customer? customer;
+
+      // 먼저 customers 컬렉션에서 고객 정보를 찾아보기
+      try {
+        customer = await ref
+            .read(customerDataProvider.notifier)
+            .getCustomer(widget.customerId);
+      } catch (e) {
+        print('Customer not found in customers collection: $e');
+      }
+
+      // 고객 정보가 없으면 estimates 컬렉션에서 찾기
+      if (customer == null) {
+        if (targetEstimateId.isEmpty) {
+          final estimatesSnapshot = await FirebaseFirestore.instance
+              .collection('estimates')
+              .where('customerId', isEqualTo: widget.customerId)
+              .where('isDraft', isEqualTo: true)
+              .get();
+
+          if (estimatesSnapshot.docs.isNotEmpty) {
+            targetEstimateId = estimatesSnapshot.docs.first.id;
+          } else {
+            throw Exception('견적 정보를 찾을 수 없습니다');
+          }
+        }
+      } else {
+        if (targetEstimateId.isEmpty) {
+          if (customer.estimateIds.isEmpty) throw Exception('견적 정보를 찾을 수 없습니다');
+          targetEstimateId = customer.estimateIds[0];
+        }
+      }
+
+      final estimateDoc = await FirebaseFirestore.instance
+          .collection('estimates')
+          .doc(targetEstimateId)
+          .get();
+
+      if (!estimateDoc.exists) throw Exception('견적 정보를 찾을 수 없습니다');
+
+      final estimateData = estimateDoc.data()!;
+      final customerInfo =
+          estimateData['customerInfo'] as Map<String, dynamic>?;
+
+      if (customerInfo == null) throw Exception('고객 정보를 찾을 수 없습니다');
+
+      // 고객 정보를 customers 컬렉션에 정식으로 저장
+      final customerData = {
+        'name': customerInfo['name'] ?? '',
+        'phone': customerInfo['phone'] ?? '',
+        'email': customerInfo['email'] ?? '',
+        'address': customerInfo['address'] ?? '',
+        'businessLicenseUrl': customerInfo['businessLicenseUrl'] ?? '',
+        'otherDocumentUrls':
+            List<String>.from(customerInfo['otherDocumentUrls'] ?? []),
+        'note': customerInfo['note'] ?? '',
+        'assignedTo': user.uid, // 확인 버튼을 누른 사람이 담당자가 됨
+        'managerName': user.displayName ?? '', // 확인 버튼을 누른 사람의 이름
+        'managerPhone': user.phoneNumber ?? '', // 확인 버튼을 누른 사람의 전화번호
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+        'estimateIds': [targetEstimateId],
+        'isDraft': false, // 정식 고객으로 저장
+      };
+
+      await FirebaseFirestore.instance
+          .collection('customers')
+          .doc(widget.customerId)
+          .set(customerData, SetOptions(merge: true));
+
+      // 견적을 정식으로 변경
+      await FirebaseFirestore.instance
+          .collection('estimates')
+          .doc(targetEstimateId)
+          .update({
+        'isDraft': false,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // 고객 데이터 새로고침
+      ref.refresh(customerDataProvider);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('고객 정보가 정식으로 저장되었습니다')),
+        );
+      }
+    } catch (e) {
+      print('고객 정식 저장 중 오류: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('저장 중 오류가 발생했습니다: ${e.toString()}')),
         );
       }
     }
@@ -294,14 +451,18 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
     final customerPhone = customerInfo?['phone'] ?? customer.phone;
     final customerEmail = customerInfo?['email'] ?? customer.email;
     final customerAddress = customerInfo?['address'] ?? customer.address;
-    final businessLicenseUrl = customerInfo?['businessLicenseUrl'] ?? customer.businessLicenseUrl;
-    final otherDocumentUrls = customerInfo?['otherDocumentUrls'] ?? customer.otherDocumentUrls;
+    final businessLicenseUrl =
+        customerInfo?['businessLicenseUrl'] ?? customer.businessLicenseUrl;
+    final otherDocumentUrls =
+        customerInfo?['otherDocumentUrls'] ?? customer.otherDocumentUrls;
     final customerNote = customerInfo?['note'] ?? customer.note;
     // 수령자/연락처: spaceBasicInfo > estimate 최상위
     final spaceBasic = estimate['spaceBasicInfo'] as Map<String, dynamic>?;
     final recipient = spaceBasic?['recipient'] ?? estimate['recipient'] ?? '';
-    final contactNumber = spaceBasic?['contactNumber'] ?? estimate['contactNumber'] ?? '';
-    final siteAddress = spaceBasic?['siteAddress'] ?? estimate['siteAddress'] ?? '';
+    final contactNumber =
+        spaceBasic?['contactNumber'] ?? estimate['contactNumber'] ?? '';
+    final siteAddress =
+        spaceBasic?['siteAddress'] ?? estimate['siteAddress'] ?? '';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -362,7 +523,11 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                   children: [
                     SizedBox(
                       width: cellWidth,
-                      child: _buildFileCell('기타서류', (otherDocumentUrls is List ? otherDocumentUrls.join(', ') : otherDocumentUrls?.toString() ?? '')),
+                      child: _buildFileCell(
+                          '기타서류',
+                          (otherDocumentUrls is List
+                              ? otherDocumentUrls.join(', ')
+                              : otherDocumentUrls?.toString() ?? '')),
                     ),
                     SizedBox(
                       width: cellWidth,
@@ -382,13 +547,18 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
   Widget _buildSiteSection(Map<String, dynamic> data) {
     final estimate = data['estimate'] as Map<String, dynamic>;
     final spaceBasic = estimate['spaceBasicInfo'] as Map<String, dynamic>?;
-    final siteAddress = spaceBasic?['siteAddress'] ?? estimate['siteAddress'] ?? '';
+    final siteAddress =
+        spaceBasic?['siteAddress'] ?? estimate['siteAddress'] ?? '';
     final openingDate = spaceBasic?['openingDate'] ?? estimate['openingDate'];
     final recipient = spaceBasic?['recipient'] ?? estimate['recipient'] ?? '';
-    final contactNumber = spaceBasic?['contactNumber'] ?? estimate['contactNumber'] ?? '';
-    final shippingMethod = spaceBasic?['shippingMethod'] ?? estimate['shippingMethod'] ?? '';
-    final paymentMethod = spaceBasic?['paymentMethod'] ?? estimate['paymentMethod'] ?? '';
-    final basicNotes = spaceBasic?['basicNotes'] ?? estimate['basicNotes'] ?? '';
+    final contactNumber =
+        spaceBasic?['contactNumber'] ?? estimate['contactNumber'] ?? '';
+    final shippingMethod =
+        spaceBasic?['shippingMethod'] ?? estimate['shippingMethod'] ?? '';
+    final paymentMethod =
+        spaceBasic?['paymentMethod'] ?? estimate['paymentMethod'] ?? '';
+    final basicNotes =
+        spaceBasic?['basicNotes'] ?? estimate['basicNotes'] ?? '';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -444,14 +614,20 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                       width: cellWidth,
                       child: _buildInfoCell(
                           '소비자타깃',
-                          ((estimate['targetAgeGroups'] ?? estimate['spaceDetailInfo']?['targetAgeGroups']) as List<dynamic>?)
+                          ((estimate['targetAgeGroups'] ??
+                                          estimate['spaceDetailInfo']
+                                              ?['targetAgeGroups'])
+                                      as List<dynamic>?)
                                   ?.join(', ') ??
                               ''),
                     ),
                     SizedBox(
                       width: cellWidth,
-                      child:
-                          _buildInfoCell('업종', estimate['businessType'] ?? estimate['spaceDetailInfo']?['businessType'] ?? ''),
+                      child: _buildInfoCell(
+                          '업종',
+                          estimate['businessType'] ??
+                              estimate['spaceDetailInfo']?['businessType'] ??
+                              ''),
                     ),
                   ],
                 ),
@@ -462,14 +638,20 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                       width: cellWidth,
                       child: _buildInfoCell(
                           '공간컨셉',
-                          ((estimate['concept'] ?? estimate['spaceDetailInfo']?['concept']) as List<dynamic>?)?.join(', ') ??
+                          ((estimate['concept'] ??
+                                      estimate['spaceDetailInfo']
+                                          ?['concept']) as List<dynamic>?)
+                                  ?.join(', ') ??
                               ''),
                     ),
                     SizedBox(
                       width: cellWidth,
                       child: _buildFileCell(
                           '공간도면',
-                          ((estimate['designFileUrls'] ?? estimate['spaceDetailInfo']?['designFileUrls']) as List<dynamic>?)
+                          ((estimate['designFileUrls'] ??
+                                          estimate['spaceDetailInfo']
+                                              ?['designFileUrls'])
+                                      as List<dynamic>?)
                                   ?.join(', ') ??
                               ''),
                     ),
@@ -484,8 +666,7 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                     ),
                     SizedBox(
                       width: cellWidth,
-                      child: _buildInfoCell(
-                          '수령자 연락처', contactNumber),
+                      child: _buildInfoCell('수령자 연락처', contactNumber),
                     ),
                   ],
                 ),
@@ -494,13 +675,11 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                   children: [
                     SizedBox(
                       width: cellWidth,
-                      child: _buildInfoCell(
-                          '배송방법', shippingMethod),
+                      child: _buildInfoCell('배송방법', shippingMethod),
                     ),
                     SizedBox(
                       width: cellWidth,
-                      child: _buildInfoCell(
-                          '결제방법', paymentMethod),
+                      child: _buildInfoCell('결제방법', paymentMethod),
                     ),
                   ],
                 ),
@@ -521,17 +700,32 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
     final maxBudget = spaceDetail?['maxBudget'] ?? estimate['maxBudget'] ?? 0;
     final spaceArea = spaceDetail?['spaceArea'] ?? estimate['spaceArea'] ?? 0;
     final spaceUnit = spaceDetail?['spaceUnit'] ?? estimate['spaceUnit'] ?? '평';
-    final targetAgeGroups = (spaceDetail?['targetAgeGroups'] ?? estimate['targetAgeGroups']) as List<dynamic>?;
-    final businessType = spaceDetail?['businessType'] ?? estimate['businessType'] ?? '';
-    final concept = (spaceDetail?['concept'] ?? estimate['concept']) as List<dynamic>?;
-    final detailNotes = spaceDetail?['detailNotes'] ?? estimate['detailNotes'] ?? '';
-    final designFileUrls = (spaceDetail?['designFileUrls'] ?? estimate['designFileUrls']) as List<dynamic>?;
-    final recipient = estimate['spaceBasicInfo']?['recipient'] ?? estimate['recipient'] ?? '';
-    final contactNumber = estimate['spaceBasicInfo']?['contactNumber'] ?? estimate['contactNumber'] ?? '';
-    final shippingMethod = estimate['spaceBasicInfo']?['shippingMethod'] ?? estimate['shippingMethod'] ?? '';
-    final paymentMethod = estimate['spaceBasicInfo']?['paymentMethod'] ?? estimate['paymentMethod'] ?? '';
-    final siteAddress = estimate['spaceBasicInfo']?['siteAddress'] ?? estimate['siteAddress'] ?? '';
-    final openingDate = estimate['spaceBasicInfo']?['openingDate'] ?? estimate['openingDate'];
+    final targetAgeGroups = (spaceDetail?['targetAgeGroups'] ??
+        estimate['targetAgeGroups']) as List<dynamic>?;
+    final businessType =
+        spaceDetail?['businessType'] ?? estimate['businessType'] ?? '';
+    final concept =
+        (spaceDetail?['concept'] ?? estimate['concept']) as List<dynamic>?;
+    final detailNotes =
+        spaceDetail?['detailNotes'] ?? estimate['detailNotes'] ?? '';
+    final designFileUrls = (spaceDetail?['designFileUrls'] ??
+        estimate['designFileUrls']) as List<dynamic>?;
+    final recipient =
+        estimate['spaceBasicInfo']?['recipient'] ?? estimate['recipient'] ?? '';
+    final contactNumber = estimate['spaceBasicInfo']?['contactNumber'] ??
+        estimate['contactNumber'] ??
+        '';
+    final shippingMethod = estimate['spaceBasicInfo']?['shippingMethod'] ??
+        estimate['shippingMethod'] ??
+        '';
+    final paymentMethod = estimate['spaceBasicInfo']?['paymentMethod'] ??
+        estimate['paymentMethod'] ??
+        '';
+    final siteAddress = estimate['spaceBasicInfo']?['siteAddress'] ??
+        estimate['siteAddress'] ??
+        '';
+    final openingDate =
+        estimate['spaceBasicInfo']?['openingDate'] ?? estimate['openingDate'];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -568,11 +762,13 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                   children: [
                     SizedBox(
                       width: cellWidth,
-                      child: _buildInfoCell('예산', '${_formatNumber(minBudget)}원 ~ ${_formatNumber(maxBudget)}원'),
+                      child: _buildInfoCell('예산',
+                          '${_formatNumber(minBudget)}원 ~ ${_formatNumber(maxBudget)}원'),
                     ),
                     SizedBox(
                       width: cellWidth,
-                      child: _buildInfoCell('공간면적', '${spaceArea.toString()} $spaceUnit'),
+                      child: _buildInfoCell(
+                          '공간면적', '${spaceArea.toString()} $spaceUnit'),
                     ),
                   ],
                 ),
@@ -1770,7 +1966,7 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                     child: Container(
                         width: 200,
                         height: 48,
-                        color: const Color(0xffB18E72),
+                        color: Colors.transparent,
                         child: Row(
                           children: [
                             const SizedBox(
@@ -1781,7 +1977,7 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                                 height: 16.25,
                                 child: Image.asset(
                                   'assets/images/user.png',
-                                  color: Colors.white,
+                                  color: AppColor.font1,
                                 )),
                             const SizedBox(
                               width: 3.85,
@@ -1790,7 +1986,7 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                               '담당 고객정보',
                               style: TextStyle(
                                   fontWeight: FontWeight.w600,
-                                  color: Colors.white,
+                                  color: AppColor.font1,
                                   fontSize: 16),
                             ),
                           ],
@@ -1925,7 +2121,8 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                                       MainAxisAlignment.spaceBetween,
                                   children: [
                                     InkWell(
-                                      onTap: () {
+                                      onTap: () async {
+                                        // estimate 페이지는 이전 데이터 로드 함수가 없으므로 바로 pop
                                         context.pop();
                                       },
                                       child: const Row(
@@ -1941,16 +2138,6 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                                           )
                                         ],
                                       ),
-                                    ),
-                                    const Row(
-                                      children: [
-                                        Icon(Icons.person_outline_sharp,
-                                            color: AppColor.font2),
-                                        SizedBox(width: 16),
-                                        Icon(Icons.notifications_none_outlined,
-                                            color: AppColor.font2),
-                                        SizedBox(width: 16),
-                                      ],
                                     ),
                                   ],
                                 ),
@@ -2001,7 +2188,10 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                                     SizedBox(
                                       height: 48,
                                       child: ElevatedButton.icon(
-                                        onPressed: () {
+                                        onPressed: () async {
+                                          // 견적서 확인 시 고객을 정식으로 저장
+                                          await _confirmAndSaveCustomer();
+
                                           if (widget.estimateId != null) {
                                             context.go(
                                                 '/main/customer/${widget.customerId}');

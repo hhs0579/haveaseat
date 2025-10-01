@@ -61,6 +61,15 @@ class _MainPageState extends ConsumerState<MainPage> {
     return status ?? statusOptions[0];
   }
 
+  @override
+  void initState() {
+    super.initState();
+    // 페이지 로드 시 고객 데이터 새로고침
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.refresh(customerDataProvider);
+    });
+  }
+
   Future<void> _handleLogout() async {
     try {
       await FirebaseAuth.instance.signOut();
@@ -114,7 +123,7 @@ class _MainPageState extends ConsumerState<MainPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-          child: const Text('취소', style: TextStyle(color: Colors.black)),
+              child: const Text('취소', style: TextStyle(color: Colors.black)),
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),
@@ -663,11 +672,10 @@ class _MainPageState extends ConsumerState<MainPage> {
 // 필터링 메서드 수정
   List<Customer> _filterCustomers(List<Customer> customers) {
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-    // 담당 고객만 필터링 후, 임시저장 제외, 견적 1개 이상만
+    // 담당 고객만 필터링 후, 임시저장 제외
     var filteredCustomers = customers
         .where((customer) => customer.assignedTo == currentUserId)
         .where((customer) => customer.isDraft != true)
-        .where((customer) => customer.estimateIds.isNotEmpty)
         .toList();
 
     // Status filter
@@ -1006,16 +1014,6 @@ class _MainPageState extends ConsumerState<MainPage> {
                                       color: AppColor.font1,
                                     ),
                                   ),
-                                  const Row(
-                                    children: [
-                                      Icon(Icons.person_outline_sharp,
-                                          color: AppColor.font2),
-                                      SizedBox(width: 16),
-                                      Icon(Icons.notifications_none_outlined,
-                                          color: AppColor.font2),
-                                      SizedBox(width: 16),
-                                    ],
-                                  ),
                                 ],
                               ),
                             ),
@@ -1165,6 +1163,12 @@ class _MainPageState extends ConsumerState<MainPage> {
                                                             fontSize: 14),
                                                         border:
                                                             InputBorder.none,
+                                                        enabledBorder:
+                                                            InputBorder.none,
+                                                        focusedBorder:
+                                                            InputBorder.none,
+                                                        hoverColor:
+                                                            Colors.transparent,
                                                       ),
                                                       onChanged: (value) {
                                                         setState(() {

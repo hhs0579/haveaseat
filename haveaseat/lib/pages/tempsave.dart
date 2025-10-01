@@ -100,7 +100,7 @@ class _TempSavePageState extends ConsumerState<TempSavePage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-  child: const Text('취소', style: TextStyle(color: Colors.black)),
+              child: const Text('취소', style: TextStyle(color: Colors.black)),
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),
@@ -112,15 +112,16 @@ class _TempSavePageState extends ConsumerState<TempSavePage> {
 
       if (confirm != true) return;
 
-      // TODO: 실제 삭제 로직 구현 (임시저장 데이터 삭제)
+      // estimates 컬렉션에서 임시저장 데이터 삭제
       await Future.wait(
         _selectedItems.map((itemId) async {
           try {
-            // 예시: customers 컬렉션에서 isDraft가 true인 항목들 삭제
+            // estimates 컬렉션에서 isDraft: true인 항목들 삭제
             await FirebaseFirestore.instance
-                .collection('customers')
+                .collection('estimates')
                 .doc(itemId)
                 .delete();
+            print('임시저장 항목 삭제 완료: $itemId');
           } catch (e) {
             print('Error deleting item $itemId: $e');
           }
@@ -136,6 +137,8 @@ class _TempSavePageState extends ConsumerState<TempSavePage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('선택한 항목이 삭제되었습니다')),
         );
+        // 화면 새로고침을 위해 setState 호출
+        setState(() {});
       }
     } catch (e) {
       print('Error in _deleteSelectedItems: $e');
@@ -153,31 +156,62 @@ class _TempSavePageState extends ConsumerState<TempSavePage> {
       final currentUserId = FirebaseAuth.instance.currentUser?.uid;
       if (currentUserId == null) return [];
 
-      // estimates 컬렉션에서 isDraft: true인 임시저장 데이터만 가져오기
+      print('_fetchTempSaveData: currentUserId = $currentUserId'); // 디버깅 로그
+
+      // estimates 컬렉션에서 isDraft: true이고 현재 사용자의 데이터만 가져오기
       final estimateSnapshot = await FirebaseFirestore.instance
           .collection('estimates')
           .where('isDraft', isEqualTo: true)
           .get();
 
+      print(
+          '_fetchTempSaveData: 총 ${estimateSnapshot.docs.length}개의 임시저장 데이터 발견'); // 디버깅 로그
+
       List<Map<String, dynamic>> tempSaveItems = [];
 
       for (var doc in estimateSnapshot.docs) {
         final data = doc.data();
+
+        // 임시로 모든 데이터를 포함시켜서 디버깅
+        print(
+            '_fetchTempSaveData: 전체 데이터 구조 확인 - doc.id = ${doc.id}, data = $data'); // 디버깅 로그
+
+        // customerInfo에서 담당자 정보 가져오기
+        String managerName = '담당자 미정';
+        print(
+            '_fetchTempSaveData: customerInfo = ${data['customerInfo']}'); // 디버깅 로그
+        print(
+            '_fetchTempSaveData: top-level managerName = ${data['managerName']}'); // 디버깅 로그
+
+        if (data['customerInfo'] != null) {
+          managerName = data['customerInfo']['managerName'] ??
+              data['customerInfo']['assignedToName'] ??
+              '담당자 미정';
+          print(
+              '_fetchTempSaveData: customerInfo에서 찾은 managerName = $managerName'); // 디버깅 로그
+        } else {
+          managerName = data['managerName'] ?? '담당자 미정';
+          print(
+              '_fetchTempSaveData: top-level에서 찾은 managerName = $managerName'); // 디버깅 로그
+        }
+
         tempSaveItems.add({
           'id': doc.id,
           'customerId': data['customerId'] ?? doc.id,
-          'estimateId': data['estimateId'] ?? doc.id,
+          'estimateId': doc.id, // estimates 컬렉션의 doc.id가 estimateId
           'name': data['name'] ?? '무제',
           'type': data['type'] ?? '임시저장',
           'createdDate':
               data['createdAt'] ?? data['lastUpdated'] ?? Timestamp.now(),
           'modifiedDate':
               data['updatedAt'] ?? data['lastUpdated'] ?? Timestamp.now(),
-          'manager': data['managerName'] ?? '담당자 미정',
+          'manager': managerName,
           'isDraft': true,
         });
       }
 
+      print(
+          '_fetchTempSaveData: 최종 결과 - ${tempSaveItems.length}개의 임시저장 항목'); // 디버깅 로그
       return tempSaveItems;
     } catch (e) {
       print('Error fetching temp save data: $e');
@@ -190,23 +224,18 @@ class _TempSavePageState extends ConsumerState<TempSavePage> {
     if (_searchController.text.isEmpty &&
         _startDate == null &&
         _endDate == null) {
-      // isDraft == true이면서 이름이 비어있지 않고 '무제', '이름없음'이 아닌 데이터만 반환
+      // isDraft == true인 모든 데이터 반환 (이름 제한 없음)
       return items
           .where((item) =>
               item['isDraft'] == true &&
               item['name'] != null &&
-              item['name'].toString().trim().isNotEmpty &&
-              item['name'] != '무제' &&
-              item['name'] != '이름없음')
+              item['name'].toString().trim().isNotEmpty)
           .toList();
     }
 
     return items.where((item) {
       if (item['isDraft'] != true) return false;
       if (item['name'] == null || item['name'].toString().trim().isEmpty) {
-        return false;
-      }
-      if (item['name'] == '무제' || item['name'] == '이름없음') {
         return false;
       }
 
@@ -331,11 +360,10 @@ class _TempSavePageState extends ConsumerState<TempSavePage> {
               final type = item['type'] ?? '';
               final name = item['name'] ?? '';
               if (type == '고객정보') {
-                context.go('/main/addpage/spaceadd/$customerId/$estimateId',
+                context.go('/main/addpage/addcustomer/$customerId/$estimateId',
                     extra: {'name': name});
               } else if (type == '공간기본') {
-                context.go(
-                    '/main/addpage/spaceadd/$customerId/$estimateId/space-detail',
+                context.go('/main/addpage/spaceadd/$customerId/$estimateId',
                     extra: {'name': name});
               } else if (type == '공간상세') {
                 context.go(
@@ -598,16 +626,6 @@ class _TempSavePageState extends ConsumerState<TempSavePage> {
                                       color: AppColor.font1,
                                     ),
                                   ),
-                                  const Row(
-                                    children: [
-                                      Icon(Icons.person_outline_sharp,
-                                          color: AppColor.font2),
-                                      SizedBox(width: 16),
-                                      Icon(Icons.notifications_none_outlined,
-                                          color: AppColor.font2),
-                                      SizedBox(width: 16),
-                                    ],
-                                  ),
                                 ],
                               ),
                             ),
@@ -679,6 +697,12 @@ class _TempSavePageState extends ConsumerState<TempSavePage> {
                                                             fontSize: 14),
                                                         border:
                                                             InputBorder.none,
+                                                        enabledBorder:
+                                                            InputBorder.none,
+                                                        focusedBorder:
+                                                            InputBorder.none,
+                                                        hoverColor:
+                                                            Colors.transparent,
                                                       ),
                                                       onChanged: (value) {
                                                         _debounceTimer

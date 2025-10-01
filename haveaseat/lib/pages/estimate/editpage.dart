@@ -432,13 +432,6 @@ class _EstimateEditPageState extends ConsumerState<EstimateEditPage> {
               color: AppColor.font1,
             ),
           ),
-          const Row(
-            children: [
-              Icon(Icons.person_outline_sharp, color: AppColor.font2),
-              SizedBox(width: 16),
-              Icon(Icons.notifications_none_outlined, color: AppColor.font2),
-            ],
-          ),
         ],
       ),
     );
@@ -1033,10 +1026,8 @@ class _EstimateEditPageState extends ConsumerState<EstimateEditPage> {
   // 가구 추가 다이얼로그
   void _addFurniture() {
     showDialog(
-      
       context: context,
       builder: (context) => _FurnitureDialog(
-        
         onSave: (furniture) {
           setState(() {
             _furnitureList.add(furniture);

@@ -162,19 +162,34 @@ class _furniturePageState extends ConsumerState<furniturePage> {
   // 임시 저장
   Future<void> _saveTempFurniture() async {
     try {
+      final user = ref.read(UserProvider.currentUserProvider).value;
+      print('_saveTempFurniture: user = $user'); // 디버깅 로그
+      if (user == null) throw Exception('로그인이 필요합니다');
+
+      // users 컬렉션에서 실제 사용자 정보 가져오기
+      final userData = await UserProvider.getUserData(user.uid);
+      final managerName = userData?['name'] ?? user.displayName ?? '담당자 미정';
+      final managerPhone = userData?['phoneNumber'] ?? user.phoneNumber ?? '';
+
       String estimateId = widget.estimateId ?? '';
       if (estimateId.isEmpty) {
-        final estimateRef =
-            FirebaseFirestore.instance.collection('estimates').doc();
-        estimateId = estimateRef.id;
-        // 견적 최초 생성시에만 customers.estimateIds 추가
-        await FirebaseFirestore.instance
-            .collection('customers')
-            .doc(widget.customerId)
-            .set({
-          'estimateIds': [estimateId],
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+        // 새로운 estimateId를 생성하지 말고, customerId를 사용하거나 기존 문서를 찾아서 업데이트
+        // 임시저장에서는 같은 customerId로 기존 문서를 찾아서 업데이트
+        final existingEstimate = await FirebaseFirestore.instance
+            .collection('estimates')
+            .where('customerId', isEqualTo: widget.customerId)
+            .where('isDraft', isEqualTo: true)
+            .limit(1)
+            .get();
+
+        if (existingEstimate.docs.isNotEmpty) {
+          estimateId = existingEstimate.docs.first.id;
+        } else {
+          // 기존 문서가 없으면 새로 생성
+          final estimateRef =
+              FirebaseFirestore.instance.collection('estimates').doc();
+          estimateId = estimateRef.id;
+        }
       }
       // name 값 보장: widget.name이 없으면 Firestore에서 고객명 조회
       String? nameValue = widget.name;
@@ -195,7 +210,15 @@ class _furniturePageState extends ConsumerState<furniturePage> {
         'isDraft': true,
         'type': '가구',
         'name': nameValue,
+        'managerName': managerName,
+        'managerPhone': managerPhone,
         'furnitureList': [],
+        'customerInfo': {
+          'name': nameValue,
+          'assignedTo': user.uid,
+          'managerName': managerName,
+          'managerPhone': managerPhone,
+        },
       };
       await estimateRef.set(tempData, SetOptions(merge: true));
       if (mounted) {
@@ -240,14 +263,7 @@ class _furniturePageState extends ConsumerState<furniturePage> {
             FirebaseFirestore.instance.collection('estimates').doc();
         estimateId = estimateRef.id;
         isNewEstimate = true;
-        // 견적 최초 생성시에만 customers.estimateIds 추가
-        await FirebaseFirestore.instance
-            .collection('customers')
-            .doc(widget.customerId)
-            .set({
-          'estimateIds': [estimateId],
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+        // 임시저장이므로 customers 컬렉션에 저장하지 않음
       }
 
       List<Map<String, dynamic>> existingFurnitureList = [];
@@ -392,6 +408,9 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                   hintText: '상품명을 입력하세요',
                   contentPadding: EdgeInsets.symmetric(horizontal: 16),
                   border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  hoverColor: Colors.transparent,
                 ),
               ),
             ),
@@ -515,6 +534,9 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                   ),
                   decoration: const InputDecoration(
                     border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    hoverColor: Colors.transparent,
                     contentPadding: EdgeInsets.only(right: 4, bottom: 4.2),
                     hintText: '',
                   ),
@@ -565,6 +587,9 @@ class _furniturePageState extends ConsumerState<furniturePage> {
               hintText: '가구명을 입력하세요',
               contentPadding: EdgeInsets.symmetric(horizontal: 16),
               border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              hoverColor: Colors.transparent,
             ),
           ),
         ),
@@ -612,6 +637,9 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                       ),
                       decoration: const InputDecoration(
                         border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        hoverColor: Colors.transparent,
                         contentPadding: EdgeInsets.only(right: 4, bottom: 4.2),
                         hintText: '',
                       ),
@@ -679,6 +707,9 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                       ),
                       decoration: const InputDecoration(
                         border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        hoverColor: Colors.transparent,
                         contentPadding: EdgeInsets.only(right: 4, bottom: 4.2),
                         hintText: '',
                       ),
@@ -722,6 +753,9 @@ class _furniturePageState extends ConsumerState<furniturePage> {
               hintText: '내용을 입력하세요',
               contentPadding: EdgeInsets.all(16),
               border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              hoverColor: Colors.transparent,
             ),
           ),
         ),
@@ -828,14 +862,7 @@ class _furniturePageState extends ConsumerState<furniturePage> {
         final estimateRef =
             FirebaseFirestore.instance.collection('estimates').doc();
         estimateId = estimateRef.id;
-        // 견적 최초 생성시에만 customers.estimateIds 추가
-        await FirebaseFirestore.instance
-            .collection('customers')
-            .doc(widget.customerId)
-            .set({
-          'estimateIds': [estimateId],
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+        // 임시저장이므로 customers 컬렉션에 저장하지 않음
       }
       final estimateRef =
           FirebaseFirestore.instance.collection('estimates').doc(estimateId);
@@ -873,26 +900,59 @@ class _furniturePageState extends ConsumerState<furniturePage> {
         if (estimateDoc.exists) {
           final data = estimateDoc.data()!;
           final type = data['type'] ?? '';
-          if (type == '가구' && data['furnitureList'] != null) {
-            final furnitureList = data['furnitureList'] as List<dynamic>;
-            setState(() {
-              // 가구 리스트 복원 (예시: 첫 번째 가구만 복원, 실제 구현에 맞게 확장 필요)
-              if (furnitureList.isNotEmpty) {
-                final first = furnitureList[0];
-                if (_existingFurnitureFields.isNotEmpty) {
-                  _existingFurnitureFields[0].searchController.text =
-                      first['name'] ?? '';
-                  _existingFurnitureFields[0].quantityController.text =
-                      first['quantity']?.toString() ?? '';
+          print(
+              'furniture _loadPreviousData: type = $type, estimateId = ${widget.estimateId}'); // 디버깅 로그
+
+          // 견적서 수정 모드에서는 모든 type의 데이터를 로드 가능하도록 수정
+          // 임시저장된 데이터의 type이 '가구'이거나 비어있거나, 견적서 수정 모드일 때 데이터 로드
+          // estimateId가 있으면 임시저장에서 이어서 작성하는 경우이므로 모든 type에서 로드
+          if (type == '가구' ||
+              type.isEmpty ||
+              isEditMode ||
+              widget.estimateId != null) {
+            if (data['furnitureList'] != null) {
+              final furnitureList = data['furnitureList'] as List<dynamic>;
+              setState(() {
+                // 기존 리스트 초기화
+                _existingFurnitureFields.clear();
+                _customFurnitureFields.clear();
+
+                // 가구 리스트 복원
+                for (var furniture in furnitureList) {
+                  final isCustom = furniture['isCustom'] as bool? ?? false;
+
+                  if (isCustom) {
+                    // 제작 가구 필드 추가
+                    final field = CustomFurnitureField();
+                    field.nameController.text = furniture['name'] ?? '';
+                    field.descriptionController.text =
+                        furniture['description'] ?? '';
+                    field.quantityController.text =
+                        furniture['quantity']?.toString() ?? '';
+                    field.priceController.text =
+                        furniture['price']?.toString() ?? '';
+                    _customFurnitureFields.add(field);
+                  } else {
+                    // 기존 가구 필드 추가
+                    final field = FurnitureField();
+                    field.searchController.text = furniture['name'] ?? '';
+                    field.quantityController.text =
+                        furniture['quantity']?.toString() ?? '';
+                    _existingFurnitureFields.add(field);
+                  }
                 }
-              }
-            });
-          } else {
-            setState(() {
-              // 최상위 필드 복원 (필요시 확장)
-            });
+
+                // 빈 필드가 없으면 하나씩 추가
+                if (_existingFurnitureFields.isEmpty) {
+                  _existingFurnitureFields.add(FurnitureField());
+                }
+                if (_customFurnitureFields.isEmpty) {
+                  _customFurnitureFields.add(CustomFurnitureField());
+                }
+              });
+            }
+            return;
           }
-          return;
         }
       }
       // customers에서 복원
@@ -904,6 +964,12 @@ class _furniturePageState extends ConsumerState<furniturePage> {
       if (customerDoc.exists) {
         setState(() {
           // customers 필드 복원 (필요시 확장)
+          if (_existingFurnitureFields.isEmpty) {
+            _existingFurnitureFields.add(FurnitureField());
+          }
+          if (_customFurnitureFields.isEmpty) {
+            _customFurnitureFields.add(CustomFurnitureField());
+          }
         });
       }
     } catch (e) {
@@ -1033,7 +1099,7 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                       child: Container(
                           width: 200,
                           height: 48,
-                          color: const Color(0xffB18E72),
+                          color: Colors.transparent,
                           child: Row(
                             children: [
                               const SizedBox(
@@ -1044,7 +1110,7 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                                   height: 16.25,
                                   child: Image.asset(
                                     'assets/images/user.png',
-                                    color: Colors.white,
+          color: AppColor.font1,
                                   )),
                               const SizedBox(
                                 width: 3.85,
@@ -1053,7 +1119,7 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                                 '담당 고객정보',
                                 style: TextStyle(
                                     fontWeight: FontWeight.w600,
-                                    color: Colors.white,
+                    color: AppColor.font1,
                                     fontSize: 16),
                               ),
                             ],
@@ -1181,7 +1247,8 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                                     MainAxisAlignment.spaceBetween,
                                 children: [
                                   InkWell(
-                                    onTap: () {
+                                    onTap: () async {
+                                      _loadPreviousData();
                                       context.pop();
                                     },
                                     child: const Row(
@@ -1197,16 +1264,6 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                                         )
                                       ],
                                     ),
-                                  ),
-                                  const Row(
-                                    children: [
-                                      Icon(Icons.person_outline_sharp,
-                                          color: AppColor.font2),
-                                      SizedBox(width: 16),
-                                      Icon(Icons.notifications_none_outlined,
-                                          color: AppColor.font2),
-                                      SizedBox(width: 16),
-                                    ],
                                   ),
                                 ],
                               ),
@@ -1486,7 +1543,8 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                             Row(
                               children: [
                                 InkWell(
-                                  onTap: () {
+                                  onTap: () async {
+                                    _loadPreviousData();
                                     if (isEditMode) {
                                       // 편집 모드일 때는 customer 화면으로 돌아가기
                                       context.go(

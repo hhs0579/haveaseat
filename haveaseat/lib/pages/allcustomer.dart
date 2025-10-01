@@ -45,6 +45,16 @@ class _AllCustomerPageState extends ConsumerState<AllCustomerPage> {
     '후기',
     '완료'
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    // 페이지 로드 시 고객 데이터 새로고침
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.refresh(customerDataProvider);
+    });
+  }
+
   Future<void> _handleLogout() async {
     try {
       await FirebaseAuth.instance.signOut();
@@ -400,11 +410,9 @@ class _AllCustomerPageState extends ConsumerState<AllCustomerPage> {
 
 // 필터링 메서드 수정
   List<Customer> _filterCustomers(List<Customer> customers) {
-    // 전체 고객에서 isDraft == false인 고객만 남김, 견적 1개 이상만
-    var filteredCustomers = customers
-        .where((customer) => customer.isDraft == false)
-        .where((customer) => customer.estimateIds.isNotEmpty)
-        .toList();
+    // 전체 고객에서 isDraft == false인 고객만 남김
+    var filteredCustomers =
+        customers.where((customer) => customer.isDraft == false).toList();
 
     // Status filter
     if (_selectedStatus != null) {
@@ -737,16 +745,6 @@ class _AllCustomerPageState extends ConsumerState<AllCustomerPage> {
                                       color: AppColor.font1,
                                     ),
                                   ),
-                                  const Row(
-                                    children: [
-                                      Icon(Icons.person_outline_sharp,
-                                          color: AppColor.font2),
-                                      SizedBox(width: 16),
-                                      Icon(Icons.notifications_none_outlined,
-                                          color: AppColor.font2),
-                                      SizedBox(width: 16),
-                                    ],
-                                  ),
                                 ],
                               ),
                             ),
@@ -896,6 +894,12 @@ class _AllCustomerPageState extends ConsumerState<AllCustomerPage> {
                                                             fontSize: 14),
                                                         border:
                                                             InputBorder.none,
+                                                        enabledBorder:
+                                                            InputBorder.none,
+                                                        focusedBorder:
+                                                            InputBorder.none,
+                                                        hoverColor:
+                                                            Colors.transparent,
                                                       ),
                                                       onChanged: (value) {
                                                         setState(() {

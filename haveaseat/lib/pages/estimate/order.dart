@@ -1904,7 +1904,7 @@ class _OrderEstimatePageState extends ConsumerState<OrderEstimatePage> {
                     child: Container(
                         width: 200,
                         height: 48,
-                        color: const Color(0xffB18E72),
+                        color: Colors.transparent,
                         child: Row(
                           children: [
                             const SizedBox(
@@ -1915,7 +1915,7 @@ class _OrderEstimatePageState extends ConsumerState<OrderEstimatePage> {
                                 height: 16.25,
                                 child: Image.asset(
                                   'assets/images/user.png',
-                                  color: Colors.white,
+                                  color: AppColor.font1,
                                 )),
                             const SizedBox(
                               width: 3.85,
@@ -1924,7 +1924,7 @@ class _OrderEstimatePageState extends ConsumerState<OrderEstimatePage> {
                               '담당 고객정보',
                               style: TextStyle(
                                   fontWeight: FontWeight.w600,
-                                  color: Colors.white,
+                             color: AppColor.font1,
                                   fontSize: 16),
                             ),
                           ],

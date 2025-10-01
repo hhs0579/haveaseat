@@ -93,55 +93,59 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
 
   Future<void> _loadTempEstimate() async {
     try {
-      // 기존: customers 문서에서 customer 정보 조회
-      // 변경: estimates 문서에서 customerInfo 사용
-      String? estimateId;
+      // estimateId가 있으면 해당 문서에서 데이터 로드
       if (widget.estimateId != null) {
-        estimateId = widget.estimateId;
-      } else {
-        // 임시저장 플로우에서는 estimateId를 따로 관리해야 함
-        // (임시저장페이지에서 이어서 작성 시 estimateId를 넘겨줘야 함)
-        return;
-      }
-      final docSnapshot = await FirebaseFirestore.instance
-          .collection('estimates')
-          .doc(estimateId)
-          .get();
+        final docSnapshot = await FirebaseFirestore.instance
+            .collection('estimates')
+            .doc(widget.estimateId)
+            .get();
 
-      if (docSnapshot.exists) {
-        final data = docSnapshot.data()!;
+        if (docSnapshot.exists) {
+          final data = docSnapshot.data()!;
+          final type = data['type'] ?? '';
+          print(
+              'spaceadd _loadTempEstimate: type = $type, estimateId = ${widget.estimateId}'); // 디버깅 로그
 
-        // 수정 모드일 때는 spaceBasicInfo 하위 맵에서 데이터를 불러옴
-        Map<String, dynamic> spaceData;
-        if (isEditMode && data['spaceBasicInfo'] != null) {
-          spaceData = data['spaceBasicInfo'] as Map<String, dynamic>;
-        } else {
-          spaceData = data; // 최상위 필드에서 불러옴
-        }
-
-        setState(() {
-          // 주소 처리
-          if (spaceData['siteAddress'] != null) {
-            final addressParts = spaceData['siteAddress'].split(' ');
-            if (addressParts.length > 1) {
-              _siteAddressController.text =
-                  addressParts.take(addressParts.length - 1).join(' ');
-              _detailSiteAddressController.text = addressParts.last;
+          // 견적서 수정 모드에서는 모든 type의 데이터를 로드 가능하도록 수정
+          // 임시저장된 데이터의 type이 '공간기본'이거나 비어있거나, 견적서 수정 모드일 때 데이터 로드
+          // estimateId가 있으면 임시저장에서 이어서 작성하는 경우이므로 모든 type에서 로드
+          if (type == '공간기본' ||
+              type.isEmpty ||
+              isEditMode ||
+              widget.estimateId != null) {
+            // 수정 모드일 때는 spaceBasicInfo 하위 맵에서 데이터를 불러옴
+            Map<String, dynamic> spaceData;
+            if (isEditMode && data['spaceBasicInfo'] != null) {
+              spaceData = data['spaceBasicInfo'] as Map<String, dynamic>;
             } else {
-              _siteAddressController.text = spaceData['siteAddress'];
+              spaceData = data; // 최상위 필드에서 불러옴
             }
+
+            setState(() {
+              // 주소 처리
+              if (spaceData['siteAddress'] != null) {
+                final addressParts = spaceData['siteAddress'].split(' ');
+                if (addressParts.length > 1) {
+                  _siteAddressController.text =
+                      addressParts.take(addressParts.length - 1).join(' ');
+                  _detailSiteAddressController.text = addressParts.last;
+                } else {
+                  _siteAddressController.text = spaceData['siteAddress'];
+                }
+              }
+              // 날짜 처리
+              if (spaceData['openingDate'] != null) {
+                _openingDate = (spaceData['openingDate'] as Timestamp).toDate();
+              }
+              _recipientController.text = spaceData['recipient'] ?? '';
+              _contactNumberController.text = spaceData['contactNumber'] ?? '';
+              _shippingMethod = spaceData['shippingMethod'];
+              _paymentMethod = spaceData['paymentMethod'];
+              _additionalNotesController.text = spaceData['basicNotes'] ?? '';
+              // 고객명 등은 필요시 data['customerInfo']에서 사용
+            });
           }
-          // 날짜 처리
-          if (spaceData['openingDate'] != null) {
-            _openingDate = (spaceData['openingDate'] as Timestamp).toDate();
-          }
-          _recipientController.text = spaceData['recipient'] ?? '';
-          _contactNumberController.text = spaceData['contactNumber'] ?? '';
-          _shippingMethod = spaceData['shippingMethod'];
-          _paymentMethod = spaceData['paymentMethod'];
-          _additionalNotesController.text = spaceData['basicNotes'] ?? '';
-          // 고객명 등은 필요시 data['customerInfo']에서 사용
-        });
+        }
       }
     } catch (e) {
       print('임시 저장 데이터 로드 중 오류: $e');
@@ -149,26 +153,37 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
   }
 
 // 임시 저장 함수
-  Future<void> _saveTempBasicInfo() async {
+  Future<void> saveTempBasicInfo() async {
     try {
       final user = ref.read(UserProvider.currentUserProvider).value;
+      print('saveTempBasicInfo: user = $user'); // 디버깅 로그
       if (user == null) throw Exception('로그인이 필요합니다');
+
+      // users 컬렉션에서 실제 사용자 정보 가져오기
+      final userData = await UserProvider.getUserData(user.uid);
+      final managerName = userData?['name'] ?? user.displayName ?? '담당자 미정';
+      final managerPhone = userData?['phoneNumber'] ?? user.phoneNumber ?? '';
       String estimateId = widget.estimateId ?? '';
       if (estimateId.isEmpty) {
-        final estimateRef =
-            FirebaseFirestore.instance.collection('estimates').doc();
-        estimateId = estimateRef.id;
+        // 새로운 estimateId를 생성하지 말고, customerId를 사용하거나 기존 문서를 찾아서 업데이트
+        // 임시저장에서는 같은 customerId로 기존 문서를 찾아서 업데이트
+        final existingEstimate = await FirebaseFirestore.instance
+            .collection('estimates')
+            .where('customerId', isEqualTo: widget.customerId)
+            .where('isDraft', isEqualTo: true)
+            .limit(1)
+            .get();
+
+        if (existingEstimate.docs.isNotEmpty) {
+          estimateId = existingEstimate.docs.first.id;
+        } else {
+          // 기존 문서가 없으면 새로 생성
+          final estimateRef =
+              FirebaseFirestore.instance.collection('estimates').doc();
+          estimateId = estimateRef.id;
+        }
       }
-      // customers.estimateIds는 최초 생성시에만 추가
-      if (widget.estimateId == null) {
-        await FirebaseFirestore.instance
-            .collection('customers')
-            .doc(widget.customerId)
-            .set({
-          'estimateIds': [estimateId],
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-      }
+      // 임시저장이므로 customers 컬렉션에 저장하지 않음
       // name 값 보장: widget.name이 없으면 Firestore에서 고객명 조회
       String? nameValue = widget.name;
       if (nameValue == null || nameValue.trim().isEmpty) {
@@ -197,11 +212,13 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
         'shippingMethod': _shippingMethod,
         'paymentMethod': _paymentMethod,
         'basicNotes': _additionalNotesController.text,
-        'managerName': user.displayName ?? '',
-        'managerPhone': user.phoneNumber ?? '',
+        'managerName': managerName,
+        'managerPhone': managerPhone,
         'customerInfo': {
           'name': nameValue,
           'assignedTo': user.uid,
+          'managerName': managerName,
+          'managerPhone': managerPhone,
         },
       };
       print('임시저장 tempData: $tempData');
@@ -223,8 +240,8 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
   }
 
 // spacemodel.dart의 EstimatesNotifier 클래스 내에서 updateSpaceBasicInfo 수정
-  Future<void> _saveSpaceBasicInfo() async {
-    if (!_validateInputs()) return;
+  Future<void> saveSpaceBasicInfo() async {
+    if (!validateInputs()) return;
     try {
       final user = ref.read(UserProvider.currentUserProvider).value;
       if (user == null) throw Exception('로그인이 필요합니다');
@@ -239,14 +256,7 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
         final estimateRef =
             FirebaseFirestore.instance.collection('estimates').doc();
         estimateId = estimateRef.id;
-        // 견적 최초 생성시에만 customers.estimateIds 추가
-        await FirebaseFirestore.instance
-            .collection('customers')
-            .doc(widget.customerId)
-            .set({
-          'estimateIds': [estimateId],
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+        // 임시저장이므로 customers 컬렉션에 저장하지 않음
       }
 
       final estimateData = {
@@ -320,7 +330,7 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
   }
 
 // 입력값 검증
-  bool _validateInputs() {
+  bool validateInputs() {
     if (_siteAddressController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('현장 주소를 입력해주세요')),
@@ -353,7 +363,7 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
   }
 
 // 캘린더 눌렀을 때 날짜 선택하는 함수
-  Future<void> _selectDate(BuildContext context) async {
+  Future<void> selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: _openingDate ?? DateTime.now(),
@@ -444,7 +454,7 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
   }
 
   // 이전 버튼 누르면 이전에 작성한 값 불러오기 (estimates → customers 순, spaceBasicInfo 우선)
-  void _loadPreviousData() async {
+  void loadPreviousData() async {
     try {
       final estimateId = widget.estimateId;
       if (estimateId != null) {
@@ -454,40 +464,51 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
             .get();
         if (estimateDoc.exists) {
           final data = estimateDoc.data()!;
-          // 1. spaceBasicInfo 우선 (없으면 최상위)
-          if (data['spaceBasicInfo'] != null) {
-            final basic = data['spaceBasicInfo'];
-            setState(() {
-              _siteAddressController.text =
-                  basic['siteAddress']?.split(' ').first ?? '';
-              _detailSiteAddressController.text =
-                  basic['siteAddress']?.split(' ').skip(1).join(' ') ?? '';
-              _recipientController.text = basic['recipient'] ?? '';
-              _contactNumberController.text = basic['contactNumber'] ?? '';
-              _shippingMethod = basic['shippingMethod'];
-              _paymentMethod = basic['paymentMethod'];
-              _additionalNotesController.text = basic['basicNotes'] ?? '';
-              if (basic['openingDate'] != null) {
-                _openingDate = (basic['openingDate'] as Timestamp).toDate();
-              }
-            });
-          } else {
-            setState(() {
-              _siteAddressController.text =
-                  data['siteAddress']?.split(' ').first ?? '';
-              _detailSiteAddressController.text =
-                  data['siteAddress']?.split(' ').skip(1).join(' ') ?? '';
-              _recipientController.text = data['recipient'] ?? '';
-              _contactNumberController.text = data['contactNumber'] ?? '';
-              _shippingMethod = data['shippingMethod'];
-              _paymentMethod = data['paymentMethod'];
-              _additionalNotesController.text = data['basicNotes'] ?? '';
-              if (data['openingDate'] != null) {
-                _openingDate = (data['openingDate'] as Timestamp).toDate();
-              }
-            });
+          final type = data['type'] ?? '';
+
+          // 견적서 수정 모드에서는 모든 type의 데이터를 로드 가능하도록 수정
+          // 임시저장된 데이터의 type이 '공간기본'이거나 비어있거나, 견적서 수정 모드일 때 데이터 로드
+          // estimateId가 있으면 임시저장에서 이어서 작성하는 경우이므로 모든 type에서 로드
+          if (type == '공간기본' ||
+              type == '고객정보' ||
+              type.isEmpty ||
+              isEditMode ||
+              widget.estimateId != null) {
+            // 1. spaceBasicInfo 우선 (없으면 최상위)
+            if (data['spaceBasicInfo'] != null) {
+              final basic = data['spaceBasicInfo'];
+              setState(() {
+                _siteAddressController.text =
+                    basic['siteAddress']?.split(' ').first ?? '';
+                _detailSiteAddressController.text =
+                    basic['siteAddress']?.split(' ').skip(1).join(' ') ?? '';
+                _recipientController.text = basic['recipient'] ?? '';
+                _contactNumberController.text = basic['contactNumber'] ?? '';
+                _shippingMethod = basic['shippingMethod'];
+                _paymentMethod = basic['paymentMethod'];
+                _additionalNotesController.text = basic['basicNotes'] ?? '';
+                if (basic['openingDate'] != null) {
+                  _openingDate = (basic['openingDate'] as Timestamp).toDate();
+                }
+              });
+            } else {
+              setState(() {
+                _siteAddressController.text =
+                    data['siteAddress']?.split(' ').first ?? '';
+                _detailSiteAddressController.text =
+                    data['siteAddress']?.split(' ').skip(1).join(' ') ?? '';
+                _recipientController.text = data['recipient'] ?? '';
+                _contactNumberController.text = data['contactNumber'] ?? '';
+                _shippingMethod = data['shippingMethod'];
+                _paymentMethod = data['paymentMethod'];
+                _additionalNotesController.text = data['basicNotes'] ?? '';
+                if (data['openingDate'] != null) {
+                  _openingDate = (data['openingDate'] as Timestamp).toDate();
+                }
+              });
+            }
+            return;
           }
-          return;
         }
       }
       // customers에서 복원
@@ -514,7 +535,7 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
     }
   }
 
-  Widget _buildRadioGroup({
+  Widget buildRadioGroup({
     required String title,
     required List<String> options,
     required String? groupValue,
@@ -637,7 +658,7 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                           child: Container(
                               width: 200,
                               height: 48,
-                              color: const Color(0xffB18E72),
+                              color: Colors.transparent,
                               child: Row(
                                 children: [
                                   const SizedBox(
@@ -648,7 +669,7 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                                       height: 16.25,
                                       child: Image.asset(
                                         'assets/images/user.png',
-                                        color: Colors.white,
+                                              color: AppColor.font1,
                                       )),
                                   const SizedBox(
                                     width: 3.85,
@@ -657,7 +678,7 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                                     '담당 고객정보',
                                     style: TextStyle(
                                         fontWeight: FontWeight.w600,
-                                        color: Colors.white,
+                                        color: AppColor.font1,
                                         fontSize: 16),
                                   ),
                                 ],
@@ -779,8 +800,15 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 InkWell(
-                                  onTap: () {
-                                    context.pop();
+                                  onTap: () async {
+                                    // 수정 모드가 아니고, estimateId가 없을 때만 임시저장 (새로 작성하는 경우)
+                                    if (!isEditMode &&
+                                        widget.estimateId == null) {
+                                      await saveTempBasicInfo();
+                                    }
+                                    // 이전 페이지로 이동 (addcustomer 페이지로 직접 이동)
+                                    context.go(
+                                        '/main/addpage/addcustomer/${widget.customerId}/${widget.estimateId}');
                                   },
                                   child: const Row(
                                     children: [
@@ -798,20 +826,6 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                                     ],
                                   ),
                                 ),
-                                const Row(
-                                  children: [
-                                    Icon(
-                                      Icons.person_outline_sharp,
-                                      color: AppColor.font2,
-                                    ),
-                                    SizedBox(width: 16),
-                                    Icon(
-                                      Icons.notifications_none_outlined,
-                                      color: AppColor.font2,
-                                    ),
-                                    SizedBox(width: 43), // 오른쪽 여백 추가
-                                  ],
-                                )
                               ],
                             ),
                           ),
@@ -864,7 +878,7 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                             height: 12,
                           ),
                           InkWell(
-                            onTap: () => _selectDate(context),
+                            onTap: () => selectDate(context),
                             child: Container(
                               width: 640,
                               height: 48,
@@ -941,6 +955,9 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                                 contentPadding: EdgeInsets.symmetric(
                                     horizontal: 16, vertical: 14),
                                 border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                                hoverColor: Colors.transparent,
                                 hintText: '수령자 이름을 입력해 주세요',
                                 hintStyle: TextStyle(
                                     color: AppColor.font2, fontSize: 14),
@@ -969,6 +986,9 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                                 contentPadding: EdgeInsets.symmetric(
                                     horizontal: 16, vertical: 14),
                                 border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                                hoverColor: Colors.transparent,
                                 hintText: '연락처를 입력해 주세요',
                                 hintStyle: TextStyle(
                                     color: AppColor.font2, fontSize: 14),
@@ -998,7 +1018,7 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                             height: 24,
                           ),
 
-                          _buildRadioGroup(
+                          buildRadioGroup(
                             title: '배송 방법',
                             options: const ['택배배송', '차량배송', '물류배송'],
                             groupValue: _shippingMethod,
@@ -1010,7 +1030,7 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                           ),
 
                           const SizedBox(height: 24),
-                          _buildRadioGroup(
+                          buildRadioGroup(
                             title: '결제 방법',
                             options: const ['선불', '착불'],
                             groupValue: _paymentMethod,
@@ -1027,7 +1047,8 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                           Row(
                             children: [
                               InkWell(
-                                onTap: () {
+                                onTap: () async {
+                                  loadPreviousData();
                                   if (isEditMode) {
                                     // 편집 모드일 때는 customer 화면으로 돌아가기
                                     context.go(
@@ -1060,7 +1081,7 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                                 InkWell(
                                   onTap: () {
                                     // 임시 저장 처리
-                                    _saveTempBasicInfo();
+                                    saveTempBasicInfo();
                                   },
                                   child: Container(
                                     width: 87,
@@ -1086,12 +1107,12 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                                 onTap: () {
                                   if (isEditMode) {
                                     // 편집 모드일 때는 공간 상세정보로 이동
-                                    _saveSpaceBasicInfo();
+                                    saveSpaceBasicInfo();
                                     context.go(
                                         '/main/customer/${widget.customerId}/estimate/${widget.estimateId}/edit/space-detail');
                                   } else {
                                     // 새로 생성 모드일 때는 기존 로직
-                                    _saveSpaceBasicInfo();
+                                    saveSpaceBasicInfo();
                                   }
                                 },
                                 child: Container(

@@ -1,19 +1,14 @@
 import 'dart:io';
-import 'package:haveaseat/riverpod/spacemodel.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:haveaseat/components/colors.dart';
 import 'package:haveaseat/components/screensize.dart';
-import 'package:go_router/go_router.dart'; // 이 줄 추가
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:haveaseat/riverpod/customermodel.dart';
 import 'package:haveaseat/riverpod/usermodel.dart';
-import 'package:haveaseat/widget/address.dart';
 import 'package:haveaseat/widget/fileupload.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:uuid/uuid.dart';
 
 class SpaceDetailPage extends ConsumerStatefulWidget {
   final String customerId;
@@ -37,7 +32,6 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
   final _maxBudgetController = TextEditingController();
   final TextEditingController _noteController = TextEditingController();
   final _areaController = TextEditingController();
-  final _customerExtraController = TextEditingController();
   String selectedUnit = '평'; // 단위 선택을 위한 상태 변수 추가
   String selectedAgeRange = '10대'; // 초기값을 '10대'로 설정
   // 단위 변환 함수
@@ -116,83 +110,82 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
 // 1. _loadTempEstimate 함수 수정
   Future<void> _loadTempEstimate() async {
     try {
-      String targetEstimateId;
-
-      // 기존 고객의 새 견적 편집 모드
+      // estimateId가 있으면 해당 문서에서 데이터 로드
       if (widget.estimateId != null) {
-        targetEstimateId = widget.estimateId!;
-
-        // estimates 컬렉션에서 직접 데이터 로드
         final estimateDoc = await FirebaseFirestore.instance
             .collection('estimates')
-            .doc(targetEstimateId)
+            .doc(widget.estimateId)
             .get();
 
         if (estimateDoc.exists) {
           final data = estimateDoc.data()!;
-          print('수정 모드 데이터 로딩: $data'); // 디버깅 로그
+          final type = data['type'] ?? '';
+          print(
+              'spacedetail _loadTempEstimate: type = $type, estimateId = ${widget.estimateId}'); // 디버깅 로그
 
-          // 수정 모드일 때는 spaceDetailInfo 하위 맵에서 데이터를 불러옴
-          Map<String, dynamic> spaceData;
-          if (isEditMode) {
-            // 수정 모드일 때는 최상위 필드에서 먼저 찾고, 없으면 spaceDetailInfo에서 찾음
-            if (data['minBudget'] != null ||
+          // 견적서 수정 모드에서는 모든 type의 데이터를 로드 가능하도록 수정
+          // 임시저장된 데이터의 type이 '공간상세'이거나 비어있거나, 견적서 수정 모드일 때 데이터 로드
+          // estimateId가 있으면 임시저장에서 이어서 작성하는 경우이므로 모든 type에서 로드
+          if (type == '공간상세' ||
+              type.isEmpty ||
+              isEditMode ||
+              widget.estimateId != null) {
+            // 임시저장된 데이터에서 spaceDetailInfo 하위 맵에서 데이터를 불러옴
+            Map<String, dynamic> spaceData;
+            if (data['spaceDetailInfo'] != null) {
+              spaceData = data['spaceDetailInfo'] as Map<String, dynamic>;
+              print('spaceDetailInfo에서 데이터 로딩'); // 디버깅 로그
+            } else if (data['minBudget'] != null ||
                 data['maxBudget'] != null ||
                 data['spaceArea'] != null) {
               spaceData = data;
-              print('수정 모드: 최상위 필드에서 데이터 로딩'); // 디버깅 로그
-            } else if (data['spaceDetailInfo'] != null) {
-              spaceData = data['spaceDetailInfo'] as Map<String, dynamic>;
-              print('수정 모드: spaceDetailInfo에서 데이터 로딩'); // 디버깅 로그
+              print('최상위 필드에서 데이터 로딩'); // 디버깅 로그
             } else {
-              spaceData = data;
-              print('수정 모드: 데이터가 없어서 빈 상태로 설정'); // 디버깅 로그
+              spaceData = {};
+              print('데이터가 없어서 빈 상태로 설정'); // 디버깅 로그
             }
-          } else {
-            spaceData = data; // 최상위 필드에서 불러옴
-            print('새 생성 모드: 최상위 필드에서 데이터 로딩'); // 디버깅 로그
+
+            setState(() {
+              _minBudgetController.text =
+                  spaceData['minBudget']?.toString() ?? '';
+              _maxBudgetController.text =
+                  spaceData['maxBudget']?.toString() ?? '';
+              selectedUnit = spaceData['spaceUnit'] ?? '평';
+              _areaController.text = spaceData['spaceArea']?.toString() ?? '';
+
+              final concepts = spaceData['concept'] as List<dynamic>?;
+              if (concepts != null) {
+                selectedConcepts = concepts.map((e) => e.toString()).toSet();
+              }
+
+              final targetAgeGroups =
+                  spaceData['targetAgeGroups'] as List<dynamic>?;
+              selectedAgeRange =
+                  (targetAgeGroups != null && targetAgeGroups.isNotEmpty)
+                      ? targetAgeGroups[0]
+                      : '10대';
+
+              final businessType = spaceData['businessType'];
+              if (businessType != null) {
+                final foundType = businessTypes.firstWhere(
+                    (type) => type['label'] == businessType,
+                    orElse: () => {'value': '', 'label': ''});
+                selectedBusinessType =
+                    foundType['value'] != null && foundType['value']!.isNotEmpty
+                        ? foundType['value']
+                        : null;
+              }
+
+              _noteController.text = spaceData['detailNotes'] ?? '';
+              _otherDocumentUrls =
+                  List<String>.from(spaceData['designFileUrls'] ?? []);
+
+              print(
+                  'UI 업데이트 완료 - minBudget: ${_minBudgetController.text}, maxBudget: ${_maxBudgetController.text}, area: ${_areaController.text}'); // 디버깅 로그
+            });
           }
-
-          setState(() {
-            _minBudgetController.text =
-                spaceData['minBudget']?.toString() ?? '';
-            _maxBudgetController.text =
-                spaceData['maxBudget']?.toString() ?? '';
-            selectedUnit = spaceData['spaceUnit'] ?? '평';
-            _areaController.text = spaceData['spaceArea']?.toString() ?? '';
-
-            final concepts = spaceData['concept'] as List<dynamic>?;
-            if (concepts != null) {
-              selectedConcepts = concepts.map((e) => e.toString()).toSet();
-            }
-
-            final targetAgeGroups =
-                spaceData['targetAgeGroups'] as List<dynamic>?;
-            selectedAgeRange =
-                (targetAgeGroups != null && targetAgeGroups.isNotEmpty)
-                    ? targetAgeGroups[0]
-                    : '10대';
-
-            final businessType = spaceData['businessType'];
-            if (businessType != null) {
-              final foundType = businessTypes.firstWhere(
-                  (type) => type['label'] == businessType,
-                  orElse: () => {'value': '', 'label': ''});
-              selectedBusinessType =
-                  foundType['value'] != null && foundType['value']!.isNotEmpty
-                      ? foundType['value']
-                      : null;
-            }
-
-            _noteController.text = spaceData['detailNotes'] ?? '';
-            _otherDocumentUrls =
-                List<String>.from(spaceData['designFileUrls'] ?? []);
-
-            print(
-                'UI 업데이트 완료 - minBudget: ${_minBudgetController.text}, maxBudget: ${_maxBudgetController.text}, area: ${_areaController.text}'); // 디버깅 로그
-          });
         } else {
-          print('견적 문서가 존재하지 않음: $targetEstimateId'); // 디버깅 로그
+          print('견적 문서가 존재하지 않음: ${widget.estimateId}'); // 디버깅 로그
         }
         return;
       }
@@ -203,7 +196,7 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
           .getCustomer(widget.customerId);
       if (customer == null || customer.estimateIds.isEmpty) return;
 
-      targetEstimateId = customer.estimateIds[0];
+      final targetEstimateId = customer.estimateIds[0];
 
       // temp_estimates에서 데이터 로드 (기존 로직)
       final docSnapshot = await FirebaseFirestore.instance
@@ -259,7 +252,7 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
   }
 
   // 이전 버튼 누르면 이전에 작성한 값 불러오기 (estimates → customers 순, type별 하위맵 우선)
-  void _loadPreviousData() async {
+  void loadPreviousData() async {
     try {
       final estimateId = widget.estimateId;
       if (estimateId != null) {
@@ -270,26 +263,69 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
         if (estimateDoc.exists) {
           final data = estimateDoc.data()!;
           final type = data['type'] ?? '';
-          if (type == '공간상세' && data['spaceDetailInfo'] != null) {
-            final detail = data['spaceDetailInfo'];
+
+          // 견적서 수정 모드에서는 모든 type의 데이터를 로드 가능하도록 수정
+          // 임시저장된 데이터의 type이 '공간상세'이거나 비어있거나, 견적서 수정 모드일 때 데이터 로드
+          // estimateId가 있으면 임시저장에서 이어서 작성하는 경우이므로 모든 type에서 로드
+          if (type == '공간상세' ||
+              type.isEmpty ||
+              isEditMode ||
+              widget.estimateId != null) {
+            Map<String, dynamic> spaceData;
+
+            // spaceDetailInfo 하위 맵에서 데이터를 우선적으로 찾기
+            if (data['spaceDetailInfo'] != null) {
+              spaceData = data['spaceDetailInfo'] as Map<String, dynamic>;
+              print('loadPreviousData: spaceDetailInfo에서 데이터 로딩'); // 디버깅 로그
+            } else {
+              // spaceDetailInfo가 없으면 최상위 필드에서 찾기
+              spaceData = data;
+              print('loadPreviousData: 최상위 필드에서 데이터 로딩'); // 디버깅 로그
+            }
+
             setState(() {
-              _minBudgetController.text = detail['minBudget']?.toString() ?? '';
-              _maxBudgetController.text = detail['maxBudget']?.toString() ?? '';
-              selectedUnit = detail['spaceUnit'] ?? '평';
-              _areaController.text = detail['spaceArea']?.toString() ?? '';
-              _noteController.text = detail['detailNotes'] ?? '';
-              // 기타 필요한 필드도 동일하게 복원
+              _minBudgetController.text =
+                  spaceData['minBudget']?.toString() ?? '';
+              _maxBudgetController.text =
+                  spaceData['maxBudget']?.toString() ?? '';
+              selectedUnit = spaceData['spaceUnit'] ?? '평';
+              _areaController.text = spaceData['spaceArea']?.toString() ?? '';
+              _noteController.text = spaceData['detailNotes'] ?? '';
+
+              // 타겟 연령대 복원
+              final targetAgeGroups =
+                  spaceData['targetAgeGroups'] as List<dynamic>?;
+              if (targetAgeGroups != null && targetAgeGroups.isNotEmpty) {
+                selectedAgeRange = targetAgeGroups[0].toString();
+              }
+
+              // 업종 복원
+              final businessType = spaceData['businessType'];
+              if (businessType != null) {
+                final foundType = businessTypes.firstWhere(
+                    (type) => type['label'] == businessType,
+                    orElse: () => {'value': '', 'label': ''});
+                selectedBusinessType = foundType['value'];
+              }
+
+              // 컨셉 복원
+              final concepts = spaceData['concept'] as List<dynamic>?;
+              if (concepts != null) {
+                selectedConcepts = Set<String>.from(concepts);
+              }
+
+              // 파일 URL 복원
+              final designFileUrls =
+                  spaceData['designFileUrls'] as List<dynamic>?;
+              if (designFileUrls != null) {
+                _otherDocumentUrls = List<String>.from(designFileUrls);
+              }
+
+              print(
+                  'loadPreviousData: UI 업데이트 완료 - minBudget: ${_minBudgetController.text}, maxBudget: ${_maxBudgetController.text}, area: ${_areaController.text}'); // 디버깅 로그
             });
-          } else {
-            setState(() {
-              _minBudgetController.text = data['minBudget']?.toString() ?? '';
-              _maxBudgetController.text = data['maxBudget']?.toString() ?? '';
-              selectedUnit = data['spaceUnit'] ?? '평';
-              _areaController.text = data['spaceArea']?.toString() ?? '';
-              _noteController.text = data['detailNotes'] ?? '';
-            });
+            return;
           }
-          return;
         }
       }
       // customers에서 복원
@@ -306,6 +342,10 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
           selectedUnit = '평';
           _areaController.text = '';
           _noteController.text = data['note'] ?? '';
+          selectedAgeRange = '10대';
+          selectedBusinessType = null;
+          selectedConcepts.clear();
+          _otherDocumentUrls.clear();
         });
       }
     } catch (e) {
@@ -313,7 +353,7 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
     }
   }
 
-  Future<void> _handleLogout() async {
+  Future<void> handleLogout() async {
     try {
       await FirebaseAuth.instance.signOut();
       context.go('/login'); // 로그인 페이지로 이동
@@ -327,7 +367,7 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
     }
   }
 
-  Widget _buildAgeRangeButton(String text) {
+  Widget buildAgeRangeButton(String text) {
     bool isSelected = selectedAgeRange == text;
 
     return InkWell(
@@ -361,7 +401,7 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
     );
   }
 
-  void _addFileUploadField() {
+  void addFileUploadField() {
     final int currentIndex = _fileFieldCounter++;
 
     setState(() {
@@ -407,7 +447,7 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
     });
   }
 
-  bool _validateInputs() {
+  bool validateInputs() {
     if (_minBudgetController.text.isEmpty ||
         _maxBudgetController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -458,21 +498,36 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
   }
 
   // 임시 저장 함수
-  Future<void> _saveTempDetailInfo() async {
+  Future<void> saveTempDetailInfo() async {
     try {
+      final user = ref.read(UserProvider.currentUserProvider).value;
+      print('saveTempDetailInfo: user = $user'); // 디버깅 로그
+      if (user == null) throw Exception('로그인이 필요합니다');
+
+      // users 컬렉션에서 실제 사용자 정보 가져오기
+      final userData = await UserProvider.getUserData(user.uid);
+      final managerName = userData?['name'] ?? user.displayName ?? '담당자 미정';
+      final managerPhone = userData?['phoneNumber'] ?? user.phoneNumber ?? '';
+
       String estimateId = widget.estimateId ?? '';
       if (estimateId.isEmpty) {
-        final estimateRef =
-            FirebaseFirestore.instance.collection('estimates').doc();
-        estimateId = estimateRef.id;
-        // 견적 최초 생성시에만 customers.estimateIds 추가
-        await FirebaseFirestore.instance
-            .collection('customers')
-            .doc(widget.customerId)
-            .set({
-          'estimateIds': [estimateId],
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+        // 새로운 estimateId를 생성하지 말고, customerId를 사용하거나 기존 문서를 찾아서 업데이트
+        // 임시저장에서는 같은 customerId로 기존 문서를 찾아서 업데이트
+        final existingEstimate = await FirebaseFirestore.instance
+            .collection('estimates')
+            .where('customerId', isEqualTo: widget.customerId)
+            .where('isDraft', isEqualTo: true)
+            .limit(1)
+            .get();
+
+        if (existingEstimate.docs.isNotEmpty) {
+          estimateId = existingEstimate.docs.first.id;
+        } else {
+          // 기존 문서가 없으면 새로 생성
+          final estimateRef =
+              FirebaseFirestore.instance.collection('estimates').doc();
+          estimateId = estimateRef.id;
+        }
       }
       // name 값 보장: widget.name이 없으면 Firestore에서 고객명 조회
       String? nameValue = widget.name;
@@ -493,6 +548,20 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
         'isDraft': true,
         'type': '공간상세',
         'name': nameValue,
+        'managerName': managerName,
+        'managerPhone': managerPhone,
+        // 최상위 필드에도 공간상세 데이터 저장 (이전 버튼에서 로드하기 위해)
+        'minBudget': double.tryParse(_minBudgetController.text),
+        'maxBudget': double.tryParse(_maxBudgetController.text),
+        'spaceArea': double.tryParse(_areaController.text),
+        'spaceUnit': selectedUnit,
+        'targetAgeGroups': [selectedAgeRange],
+        'businessType': businessTypes.firstWhere(
+            (type) => type['value'] == selectedBusinessType,
+            orElse: () => {'label': ''})['label'],
+        'concept': selectedConcepts.toList(),
+        'detailNotes': _noteController.text,
+        'designFileUrls': _otherDocumentUrls,
         'spaceDetailInfo': {
           'minBudget': double.tryParse(_minBudgetController.text),
           'maxBudget': double.tryParse(_maxBudgetController.text),
@@ -505,6 +574,12 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
           'concept': selectedConcepts.toList(),
           'detailNotes': _noteController.text,
           'designFileUrls': _otherDocumentUrls,
+        },
+        'customerInfo': {
+          'name': nameValue,
+          'assignedTo': user.uid,
+          'managerName': managerName,
+          'managerPhone': managerPhone,
         }
       };
       print('임시저장 tempData: $tempData');
@@ -524,21 +599,17 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
   }
 
   // 다음 버튼 클릭 시
-  void _goNext() async {
+  void goNext() async {
     try {
+      final user = ref.read(UserProvider.currentUserProvider).value;
+      if (user == null) throw Exception('로그인이 필요합니다');
+
       String estimateId = widget.estimateId ?? '';
       if (estimateId.isEmpty) {
         final estimateRef =
             FirebaseFirestore.instance.collection('estimates').doc();
         estimateId = estimateRef.id;
-        // 견적 최초 생성시에만 customers.estimateIds 추가
-        await FirebaseFirestore.instance
-            .collection('customers')
-            .doc(widget.customerId)
-            .set({
-          'estimateIds': [estimateId],
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+        // 임시저장이므로 customers 컬렉션에 저장하지 않음
       }
       final estimateRef =
           FirebaseFirestore.instance.collection('estimates').doc(estimateId);
@@ -550,6 +621,8 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
         'isDraft': true,
         'type': '가구',
         'name': widget.name ?? '무제',
+        'managerName': user.displayName ?? '',
+        'managerPhone': user.phoneNumber ?? '',
         'spaceDetailInfo': {
           'minBudget': double.tryParse(_minBudgetController.text),
           'maxBudget': double.tryParse(_maxBudgetController.text),
@@ -578,8 +651,8 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
     }
   }
 
-  Future<void> _saveSpaceDetailInfo() async {
-    if (!_validateInputs()) return;
+  Future<void> saveSpaceDetailInfo() async {
+    if (!validateInputs()) return;
     try {
       // estimateId가 없으면 새로 생성
       String estimateId = widget.estimateId ?? '';
@@ -587,14 +660,7 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
         final estimateRef =
             FirebaseFirestore.instance.collection('estimates').doc();
         estimateId = estimateRef.id;
-        // 견적 최초 생성시에만 customers.estimateIds 추가
-        await FirebaseFirestore.instance
-            .collection('customers')
-            .doc(widget.customerId)
-            .set({
-          'estimateIds': [estimateId],
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+        // 임시저장이므로 customers 컬렉션에 저장하지 않음
       }
 
       final estimateData = {
@@ -756,7 +822,7 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
                             child: Container(
                                 width: 200,
                                 height: 48,
-                                color: const Color(0xffB18E72),
+                                color: Colors.transparent,
                                 child: Row(
                                   children: [
                                     const SizedBox(
@@ -767,7 +833,7 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
                                         height: 16.25,
                                         child: Image.asset(
                                           'assets/images/user.png',
-                                          color: Colors.white,
+                                          color: AppColor.font1,
                                         )),
                                     const SizedBox(
                                       width: 3.85,
@@ -776,7 +842,7 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
                                       '담당 고객정보',
                                       style: TextStyle(
                                           fontWeight: FontWeight.w600,
-                                          color: Colors.white,
+                                          color: AppColor.font1,
                                           fontSize: 16),
                                     ),
                                   ],
@@ -848,7 +914,7 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
                           Padding(
                             padding: const EdgeInsets.only(bottom: 24.0),
                             child: InkWell(
-                              onTap: _handleLogout,
+                              onTap: handleLogout,
                               child: Container(
                                 width: 200,
                                 height: 48,
@@ -899,8 +965,15 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 InkWell(
-                                  onTap: () {
-                                    context.pop();
+                                  onTap: () async {
+                                    // 수정 모드가 아니고, estimateId가 없을 때만 임시저장 (새로 작성하는 경우)
+                                    if (!isEditMode &&
+                                        widget.estimateId == null) {
+                                      await saveTempDetailInfo();
+                                    }
+                                    // 이전 페이지로 이동 (spaceadd 페이지로 직접 이동)
+                                    context.go(
+                                        '/main/addpage/spaceadd/${widget.customerId}/${widget.estimateId}');
                                   },
                                   child: const Row(
                                     children: [
@@ -918,20 +991,6 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
                                     ],
                                   ),
                                 ),
-                                const Row(
-                                  children: [
-                                    Icon(
-                                      Icons.person_outline_sharp,
-                                      color: AppColor.font2,
-                                    ),
-                                    SizedBox(width: 16),
-                                    Icon(
-                                      Icons.notifications_none_outlined,
-                                      color: AppColor.font2,
-                                    ),
-                                    SizedBox(width: 43), // 오른쪽 여백 추가
-                                  ],
-                                )
                               ],
                             ),
                           ),
@@ -1006,6 +1065,9 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
                                           ),
                                           decoration: const InputDecoration(
                                             border: InputBorder.none,
+                                            enabledBorder: InputBorder.none,
+                                            focusedBorder: InputBorder.none,
+                                            hoverColor: Colors.transparent,
                                             contentPadding: EdgeInsets.only(
                                                 top: 2), // 2px 위로 조정
                                             isDense: true, // 더 조밀한 레이아웃
@@ -1057,6 +1119,9 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
                                           ),
                                           decoration: const InputDecoration(
                                             border: InputBorder.none,
+                                            enabledBorder: InputBorder.none,
+                                            focusedBorder: InputBorder.none,
+                                            hoverColor: Colors.transparent,
                                             contentPadding: EdgeInsets.only(
                                                 top: 2), // 2px 위로 조정
                                             isDense: true, // 더 조밀한 레이아웃
@@ -1155,6 +1220,9 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
                                             color: AppColor.primary,
                                           ),
                                           decoration: const InputDecoration(
+                                            enabledBorder: InputBorder.none,
+                                            focusedBorder: InputBorder.none,
+                                            hoverColor: Colors.transparent,
                                             border: InputBorder.none,
                                             contentPadding:
                                                 EdgeInsets.only(top: 2),
@@ -1207,15 +1275,15 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
                           ),
                           Row(
                             children: [
-                              _buildAgeRangeButton('10대'),
+                              buildAgeRangeButton('10대'),
                               const SizedBox(width: 8),
-                              _buildAgeRangeButton('20대'),
+                              buildAgeRangeButton('20대'),
                               const SizedBox(width: 8),
-                              _buildAgeRangeButton('30대'),
+                              buildAgeRangeButton('30대'),
                               const SizedBox(width: 8),
-                              _buildAgeRangeButton('40대'),
+                              buildAgeRangeButton('40대'),
                               const SizedBox(width: 8),
-                              _buildAgeRangeButton('50대'),
+                              buildAgeRangeButton('50대'),
                             ],
                           ),
                           const SizedBox(
@@ -1335,7 +1403,7 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
                           InkWell(
                             onTap: () {
                               print('파일 추가 버튼 클릭');
-                              _addFileUploadField();
+                              addFileUploadField();
                             },
                             child: Container(
                               height: 36,
@@ -1408,6 +1476,9 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
                                     isDense: true,
                                     contentPadding: EdgeInsets.all(16),
                                     border: InputBorder.none,
+                                    enabledBorder: InputBorder.none,
+                                    focusedBorder: InputBorder.none,
+                                    hoverColor: Colors.transparent,
                                     hintText: '내용을 입력해주세요',
                                     hintStyle: TextStyle(
                                       color: AppColor.font2,
@@ -1436,7 +1507,8 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
                           Row(
                             children: [
                               InkWell(
-                                onTap: () {
+                                onTap: () async {
+                                  loadPreviousData();
                                   if (isEditMode) {
                                     // 편집 모드일 때는 customer 화면으로 돌아가기
                                     context.go(
@@ -1469,7 +1541,7 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
                                 InkWell(
                                   onTap: () {
                                     // 임시 저장 처리
-                                    _saveTempDetailInfo();
+                                    saveTempDetailInfo();
                                   },
                                   child: Container(
                                     width: 87,
@@ -1494,7 +1566,7 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
                               InkWell(
                                 onTap: () {
                                   // 고객 추가 처리
-                                  _saveSpaceDetailInfo();
+                                  saveSpaceDetailInfo();
                                 },
                                 child: Container(
                                   width: 60,
