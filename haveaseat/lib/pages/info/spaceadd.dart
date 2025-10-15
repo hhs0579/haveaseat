@@ -626,25 +626,6 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                           loading: () => const CircularProgressIndicator(),
                           error: (error, stack) => Text('오류: $error'),
                         ),
-                        const SizedBox(height: 16),
-                        // 정보수정 버튼
-                        Container(
-                          width: 152,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            border: Border.all(color: AppColor.line1),
-                          ),
-                          child: const Center(
-                            child: Text(
-                              '정보수정',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                color: AppColor.font1,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ),
-                        ),
                         const SizedBox(height: 40),
                         // 메뉴 버튼들
                         InkWell(

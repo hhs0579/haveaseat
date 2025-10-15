@@ -336,24 +336,6 @@ class _EstimateEditPageState extends ConsumerState<EstimateEditPage> {
             loading: () => const CircularProgressIndicator(),
             error: (error, stack) => Text('오류: $error'),
           ),
-          const SizedBox(height: 16),
-          Container(
-            width: 152,
-            height: 48,
-            decoration: BoxDecoration(
-              border: Border.all(color: AppColor.line1),
-            ),
-            child: const Center(
-              child: Text(
-                '정보수정',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: AppColor.font1,
-                  fontSize: 16,
-                ),
-              ),
-            ),
-          ),
           const Spacer(),
           Padding(
             padding: const EdgeInsets.only(bottom: 24.0),

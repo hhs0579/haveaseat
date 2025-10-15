@@ -392,21 +392,6 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
         'status': EstimateStatus.IN_PROGRESS.toString(),
         'managerName': '',
         'managerPhone': '',
-        'type': '고객정보',
-        'isDraft': true,
-        // 고객 정보 추가
-        'customerInfo': {
-          'name': customer.name,
-          'phone': customer.phone,
-          'email': customer.email,
-          'directDomain': customer.directDomain,
-          'address': customer.address,
-          'businessLicenseUrl': customer.businessLicenseUrl,
-          'otherDocumentUrls': customer.otherDocumentUrls,
-          'note': customer.note,
-          'createdAt': customer.createdAt,
-          'updatedAt': customer.updatedAt,
-        },
         // 공간 기본 정보
         'siteAddress': '',
         'openingDate': FieldValue.serverTimestamp(),
@@ -1045,25 +1030,6 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
                     loading: () => const CircularProgressIndicator(),
                     error: (error, stack) => Text('오류: $error'),
                   ),
-                  const SizedBox(height: 16),
-                  // 정보수정 버튼
-                  Container(
-                    width: 152,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: AppColor.line1),
-                    ),
-                    child: const Center(
-                      child: Text(
-                        '정보수정',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: AppColor.font1,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ),
-                  ),
                   const SizedBox(height: 40),
                   // 메뉴 버튼들
                   InkWell(
@@ -1249,6 +1215,18 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
                                                 ],
                                               ),
                                             ),
+                                            const Row(
+                                              children: [
+                                                Icon(Icons.person_outline_sharp,
+                                                    color: AppColor.font2),
+                                                SizedBox(width: 16),
+                                                Icon(
+                                                    Icons
+                                                        .notifications_none_outlined,
+                                                    color: AppColor.font2),
+                                                SizedBox(width: 16),
+                                              ],
+                                            ),
                                           ],
                                         ),
                                       ),
@@ -1334,7 +1312,7 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
                                                     SizedBox(
                                                       width: cellWidth,
                                                       child: _buildInfoCell(
-                                                          '배송지주소',
+                                                          '회사 주소',
                                                           customer.address),
                                                     ),
                                                   ],

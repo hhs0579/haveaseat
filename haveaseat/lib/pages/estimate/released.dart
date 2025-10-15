@@ -280,7 +280,7 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
 // 각 섹션 위젯들
   Widget _buildCustomerSection(Map<String, dynamic> data) {
     final customer = data['customer'] as Customer;
-
+    final estimate = data['estimate'] as Map<String, dynamic>;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -318,11 +318,12 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
                   children: [
                     SizedBox(
                       width: cellWidth,
-                      child: _buildInfoCell('이메일주소', customer.email),
+                      child: _buildInfoCell('수령자', estimate['recipient'] ?? ''),
                     ),
                     SizedBox(
                       width: cellWidth,
-                      child: _buildInfoCell('배송지주소', customer.address),
+                      child: _buildInfoCell(
+                          '수령자 연락처', estimate['contactNumber'] ?? ''),
                     ),
                   ],
                 ),
@@ -331,12 +332,12 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
                     SizedBox(
                       width: cellWidth,
                       child:
-                          _buildFileCell('사업자등록증', customer.businessLicenseUrl),
+                          _buildInfoCell('배송지', estimate['siteAddress'] ?? ''),
                     ),
                     SizedBox(
                       width: cellWidth,
-                      child: _buildFileCell(
-                          '기타서류', customer.otherDocumentUrls.join(', ')),
+                      child: _buildInfoCell(
+                          '배송방법', estimate['shippingMethod'] ?? ''),
                     ),
                   ],
                 ),
@@ -1074,25 +1075,13 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
               _buildPDFInfoCell('연락처', estimate['customerPhone'] ?? '', ttf),
             ]),
             pw.TableRow(children: [
-              _buildPDFInfoCell('이메일주소', estimate['customerEmail'] ?? '', ttf),
+              _buildPDFInfoCell('수령자', estimate['recipient'] ?? '', ttf),
               _buildPDFInfoCell(
-                  '배송지주소', estimate['customerAddress'] ?? '', ttf),
+                  '수령자 연락처', estimate['contactNumber'] ?? '', ttf),
             ]),
             pw.TableRow(children: [
-              _buildPDFInfoCell(
-                  '사업자등록증',
-                  estimate['businessLicenseUrl']?.isEmpty ?? true
-                      ? '미첨부'
-                      : getFileName(estimate['businessLicenseUrl']),
-                  ttf),
-              _buildPDFInfoCell(
-                  '기타서류',
-                  (estimate['otherDocumentUrls'] as List?)?.isEmpty ?? true
-                      ? '미첨부'
-                      : getFileName((estimate['otherDocumentUrls'] as List)
-                          .first
-                          .toString()),
-                  ttf),
+              _buildPDFInfoCell('배송지', estimate['siteAddress'] ?? '', ttf),
+              _buildPDFInfoCell('배송방법', estimate['shippingMethod'] ?? '', ttf),
             ]),
           ],
         ),
@@ -1475,25 +1464,6 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
                     },
                     loading: () => const CircularProgressIndicator(),
                     error: (error, stack) => Text('오류: $error'),
-                  ),
-                  const SizedBox(height: 16),
-                  // 정보수정 버튼
-                  Container(
-                    width: 152,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: AppColor.line1),
-                    ),
-                    child: const Center(
-                      child: Text(
-                        '정보수정',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: AppColor.font1,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ),
                   ),
                   const SizedBox(height: 40),
                   // 메뉴 버튼들

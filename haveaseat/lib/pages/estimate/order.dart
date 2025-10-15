@@ -40,18 +40,16 @@ class OrderEstimatePage extends ConsumerStatefulWidget {
   ConsumerState<OrderEstimatePage> createState() => _OrderEstimatePageState();
 }
 
-final TextEditingController _memoController = TextEditingController();
-
 class _OrderEstimatePageState extends ConsumerState<OrderEstimatePage> {
-  // dispose 함수도 추가:
+  final TextEditingController _memoController = TextEditingController();
+  final screenshotController = ScreenshotController();
+  final String _orderMemo = '';
+
   @override
   void dispose() {
     _memoController.dispose();
     super.dispose();
   }
-
-  final screenshotController = ScreenshotController();
-  final String _orderMemo = '';
 
   Future<Map<String, dynamic>> _loadEstimateData() async {
     try {
@@ -386,7 +384,7 @@ class _OrderEstimatePageState extends ConsumerState<OrderEstimatePage> {
                     SizedBox(
                       width: cellWidth,
                       child: _buildInfoCell(
-                          '연락처', estimate['contactNumber'] ?? ''),
+                          '수령자 연락처', estimate['contactNumber'] ?? ''),
                     ),
                   ],
                 ),
@@ -1875,25 +1873,6 @@ class _OrderEstimatePageState extends ConsumerState<OrderEstimatePage> {
                     },
                     loading: () => const CircularProgressIndicator(),
                     error: (error, stack) => Text('오류: $error'),
-                  ),
-                  const SizedBox(height: 16),
-                  // 정보수정 버튼
-                  Container(
-                    width: 152,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: AppColor.line1),
-                    ),
-                    child: const Center(
-                      child: Text(
-                        '정보수정',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: AppColor.font1,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ),
                   ),
                   const SizedBox(height: 40),
                   // 메뉴 버튼들
