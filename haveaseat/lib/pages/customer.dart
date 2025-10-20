@@ -200,6 +200,7 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage>
                 .getCustomer(customerId);
 
             if (customer != null) {
+              // 고객의 파일 삭제
               if (customer.businessLicenseUrl.isNotEmpty) {
                 try {
                   final storageRef = FirebaseStorage.instance
@@ -219,6 +220,42 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage>
                 }
               }
 
+              // 고객의 모든 견적 찾기 및 파일 삭제
+              try {
+                final estimatesSnapshot = await FirebaseFirestore.instance
+                    .collection('estimates')
+                    .where('customerId', isEqualTo: customerId)
+                    .get();
+
+                for (final estimateDoc in estimatesSnapshot.docs) {
+                  final estimateData = estimateDoc.data();
+
+                  // designFileUrls 삭제
+                  final designFileUrls =
+                      estimateData['designFileUrls'] as List<dynamic>?;
+                  if (designFileUrls != null && designFileUrls.isNotEmpty) {
+                    for (final url in designFileUrls) {
+                      try {
+                        if (url != null && url.toString().isNotEmpty) {
+                          final storageRef = FirebaseStorage.instance
+                              .refFromURL(url.toString());
+                          await storageRef.delete();
+                        }
+                      } catch (e) {
+                        print('Failed to delete design file: $e');
+                      }
+                    }
+                  }
+
+                  // 견적 문서 삭제
+                  await estimateDoc.reference.delete();
+                }
+              } catch (e) {
+                print(
+                    'Failed to delete estimates for customer $customerId: $e');
+              }
+
+              // 고객 문서 삭제
               await ref
                   .read(customerDataProvider.notifier)
                   .deleteCustomer(customerId);
@@ -421,6 +458,34 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage>
       await Future.wait(
         _selectedEstimates.map((estimateId) async {
           try {
+            // 견적 문서 가져오기
+            final estimateDoc = await FirebaseFirestore.instance
+                .collection('estimates')
+                .doc(estimateId)
+                .get();
+
+            if (estimateDoc.exists) {
+              final estimateData = estimateDoc.data()!;
+
+              // designFileUrls 삭제
+              final designFileUrls =
+                  estimateData['designFileUrls'] as List<dynamic>?;
+              if (designFileUrls != null && designFileUrls.isNotEmpty) {
+                for (final url in designFileUrls) {
+                  try {
+                    if (url != null && url.toString().isNotEmpty) {
+                      final storageRef =
+                          FirebaseStorage.instance.refFromURL(url.toString());
+                      await storageRef.delete();
+                    }
+                  } catch (e) {
+                    print('Failed to delete design file: $e');
+                  }
+                }
+              }
+            }
+
+            // Firestore 견적 문서 삭제
             await FirebaseFirestore.instance
                 .collection('estimates')
                 .doc(estimateId)

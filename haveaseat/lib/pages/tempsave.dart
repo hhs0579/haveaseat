@@ -116,6 +116,33 @@ class _TempSavePageState extends ConsumerState<TempSavePage> {
       await Future.wait(
         _selectedItems.map((itemId) async {
           try {
+            // 견적 문서 가져오기
+            final estimateDoc = await FirebaseFirestore.instance
+                .collection('estimates')
+                .doc(itemId)
+                .get();
+
+            if (estimateDoc.exists) {
+              final estimateData = estimateDoc.data()!;
+
+              // designFileUrls 삭제
+              final designFileUrls =
+                  estimateData['designFileUrls'] as List<dynamic>?;
+              if (designFileUrls != null && designFileUrls.isNotEmpty) {
+                for (final url in designFileUrls) {
+                  try {
+                    if (url != null && url.toString().isNotEmpty) {
+                      final storageRef =
+                          FirebaseStorage.instance.refFromURL(url.toString());
+                      await storageRef.delete();
+                    }
+                  } catch (e) {
+                    print('Failed to delete design file: $e');
+                  }
+                }
+              }
+            }
+
             // estimates 컬렉션에서 isDraft: true인 항목들 삭제
             await FirebaseFirestore.instance
                 .collection('estimates')
