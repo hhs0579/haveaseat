@@ -5,14 +5,15 @@ import 'package:excel/excel.dart' as excel_pkg;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 class Product {
-  final String? id;            // Firestore doc id
-  final String code;           // 상품코드
-  final String name;           // 제품명
-  final String spec;           // 제품 스펙
-  final String? supplier;      // 공급사
-  final double? supplyPrice;   // 공급가액
-  final double salePrice;      // 판매가액
+  final String? id; // Firestore doc id
+  final String code; // 상품코드
+  final String name; // 제품명
+  final String spec; // 제품 스펙
+  final String? supplier; // 공급사
+  final double? supplyPrice; // 공급가액
+  final double salePrice; // 판매가액
 
   Product({
     this.id,
@@ -32,7 +33,8 @@ class Product {
     String? supplier,
     double? supplyPrice,
     double? salePrice,
-  }) => Product(
+  }) =>
+      Product(
         id: id ?? this.id,
         code: code ?? this.code,
         name: name ?? this.name,
@@ -81,6 +83,7 @@ class Product {
     return s.isEmpty ? null : s;
   }
 }
+
 class ProductsPage extends StatefulWidget {
   const ProductsPage({super.key});
 
@@ -465,16 +468,24 @@ class _ProductsPageState extends State<ProductsPage> {
             ),
           ),
           const SizedBox(width: 12),
-          DropdownButton<int>(
-            value: _pageSize,
-            onChanged: (v) {
-              if (v == null) return;
-              setState(() => _pageSize = v);
-              _loadFirstPage();
-            },
-            items: const [10, 20, 50, 100]
-                .map((e) => DropdownMenuItem(value: e, child: Text('페이지당 $e')))
-                .toList(),
+          Theme(
+            data: Theme.of(context).copyWith(
+              hoverColor: Colors.transparent,
+              focusColor: Colors.transparent,
+              highlightColor: Colors.transparent,
+            ),
+            child: DropdownButton<int>(
+              value: _pageSize,
+              onChanged: (v) {
+                if (v == null) return;
+                setState(() => _pageSize = v);
+                _loadFirstPage();
+              },
+              items: const [10, 20, 50, 100]
+                  .map(
+                      (e) => DropdownMenuItem(value: e, child: Text('페이지당 $e')))
+                  .toList(),
+            ),
           ),
           const Spacer(),
           ElevatedButton.icon(

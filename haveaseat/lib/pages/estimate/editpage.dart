@@ -594,52 +594,68 @@ class _EstimateEditPageState extends ConsumerState<EstimateEditPage> {
               // 배송방법
               const Text('배송방법', style: TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                value: _shippingMethod,
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                  hintText: '배송방법을 선택하세요',
+              Theme(
+                data: Theme.of(context).copyWith(
+                  hoverColor: Colors.transparent,
+                  focusColor: Colors.transparent,
+                  highlightColor: Colors.transparent,
                 ),
-                items: [
-                  const DropdownMenuItem<String>(
-                    value: null,
-                    child: Text('선택하세요'),
+                child: DropdownButtonFormField<String>(
+                  value: _shippingMethod,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    hintText: '배송방법을 선택하세요',
                   ),
-                  ...['직접배송', '택배', '화물'].map((method) {
-                    return DropdownMenuItem(value: method, child: Text(method));
-                  }).toList(),
-                ],
-                onChanged: (value) {
-                  setState(() {
-                    _shippingMethod = value;
-                  });
-                },
+                  items: [
+                    const DropdownMenuItem<String>(
+                      value: null,
+                      child: Text('선택하세요'),
+                    ),
+                    ...['직접배송', '택배', '화물'].map((method) {
+                      return DropdownMenuItem(
+                          value: method, child: Text(method));
+                    }).toList(),
+                  ],
+                  onChanged: (value) {
+                    setState(() {
+                      _shippingMethod = value;
+                    });
+                  },
+                ),
               ),
               const SizedBox(height: 16),
 
               // 결제방법
               const Text('결제방법', style: TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                value: _paymentMethod,
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                  hintText: '결제방법을 선택하세요',
+              Theme(
+                data: Theme.of(context).copyWith(
+                  hoverColor: Colors.transparent,
+                  focusColor: Colors.transparent,
+                  highlightColor: Colors.transparent,
                 ),
-                items: [
-                  const DropdownMenuItem<String>(
-                    value: null,
-                    child: Text('선택하세요'),
+                child: DropdownButtonFormField<String>(
+                  value: _paymentMethod,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    hintText: '결제방법을 선택하세요',
                   ),
-                  ...['현금', '카드', '계좌이체', '외상'].map((method) {
-                    return DropdownMenuItem(value: method, child: Text(method));
-                  }).toList(),
-                ],
-                onChanged: (value) {
-                  setState(() {
-                    _paymentMethod = value;
-                  });
-                },
+                  items: [
+                    const DropdownMenuItem<String>(
+                      value: null,
+                      child: Text('선택하세요'),
+                    ),
+                    ...['현금', '카드', '계좌이체', '외상'].map((method) {
+                      return DropdownMenuItem(
+                          value: method, child: Text(method));
+                    }).toList(),
+                  ],
+                  onChanged: (value) {
+                    setState(() {
+                      _paymentMethod = value;
+                    });
+                  },
+                ),
               ),
               const SizedBox(height: 16),
 
@@ -771,18 +787,25 @@ class _EstimateEditPageState extends ConsumerState<EstimateEditPage> {
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: DropdownButtonFormField<String>(
-                    value: _selectedUnit,
-                    decoration:
-                        const InputDecoration(border: OutlineInputBorder()),
-                    items: ['평', '㎡'].map((unit) {
-                      return DropdownMenuItem(value: unit, child: Text(unit));
-                    }).toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedUnit = value!;
-                      });
-                    },
+                  child: Theme(
+                    data: Theme.of(context).copyWith(
+                      hoverColor: Colors.transparent,
+                      focusColor: Colors.transparent,
+                      highlightColor: Colors.transparent,
+                    ),
+                    child: DropdownButtonFormField<String>(
+                      value: _selectedUnit,
+                      decoration:
+                          const InputDecoration(border: OutlineInputBorder()),
+                      items: ['평', '㎡'].map((unit) {
+                        return DropdownMenuItem(value: unit, child: Text(unit));
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedUnit = value!;
+                        });
+                      },
+                    ),
                   ),
                 ),
               ],

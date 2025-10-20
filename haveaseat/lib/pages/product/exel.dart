@@ -200,22 +200,29 @@ class _ProductExcelPageState extends State<ProductExcelPage> {
                 const Spacer(),
                 const Text('페이지당'),
                 const SizedBox(width: 8),
-                DropdownButton<int>(
-                  value: _rowsPerPage,
-                  underline: const SizedBox.shrink(),
-                  onChanged: (v) {
-                    if (v == null) return;
-                    setState(() {
-                      _rowsPerPage = v;
-                      _currentPage = 0;
-                    });
-                  },
-                  items: const [
-                    DropdownMenuItem(value: 10, child: Text('10')),
-                    DropdownMenuItem(value: 20, child: Text('20')),
-                    DropdownMenuItem(value: 50, child: Text('50')),
-                    DropdownMenuItem(value: 100, child: Text('100')),
-                  ],
+                Theme(
+                  data: Theme.of(context).copyWith(
+                    hoverColor: Colors.transparent,
+                    focusColor: Colors.transparent,
+                    highlightColor: Colors.transparent,
+                  ),
+                  child: DropdownButton<int>(
+                    value: _rowsPerPage,
+                    underline: const SizedBox.shrink(),
+                    onChanged: (v) {
+                      if (v == null) return;
+                      setState(() {
+                        _rowsPerPage = v;
+                        _currentPage = 0;
+                      });
+                    },
+                    items: const [
+                      DropdownMenuItem(value: 10, child: Text('10')),
+                      DropdownMenuItem(value: 20, child: Text('20')),
+                      DropdownMenuItem(value: 50, child: Text('50')),
+                      DropdownMenuItem(value: 100, child: Text('100')),
+                    ],
+                  ),
                 ),
                 const SizedBox(width: 16),
                 IconButton(

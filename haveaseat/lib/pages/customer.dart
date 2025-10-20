@@ -14,7 +14,7 @@ import 'dart:html' as html;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:haveaseat/riverpod/customermodel.dart' as model;
-import 'dart:async';
+import 'package:flutter/scheduler.dart';
 
 enum EstimateStatus {
   IN_PROGRESS, // 견적중
@@ -46,9 +46,14 @@ class CustomerDetailPage extends ConsumerStatefulWidget {
   ConsumerState<CustomerDetailPage> createState() => _CustomerDetailPageState();
 }
 
-class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
-  Timer? _debounceTimer;
+class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage>
+    with WidgetsBindingObserver {
   final Set<String> _selectedCustomers = {};
+  List<Map<String, dynamic>> _allEstimates = [];
+  bool _isLoadingEstimates = true;
+  Customer? _customer;
+  bool _isLoadingCustomer = true;
+  bool _shouldRefreshOnResume = false;
   static const double CHECKBOX_WIDTH = 56;
 
 // 고객 테이블용 기존 상수들 (그대로 유지)
@@ -300,6 +305,88 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
     });
   }
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _loadData();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // 페이지가 다시 보여질 때 플래그 체크
+    if (_shouldRefreshOnResume) {
+      _shouldRefreshOnResume = false;
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _loadData();
+        }
+      });
+    }
+  }
+
+  @override
+  void didUpdateWidget(CustomerDetailPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // customerId가 변경되면 데이터 새로고침
+    if (oldWidget.customerId != widget.customerId) {
+      _loadData();
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // 앱이 다시 활성화되었을 때, 플래그가 설정되어 있으면 데이터 새로고침
+    if (state == AppLifecycleState.resumed && _shouldRefreshOnResume) {
+      _shouldRefreshOnResume = false;
+      _loadData();
+    }
+  }
+
+  Future<void> _loadData() async {
+    if (!mounted) return;
+
+    setState(() {
+      _isLoadingCustomer = true;
+      _isLoadingEstimates = true;
+    });
+
+    // 고객 정보와 견적 정보를 동시에 로드
+    final customerData = await ref
+        .read(customerDataProvider.notifier)
+        .getCustomer(widget.customerId);
+    final estimates = await _fetchEstimates(widget.customerId);
+
+    if (!mounted) return;
+
+    setState(() {
+      _customer = customerData;
+      _isLoadingCustomer = false;
+      _allEstimates = estimates;
+      _isLoadingEstimates = false;
+    });
+  }
+
+  Future<void> _loadEstimates() async {
+    setState(() {
+      _isLoadingEstimates = true;
+    });
+
+    final estimates = await _fetchEstimates(widget.customerId);
+
+    setState(() {
+      _allEstimates = estimates;
+      _isLoadingEstimates = false;
+    });
+  }
+
 // 3. 선택된 견적 삭제 함수
   Future<void> _deleteSelectedEstimates() async {
     try {
@@ -357,6 +444,9 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
         _allEstimatesCheck = false;
       });
 
+      // 견적 목록 새로고침
+      await _loadEstimates();
+
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('선택한 견적이 삭제되었습니다')),
@@ -380,18 +470,43 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
           .getCustomer(widget.customerId);
       if (customer == null) throw Exception('고객 정보를 찾을 수 없습니다');
 
-      final now = DateTime.now();
       final estimateRef =
           FirebaseFirestore.instance.collection('estimates').doc();
+
+      // 현재 사용자 정보 가져오기
+      final currentUser = FirebaseAuth.instance.currentUser;
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser?.uid)
+          .get();
+      final managerName = userDoc.data()?['name'] ?? '';
+      final managerPhone = userDoc.data()?['phoneNumber'] ?? '';
 
       // 직접 Firestore에 저장할 데이터 생성 (Timestamp 형식으로)
       final estimateData = {
         'customerId': widget.customerId,
+        'estimateId': estimateRef.id,
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
+        'lastUpdated': FieldValue.serverTimestamp(),
         'status': EstimateStatus.IN_PROGRESS.toString(),
-        'managerName': '',
-        'managerPhone': '',
+        'isDraft': true, // 임시저장 상태로 생성
+        'type': '공간기본',
+        'name': customer.name,
+        'managerName': managerName,
+        'managerPhone': managerPhone,
+        // 고객 정보 저장 (임시저장에서 불러올 때 사용)
+        'customerInfo': {
+          'name': customer.name,
+          'phone': customer.phone,
+          'email': customer.email,
+          'directDomain': customer.directDomain,
+          'address': customer.address,
+          'businessLicenseUrl': customer.businessLicenseUrl,
+          'otherDocumentUrls': customer.otherDocumentUrls,
+          'note': customer.note,
+          'assignedTo': customer.assignedTo,
+        },
         // 공간 기본 정보
         'siteAddress': '',
         'openingDate': FieldValue.serverTimestamp(),
@@ -419,16 +534,13 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
       // Firestore에 견적 저장
       await estimateRef.set(estimateData);
 
-      // 고객 문서에 견적 ID 추가
-      await FirebaseFirestore.instance
-          .collection('customers')
-          .doc(widget.customerId)
-          .update({
-        'estimateIds': FieldValue.arrayUnion([estimateRef.id]),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      // 임시저장된 견적은 고객 문서의 estimateIds에 추가하지 않음
+      // 정식 저장될 때만 estimateIds에 추가됨
 
       if (mounted) {
+        // 페이지 이동 전에 새로고침 플래그 설정
+        _shouldRefreshOnResume = true;
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('새로운 견적이 추가되었습니다')),
         );
@@ -619,53 +731,66 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
             width: availableWidth * ESTIMATE_STATUS_RATIO,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: estimate['status'] ??
-                      CustomerStatus.ESTIMATE_IN_PROGRESS.label,
-                  isExpanded: true,
-                  icon: const Icon(Icons.arrow_drop_down, size: 16),
-                  style: const TextStyle(fontSize: 12, color: AppColor.font1),
-                  items: CustomerStatus.values.map((status) {
-                    return DropdownMenuItem<String>(
-                      value: status.label,
-                      child: Text(
-                        status.label,
-                        style: const TextStyle(
-                            fontSize: 12, color: AppColor.font1),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: (String? newStatus) async {
-                    if (newStatus != null) {
-                      final status = CustomerStatus.values.firstWhere(
-                        (s) => s.label == newStatus,
-                        orElse: () => CustomerStatus.ESTIMATE_IN_PROGRESS,
+              child: Theme(
+                data: Theme.of(context).copyWith(
+                  hoverColor: Colors.transparent,
+                  focusColor: Colors.transparent,
+                  highlightColor: Colors.transparent,
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: estimate['status'] ??
+                        CustomerStatus.ESTIMATE_IN_PROGRESS.label,
+                    isExpanded: true,
+                    icon: const Icon(Icons.arrow_drop_down, size: 16),
+                    style: const TextStyle(fontSize: 12, color: AppColor.font1),
+                    items: CustomerStatus.values.map((status) {
+                      return DropdownMenuItem<String>(
+                        value: status.label,
+                        child: Text(
+                          status.label,
+                          style: const TextStyle(
+                              fontSize: 12, color: AppColor.font1),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       );
-                      try {
-                        await FirebaseFirestore.instance
-                            .collection('estimates')
-                            .doc(estimate['estimateId'])
-                            .update({'status': status.name});
-                        setState(() {
-                          estimate['status'] = newStatus;
-                        });
+                    }).toList(),
+                    onChanged: (String? newStatus) async {
+                      if (newStatus != null) {
+                        final status = CustomerStatus.values.firstWhere(
+                          (s) => s.label == newStatus,
+                          orElse: () => CustomerStatus.ESTIMATE_IN_PROGRESS,
+                        );
+                        try {
+                          await FirebaseFirestore.instance
+                              .collection('estimates')
+                              .doc(estimate['estimateId'])
+                              .update({'status': status.name});
 
-                        // Update customer status in Firestore
-                        final customerId = widget.customerId;
-                        await FirebaseFirestore.instance
-                            .collection('customers')
-                            .doc(customerId)
-                            .update({'status': status.name});
+                          // 로컬 상태 즉시 업데이트 (깜빡임 방지)
+                          setState(() {
+                            final index = _allEstimates.indexWhere((e) =>
+                                e['estimateId'] == estimate['estimateId']);
+                            if (index != -1) {
+                              _allEstimates[index]['status'] = newStatus;
+                            }
+                          });
 
-                        // Refresh customer data provider
-                        ref.refresh(customerDataProvider);
-                      } catch (e) {
-                        print('Error updating status: $e');
+                          // Update customer status in Firestore
+                          final customerId = widget.customerId;
+                          await FirebaseFirestore.instance
+                              .collection('customers')
+                              .doc(customerId)
+                              .update({'status': status.name});
+
+                          // Refresh customer data provider
+                          ref.refresh(customerDataProvider);
+                        } catch (e) {
+                          print('Error updating status: $e');
+                        }
                       }
-                    }
-                  },
+                    },
+                  ),
                 ),
               ),
             ),
@@ -980,9 +1105,7 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
   @override
   Widget build(BuildContext context) {
     final userData = ref.watch(UserProvider.userDataProvider);
-    final customer =
-        ref.read(customerDataProvider.notifier).getCustomer(widget.customerId);
-    final customers = ref.watch(customerDataProvider);
+
     return Scaffold(
       body: ResponsiveLayout(
         mobile: const SingleChildScrollView(),
@@ -1158,691 +1281,583 @@ class _CustomerDetailPageState extends ConsumerState<CustomerDetailPage> {
             // 메인 컨텐츠 영역
             Expanded(child: LayoutBuilder(
                 builder: (BuildContext context, BoxConstraints constraints) {
-              return FutureBuilder<Customer?>(
-                  future: customer,
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
+              if (_isLoadingCustomer || _customer == null) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-                    if (snapshot.hasError) {
-                      return Center(child: Text('Error: ${snapshot.error}'));
-                    }
+              final customer = _customer!;
+              final double availableHeight = constraints.maxHeight - 48;
+              // constraints를 여기서 받음
+              final double availableWidth = constraints.maxWidth - 48;
+              final double tableWidth = max(1200, availableWidth);
 
-                    final customer = snapshot.data;
-                    if (customer == null) {
-                      return const Center(child: Text('고객 정보를 찾을 수 없습니다.'));
-                    }
-                    final double availableHeight = constraints.maxHeight - 48;
-                    // constraints를 여기서 받음
-                    final double availableWidth = constraints.maxWidth - 48;
-                    final double tableWidth = max(1200, availableWidth);
-                    return SizedBox(
-                        width: constraints.maxWidth,
-                        height: constraints.maxHeight,
-                        child: SingleChildScrollView(
-                            child: Padding(
-                                padding: const EdgeInsets.all(24.0),
-                                child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+              return SizedBox(
+                  width: constraints.maxWidth,
+                  height: constraints.maxHeight,
+                  child: SingleChildScrollView(
+                      child: Padding(
+                          padding: const EdgeInsets.all(24.0),
+                          child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // 상단 영역 (날짜 및 아이콘)
+                                SizedBox(
+                                  width: availableWidth,
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
                                     children: [
-                                      // 상단 영역 (날짜 및 아이콘)
-                                      SizedBox(
-                                        width: availableWidth,
-                                        child: Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.spaceBetween,
+                                      InkWell(
+                                        onTap: () {
+                                          context.pop();
+                                        },
+                                        child: const Row(
                                           children: [
-                                            InkWell(
-                                              onTap: () {
-                                                context.pop();
-                                              },
-                                              child: const Row(
-                                                children: [
-                                                  Icon(Icons.arrow_back_ios),
-                                                  SizedBox(
-                                                    width: 4,
-                                                  ),
-                                                  Text(
-                                                    '이전',
-                                                    style: TextStyle(
-                                                        color: Colors.black,
-                                                        fontSize: 16,
-                                                        fontWeight:
-                                                            FontWeight.w600),
-                                                  )
-                                                ],
-                                              ),
+                                            Icon(Icons.arrow_back_ios),
+                                            SizedBox(
+                                              width: 4,
                                             ),
-                                            const Row(
-                                              children: [
-                                                Icon(Icons.person_outline_sharp,
-                                                    color: AppColor.font2),
-                                                SizedBox(width: 16),
-                                                Icon(
-                                                    Icons
-                                                        .notifications_none_outlined,
-                                                    color: AppColor.font2),
-                                                SizedBox(width: 16),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      const SizedBox(height: 56),
-                                      const Text(
-                                        '고객 상세정보',
-                                        style: TextStyle(
-                                          fontSize: 24,
-                                          fontWeight: FontWeight.w600,
-                                          color: AppColor.font1,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 48),
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          const Text(
-                                            '고객 정보',
-                                            style: TextStyle(
-                                                fontWeight: FontWeight.w600,
-                                                fontSize: 18,
-                                                color: Colors.black),
-                                          ),
-                                          InkWell(
-                                            onTap: () {
-                                              context.go(
-                                                  '/main/customer/${customer.id}/edit');
-                                            },
-                                            child: const Text(
-                                              '수정하기',
+                                            Text(
+                                              '이전',
                                               style: TextStyle(
-                                                  fontSize: 14,
-                                                  fontWeight: FontWeight.w400,
-                                                  color: Color(0xff757575)),
-                                            ),
-                                          )
-                                        ],
-                                      ),
-                                      const SizedBox(
-                                        height: 12,
-                                      ),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 48),
-                                        width:
-                                            MediaQuery.of(context).size.width,
-                                        height: 2,
-                                        color: Colors.black,
-                                      ),
-                                      Container(
-                                        child: LayoutBuilder(
-                                          builder: (context, constraints) {
-                                            final cellWidth =
-                                                (constraints.maxWidth - 48) /
-                                                    2; // 2열로 나누기
-
-                                            return Column(
-                                              children: [
-                                                Row(
-                                                  children: [
-                                                    SizedBox(
-                                                      width: cellWidth,
-                                                      child: _buildInfoCell(
-                                                          '회사명', customer.name),
-                                                    ),
-                                                    SizedBox(
-                                                      width: cellWidth,
-                                                      child: _buildInfoCell(
-                                                          '연락처',
-                                                          customer.phone),
-                                                    ),
-                                                  ],
-                                                ),
-                                                Row(
-                                                  children: [
-                                                    SizedBox(
-                                                      width: cellWidth,
-                                                      child: _buildInfoCell(
-                                                          '이메일주소',
-                                                          customer.email),
-                                                    ),
-                                                    SizedBox(
-                                                      width: cellWidth,
-                                                      child: _buildInfoCell(
-                                                          '회사 주소',
-                                                          customer.address),
-                                                    ),
-                                                  ],
-                                                ),
-                                                Row(
-                                                  children: [
-                                                    SizedBox(
-                                                      width: cellWidth,
-                                                      child: _buildFileCell(
-                                                          '사업자등록증',
-                                                          customer
-                                                              .businessLicenseUrl),
-                                                    ),
-                                                    SizedBox(
-                                                      width: cellWidth,
-                                                      child: _buildFileCell(
-                                                          '기타서류',
-                                                          customer
-                                                              .otherDocumentUrls
-                                                              .join(', ')),
-                                                    ),
-                                                  ],
-                                                ),
-                                                _buildFullWidthCell(
-                                                    '기타입력사항', customer.note),
-                                              ],
-                                            );
-                                          },
-                                        ),
-                                      ),
-
-                                      const SizedBox(
-                                        height: 36,
-                                      ),
-                                      const Text(
-                                        '계약 내역',
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.w600,
-                                            fontSize: 18,
-                                            color: Colors.black),
-                                      ),
-                                      const SizedBox(
-                                        height: 12,
-                                      ),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 48),
-                                        width:
-                                            MediaQuery.of(context).size.width,
-                                        height: 2,
-                                        color: Colors.black,
-                                      ),
-                                      const SizedBox(
-                                        height: 24,
-                                      ),
-                                      SingleChildScrollView(
-                                        scrollDirection: Axis.horizontal,
-                                        child: Row(
-                                          children: [
-                                            Stack(
-                                              children: [
-                                                Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    Row(
-                                                      mainAxisAlignment:
-                                                          MainAxisAlignment
-                                                              .spaceBetween,
-                                                      children: [
-                                                        Row(
-                                                          children: [
-                                                            const Text(
-                                                              '검색',
-                                                              style: TextStyle(
-                                                                  fontSize: 14,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .w600,
-                                                                  color: Colors
-                                                                      .black),
-                                                            ),
-                                                            const SizedBox(
-                                                                width: 12),
-                                                            Container(
-                                                              width: 280,
-                                                              height: 44,
-                                                              decoration:
-                                                                  BoxDecoration(
-                                                                border: Border.all(
-                                                                    color: AppColor
-                                                                        .line1,
-                                                                    width: 1),
-                                                              ),
-                                                              child: TextField(
-                                                                style:
-                                                                    const TextStyle(
-                                                                        height:
-                                                                            1.2),
-                                                                controller:
-                                                                    _searchController,
-                                                                decoration:
-                                                                    const InputDecoration(
-                                                                  isDense: true,
-                                                                  contentPadding:
-                                                                      EdgeInsets.symmetric(
-                                                                          horizontal:
-                                                                              16,
-                                                                          vertical:
-                                                                              14),
-                                                                  hintText:
-                                                                      '상태, 상품명, 수령지, 담당자명, 금액 검색',
-                                                                  hintStyle:
-                                                                      TextStyle(
-                                                                          fontSize:
-                                                                              14),
-                                                                  border:
-                                                                      InputBorder
-                                                                          .none,
-                                                                ),
-                                                                onChanged:
-                                                                    (value) {
-                                                                  _debounceTimer
-                                                                      ?.cancel();
-
-                                                                  // 300ms 후에 setState 실행
-                                                                  _debounceTimer = Timer(
-                                                                      const Duration(
-                                                                          milliseconds:
-                                                                              400),
-                                                                      () {
-                                                                    if (mounted) {
-                                                                      setState(
-                                                                          () {
-                                                                        // 여기서 화면이 갱신됩니다
-                                                                      });
-                                                                    }
-                                                                  });
-                                                                },
-                                                              ),
-                                                            ),
-                                                            const SizedBox(
-                                                                width: 24),
-                                                            const Text(
-                                                              '날짜',
-                                                              style: TextStyle(
-                                                                  fontSize: 14,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .w600,
-                                                                  color: Colors
-                                                                      .black),
-                                                            ),
-                                                            const SizedBox(
-                                                                width: 12),
-                                                            Container(
-                                                              padding:
-                                                                  const EdgeInsets
-                                                                      .symmetric(
-                                                                      horizontal:
-                                                                          12),
-                                                              width: 200,
-                                                              height: 44,
-                                                              decoration:
-                                                                  BoxDecoration(
-                                                                border: Border.all(
-                                                                    color: AppColor
-                                                                        .line1,
-                                                                    width: 1),
-                                                              ),
-                                                              child: InkWell(
-                                                                onTap: () {
-                                                                  setState(() {
-                                                                    _showStartDatePicker =
-                                                                        !_showStartDatePicker;
-                                                                    _showEndDatePicker =
-                                                                        false;
-                                                                  });
-                                                                },
-                                                                child: Row(
-                                                                  mainAxisAlignment:
-                                                                      MainAxisAlignment
-                                                                          .spaceBetween,
-                                                                  children: [
-                                                                    Text(_startDate ==
-                                                                            null
-                                                                        ? '년,월,일'
-                                                                        : '${_startDate!.year}.${_startDate!.month}.${_startDate!.day}'),
-                                                                    SizedBox(
-                                                                        width:
-                                                                            16.25,
-                                                                        height:
-                                                                            16.25,
-                                                                        child: Image.asset(
-                                                                            'assets/images/calendar.png'))
-                                                                  ],
-                                                                ),
-                                                              ),
-                                                            ),
-                                                            const SizedBox(
-                                                                width: 4),
-                                                            Container(
-                                                              padding:
-                                                                  const EdgeInsets
-                                                                      .symmetric(
-                                                                      horizontal:
-                                                                          12),
-                                                              width: 200,
-                                                              height: 44,
-                                                              decoration:
-                                                                  BoxDecoration(
-                                                                border: Border.all(
-                                                                    color: AppColor
-                                                                        .line1,
-                                                                    width: 1),
-                                                              ),
-                                                              child: InkWell(
-                                                                onTap: () {
-                                                                  setState(() {
-                                                                    _showEndDatePicker =
-                                                                        !_showEndDatePicker;
-                                                                    _showStartDatePicker =
-                                                                        false;
-                                                                  });
-                                                                },
-                                                                child: Row(
-                                                                  mainAxisAlignment:
-                                                                      MainAxisAlignment
-                                                                          .spaceBetween,
-                                                                  children: [
-                                                                    Text(_endDate ==
-                                                                            null
-                                                                        ? '년,월,일'
-                                                                        : '${_endDate!.year}.${_endDate!.month}.${_endDate!.day}'),
-                                                                    SizedBox(
-                                                                        width:
-                                                                            16.25,
-                                                                        height:
-                                                                            16.25,
-                                                                        child: Image.asset(
-                                                                            'assets/images/calendar.png'))
-                                                                  ],
-                                                                ),
-                                                              ),
-                                                            ),
-                                                          ],
-                                                        ),
-                                                        const SizedBox(
-                                                          width: 370,
-                                                        ),
-                                                        Container(
-                                                          child: Row(
-                                                            children: [
-                                                              InkWell(
-                                                                onTap:
-                                                                    _deleteSelectedEstimates, // 함수 변경
-                                                                child:
-                                                                    Container(
-                                                                  width:
-                                                                      80, // 너비 조정
-                                                                  height: 44,
-                                                                  decoration: BoxDecoration(
-                                                                      border: Border.all(
-                                                                          color: AppColor
-                                                                              .line1,
-                                                                          width:
-                                                                              1)),
-                                                                  alignment:
-                                                                      Alignment
-                                                                          .center,
-                                                                  child:
-                                                                      const Text(
-                                                                    '견적 삭제', // 텍스트 변경
-                                                                    style:
-                                                                        TextStyle(
-                                                                      fontSize:
-                                                                          14,
-                                                                      fontWeight:
-                                                                          FontWeight
-                                                                              .w600,
-                                                                      color: Colors
-                                                                          .black,
-                                                                    ),
-                                                                  ),
-                                                                ),
-                                                              ),
-                                                              const SizedBox(
-                                                                  width: 8),
-                                                            ],
-                                                          ),
-                                                        ),
-                                                        InkWell(
-                                                          onTap:
-                                                              _addNewEstimateToExistingCustomer, // 함수 호출 변경
-                                                          child: Container(
-                                                            color:
-                                                                AppColor.main,
-                                                            width: 141,
-                                                            height: 44,
-                                                            padding:
-                                                                const EdgeInsets
-                                                                    .symmetric(
-                                                                    vertical:
-                                                                        10,
-                                                                    horizontal:
-                                                                        16),
-                                                            child: const Row(
-                                                              mainAxisAlignment:
-                                                                  MainAxisAlignment
-                                                                      .spaceBetween,
-                                                              crossAxisAlignment:
-                                                                  CrossAxisAlignment
-                                                                      .center,
-                                                              children: [
-                                                                Text(
-                                                                  '견적 내역 추가',
-                                                                  style:
-                                                                      TextStyle(
-                                                                    fontSize:
-                                                                        14,
-                                                                    fontWeight:
-                                                                        FontWeight
-                                                                            .w600,
-                                                                    color: Colors
-                                                                        .white,
-                                                                  ),
-                                                                ),
-                                                                Icon(
-                                                                  Icons.add,
-                                                                  color: Colors
-                                                                      .white,
-                                                                  size: 16,
-                                                                ),
-                                                              ],
-                                                            ),
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                    const SizedBox(height: 24),
-                                                    // 테이블 영역
-                                                    SizedBox(
-                                                      width: availableWidth,
-                                                      height: availableHeight,
-                                                      child: ClipRRect(
-                                                        child:
-                                                            SingleChildScrollView(
-                                                          scrollDirection:
-                                                              Axis.horizontal,
-                                                          child: ConstrainedBox(
-                                                            constraints:
-                                                                BoxConstraints(
-                                                              minWidth:
-                                                                  tableWidth,
-                                                            ),
-                                                            child: Column(
-                                                              crossAxisAlignment:
-                                                                  CrossAxisAlignment
-                                                                      .start,
-                                                              children: [
-                                                                FutureBuilder<
-                                                                    List<
-                                                                        Map<String,
-                                                                            dynamic>>>(
-                                                                  future: _fetchEstimates(
-                                                                      customer
-                                                                          .id),
-                                                                  builder: (context,
-                                                                      estimatesSnapshot) {
-                                                                    if (estimatesSnapshot
-                                                                            .connectionState ==
-                                                                        ConnectionState
-                                                                            .waiting) {
-                                                                      return const Center(
-                                                                          child:
-                                                                              CircularProgressIndicator());
-                                                                    }
-
-                                                                    if (estimatesSnapshot
-                                                                        .hasError) {
-                                                                      return Center(
-                                                                          child:
-                                                                              Text('Error: ${estimatesSnapshot.error}'));
-                                                                    }
-
-                                                                    final estimates =
-                                                                        estimatesSnapshot.data ??
-                                                                            [];
-                                                                    final filteredEstimates =
-                                                                        _filterEstimates(
-                                                                            estimates);
-
-                                                                    return Column(
-                                                                      children: [
-                                                                        // 기존의 buildEstimateTableHeader(tableWidth) 대신 사용
-                                                                        buildEstimateTableHeaderWithData(
-                                                                            tableWidth,
-                                                                            estimates),
-                                                                        ...filteredEstimates
-                                                                            .map((estimate) =>
-                                                                                buildEstimateRow(estimate, tableWidth))
-                                                                            .toList(),
-                                                                      ],
-                                                                    );
-                                                                  },
-                                                                ),
-                                                              ],
-                                                            ),
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                                if (_showStartDatePicker)
-                                                  Positioned(
-                                                    top: 48,
-                                                    left: 368,
-                                                    child: Material(
-                                                      elevation: 24,
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                              8),
-                                                      child: Container(
-                                                        width: 300,
-                                                        height: 400,
-                                                        decoration:
-                                                            BoxDecoration(
-                                                          color: Colors.white,
-                                                          borderRadius:
-                                                              BorderRadius
-                                                                  .circular(8),
-                                                        ),
-                                                        child: Theme(
-                                                          data:
-                                                              ThemeData.light()
-                                                                  .copyWith(
-                                                            colorScheme:
-                                                                const ColorScheme
-                                                                    .light(
-                                                              primary:
-                                                                  AppColor.main,
-                                                            ),
-                                                          ),
-                                                          child:
-                                                              CalendarDatePicker(
-                                                            initialDate:
-                                                                _startDate ??
-                                                                    DateTime
-                                                                        .now(),
-                                                            firstDate:
-                                                                DateTime(2000),
-                                                            lastDate:
-                                                                DateTime(2100),
-                                                            onDateChanged:
-                                                                (DateTime
-                                                                    date) {
-                                                              setState(() {
-                                                                _startDate =
-                                                                    date;
-                                                                _showStartDatePicker =
-                                                                    false;
-                                                              });
-                                                            },
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                if (_showEndDatePicker)
-                                                  Positioned(
-                                                    top: 48,
-                                                    left: 572,
-                                                    child: Material(
-                                                      elevation: 24,
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                              8),
-                                                      child: Container(
-                                                        width: 300,
-                                                        height: 400,
-                                                        decoration:
-                                                            BoxDecoration(
-                                                          color: Colors.white,
-                                                          borderRadius:
-                                                              BorderRadius
-                                                                  .circular(8),
-                                                        ),
-                                                        child: Theme(
-                                                          data:
-                                                              ThemeData.light()
-                                                                  .copyWith(
-                                                            colorScheme:
-                                                                const ColorScheme
-                                                                    .light(
-                                                              primary:
-                                                                  AppColor.main,
-                                                            ),
-                                                          ),
-                                                          child:
-                                                              CalendarDatePicker(
-                                                            initialDate:
-                                                                _endDate ??
-                                                                    DateTime
-                                                                        .now(),
-                                                            firstDate:
-                                                                DateTime(2000),
-                                                            lastDate:
-                                                                DateTime(2100),
-                                                            onDateChanged:
-                                                                (DateTime
-                                                                    date) {
-                                                              setState(() {
-                                                                _endDate = date;
-                                                                _showEndDatePicker =
-                                                                    false;
-                                                              });
-                                                            },
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ),
-                                              ],
+                                                  color: Colors.black,
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w600),
                                             )
                                           ],
                                         ),
                                       ),
-                                    ]))));
-                  });
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 56),
+                                const Text(
+                                  '고객 상세정보',
+                                  style: TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColor.font1,
+                                  ),
+                                ),
+                                const SizedBox(height: 48),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text(
+                                      '고객 정보',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 18,
+                                          color: Colors.black),
+                                    ),
+                                    InkWell(
+                                      onTap: () {
+                                        // 수정 페이지로 이동하기 전에 새로고침 플래그 설정
+                                        _shouldRefreshOnResume = true;
+                                        context.go(
+                                            '/main/customer/${customer.id}/edit');
+                                      },
+                                      child: const Text(
+                                        '수정하기',
+                                        style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w400,
+                                            color: Color(0xff757575)),
+                                      ),
+                                    )
+                                  ],
+                                ),
+                                const SizedBox(
+                                  height: 12,
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 48),
+                                  width: MediaQuery.of(context).size.width,
+                                  height: 2,
+                                  color: Colors.black,
+                                ),
+                                Container(
+                                  child: LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      final cellWidth =
+                                          (constraints.maxWidth - 48) /
+                                              2; // 2열로 나누기
+
+                                      return Column(
+                                        children: [
+                                          Row(
+                                            children: [
+                                              SizedBox(
+                                                width: cellWidth,
+                                                child: _buildInfoCell(
+                                                    '회사명', customer.name),
+                                              ),
+                                              SizedBox(
+                                                width: cellWidth,
+                                                child: _buildInfoCell(
+                                                    '연락처', customer.phone),
+                                              ),
+                                            ],
+                                          ),
+                                          Row(
+                                            children: [
+                                              SizedBox(
+                                                width: cellWidth,
+                                                child: _buildInfoCell(
+                                                    '이메일주소', customer.email),
+                                              ),
+                                              SizedBox(
+                                                width: cellWidth,
+                                                child: _buildInfoCell(
+                                                    '회사 주소', customer.address),
+                                              ),
+                                            ],
+                                          ),
+                                          Row(
+                                            children: [
+                                              SizedBox(
+                                                width: cellWidth,
+                                                child: _buildFileCell(
+                                                    '사업자등록증',
+                                                    customer
+                                                        .businessLicenseUrl),
+                                              ),
+                                              SizedBox(
+                                                width: cellWidth,
+                                                child: _buildFileCell(
+                                                    '기타서류',
+                                                    customer.otherDocumentUrls
+                                                        .join(', ')),
+                                              ),
+                                            ],
+                                          ),
+                                          _buildFullWidthCell(
+                                              '기타입력사항', customer.note),
+                                        ],
+                                      );
+                                    },
+                                  ),
+                                ),
+
+                                const SizedBox(
+                                  height: 36,
+                                ),
+                                const Text(
+                                  '계약 내역',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 18,
+                                      color: Colors.black),
+                                ),
+                                const SizedBox(
+                                  height: 12,
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 48),
+                                  width: MediaQuery.of(context).size.width,
+                                  height: 2,
+                                  color: Colors.black,
+                                ),
+                                const SizedBox(
+                                  height: 24,
+                                ),
+                                SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  child: Row(
+                                    children: [
+                                      Stack(
+                                        children: [
+                                          Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment
+                                                        .spaceBetween,
+                                                children: [
+                                                  Row(
+                                                    children: [
+                                                      const Text(
+                                                        '검색',
+                                                        style: TextStyle(
+                                                            fontSize: 14,
+                                                            fontWeight:
+                                                                FontWeight.w600,
+                                                            color:
+                                                                Colors.black),
+                                                      ),
+                                                      const SizedBox(width: 12),
+                                                      Container(
+                                                        width: 280,
+                                                        height: 44,
+                                                        decoration:
+                                                            BoxDecoration(
+                                                          border: Border.all(
+                                                              color: AppColor
+                                                                  .line1,
+                                                              width: 1),
+                                                        ),
+                                                        child: TextField(
+                                                          style:
+                                                              const TextStyle(
+                                                                  height: 1.2),
+                                                          controller:
+                                                              _searchController,
+                                                          decoration:
+                                                              const InputDecoration(
+                                                            isDense: true,
+                                                            contentPadding:
+                                                                EdgeInsets
+                                                                    .symmetric(
+                                                                        horizontal:
+                                                                            16,
+                                                                        vertical:
+                                                                            14),
+                                                            hintText:
+                                                                '상태, 상품명, 수령지, 담당자명, 금액 검색',
+                                                            hintStyle:
+                                                                TextStyle(
+                                                                    fontSize:
+                                                                        14),
+                                                            border: InputBorder
+                                                                .none,
+                                                            enabledBorder:
+                                                                InputBorder
+                                                                    .none,
+                                                            focusedBorder:
+                                                                InputBorder
+                                                                    .none,
+                                                            hoverColor: Colors
+                                                                .transparent,
+                                                          ),
+                                                          onChanged: (value) {
+                                                            setState(() {
+                                                              // 검색어가 변경될 때마다 화면 갱신
+                                                            });
+                                                          },
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 24),
+                                                      const Text(
+                                                        '날짜',
+                                                        style: TextStyle(
+                                                            fontSize: 14,
+                                                            fontWeight:
+                                                                FontWeight.w600,
+                                                            color:
+                                                                Colors.black),
+                                                      ),
+                                                      const SizedBox(width: 12),
+                                                      Container(
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .symmetric(
+                                                                horizontal: 12),
+                                                        width: 200,
+                                                        height: 44,
+                                                        decoration:
+                                                            BoxDecoration(
+                                                          border: Border.all(
+                                                              color: AppColor
+                                                                  .line1,
+                                                              width: 1),
+                                                        ),
+                                                        child: InkWell(
+                                                          onTap: () {
+                                                            setState(() {
+                                                              _showStartDatePicker =
+                                                                  !_showStartDatePicker;
+                                                              _showEndDatePicker =
+                                                                  false;
+                                                            });
+                                                          },
+                                                          child: Row(
+                                                            mainAxisAlignment:
+                                                                MainAxisAlignment
+                                                                    .spaceBetween,
+                                                            children: [
+                                                              Text(_startDate ==
+                                                                      null
+                                                                  ? '년,월,일'
+                                                                  : '${_startDate!.year}.${_startDate!.month}.${_startDate!.day}'),
+                                                              SizedBox(
+                                                                  width: 16.25,
+                                                                  height: 16.25,
+                                                                  child: Image
+                                                                      .asset(
+                                                                          'assets/images/calendar.png'))
+                                                            ],
+                                                          ),
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 4),
+                                                      Container(
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .symmetric(
+                                                                horizontal: 12),
+                                                        width: 200,
+                                                        height: 44,
+                                                        decoration:
+                                                            BoxDecoration(
+                                                          border: Border.all(
+                                                              color: AppColor
+                                                                  .line1,
+                                                              width: 1),
+                                                        ),
+                                                        child: InkWell(
+                                                          onTap: () {
+                                                            setState(() {
+                                                              _showEndDatePicker =
+                                                                  !_showEndDatePicker;
+                                                              _showStartDatePicker =
+                                                                  false;
+                                                            });
+                                                          },
+                                                          child: Row(
+                                                            mainAxisAlignment:
+                                                                MainAxisAlignment
+                                                                    .spaceBetween,
+                                                            children: [
+                                                              Text(_endDate ==
+                                                                      null
+                                                                  ? '년,월,일'
+                                                                  : '${_endDate!.year}.${_endDate!.month}.${_endDate!.day}'),
+                                                              SizedBox(
+                                                                  width: 16.25,
+                                                                  height: 16.25,
+                                                                  child: Image
+                                                                      .asset(
+                                                                          'assets/images/calendar.png'))
+                                                            ],
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  const SizedBox(
+                                                    width: 370,
+                                                  ),
+                                                  Container(
+                                                    child: Row(
+                                                      children: [
+                                                        InkWell(
+                                                          onTap:
+                                                              _deleteSelectedEstimates, // 함수 변경
+                                                          child: Container(
+                                                            width: 80, // 너비 조정
+                                                            height: 44,
+                                                            decoration: BoxDecoration(
+                                                                border: Border.all(
+                                                                    color: AppColor
+                                                                        .line1,
+                                                                    width: 1)),
+                                                            alignment: Alignment
+                                                                .center,
+                                                            child: const Text(
+                                                              '견적 삭제', // 텍스트 변경
+                                                              style: TextStyle(
+                                                                fontSize: 14,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w600,
+                                                                color: Colors
+                                                                    .black,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                            width: 8),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                  InkWell(
+                                                    onTap:
+                                                        _addNewEstimateToExistingCustomer, // 함수 호출 변경
+                                                    child: Container(
+                                                      color: AppColor.main,
+                                                      width: 141,
+                                                      height: 44,
+                                                      padding: const EdgeInsets
+                                                          .symmetric(
+                                                          vertical: 10,
+                                                          horizontal: 16),
+                                                      child: const Row(
+                                                        mainAxisAlignment:
+                                                            MainAxisAlignment
+                                                                .spaceBetween,
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .center,
+                                                        children: [
+                                                          Text(
+                                                            '견적 내역 추가',
+                                                            style: TextStyle(
+                                                              fontSize: 14,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w600,
+                                                              color:
+                                                                  Colors.white,
+                                                            ),
+                                                          ),
+                                                          Icon(
+                                                            Icons.add,
+                                                            color: Colors.white,
+                                                            size: 16,
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 24),
+                                              // 테이블 영역
+                                              SizedBox(
+                                                width: availableWidth,
+                                                height: availableHeight,
+                                                child: ClipRRect(
+                                                  child: SingleChildScrollView(
+                                                    scrollDirection:
+                                                        Axis.horizontal,
+                                                    child: ConstrainedBox(
+                                                      constraints:
+                                                          BoxConstraints(
+                                                        minWidth: tableWidth,
+                                                      ),
+                                                      child: Column(
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        children: [
+                                                          if (_isLoadingEstimates)
+                                                            const Center(
+                                                                child:
+                                                                    CircularProgressIndicator())
+                                                          else
+                                                            Column(
+                                                              children: [
+                                                                // 기존의 buildEstimateTableHeader(tableWidth) 대신 사용
+                                                                buildEstimateTableHeaderWithData(
+                                                                    tableWidth,
+                                                                    _allEstimates),
+                                                                ..._filterEstimates(
+                                                                        _allEstimates)
+                                                                    .map((estimate) =>
+                                                                        buildEstimateRow(
+                                                                            estimate,
+                                                                            tableWidth))
+                                                                    .toList(),
+                                                              ],
+                                                            ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          if (_showStartDatePicker)
+                                            Positioned(
+                                              top: 48,
+                                              left: 368,
+                                              child: Material(
+                                                elevation: 24,
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                                child: Container(
+                                                  width: 300,
+                                                  height: 400,
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.white,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            8),
+                                                  ),
+                                                  child: Theme(
+                                                    data: ThemeData.light()
+                                                        .copyWith(
+                                                      colorScheme:
+                                                          const ColorScheme
+                                                              .light(
+                                                        primary: AppColor.main,
+                                                      ),
+                                                    ),
+                                                    child: CalendarDatePicker(
+                                                      initialDate: _startDate ??
+                                                          DateTime.now(),
+                                                      firstDate: DateTime(2000),
+                                                      lastDate: DateTime(2100),
+                                                      onDateChanged:
+                                                          (DateTime date) {
+                                                        setState(() {
+                                                          _startDate = date;
+                                                          _showStartDatePicker =
+                                                              false;
+                                                        });
+                                                      },
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          if (_showEndDatePicker)
+                                            Positioned(
+                                              top: 48,
+                                              left: 572,
+                                              child: Material(
+                                                elevation: 24,
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                                child: Container(
+                                                  width: 300,
+                                                  height: 400,
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.white,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            8),
+                                                  ),
+                                                  child: Theme(
+                                                    data: ThemeData.light()
+                                                        .copyWith(
+                                                      colorScheme:
+                                                          const ColorScheme
+                                                              .light(
+                                                        primary: AppColor.main,
+                                                      ),
+                                                    ),
+                                                    child: CalendarDatePicker(
+                                                      initialDate: _endDate ??
+                                                          DateTime.now(),
+                                                      firstDate: DateTime(2000),
+                                                      lastDate: DateTime(2100),
+                                                      onDateChanged:
+                                                          (DateTime date) {
+                                                        setState(() {
+                                                          _endDate = date;
+                                                          _showEndDatePicker =
+                                                              false;
+                                                        });
+                                                      },
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      )
+                                    ],
+                                  ),
+                                ),
+                              ]))));
             }))
           ],
         ),

@@ -105,18 +105,25 @@ class _AdminPageState extends State<AdminPage> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                DropdownButton<String>(
-                  value: _filter,
-                  dropdownColor: Colors.white,
-                  style: const TextStyle(color: Colors.black),
-                  underline: Container(height: 2, color: AppColor.main),
-                  items: const [
-                    DropdownMenuItem(value: 'all', child: Text('전체')),
-                    DropdownMenuItem(value: 'pending', child: Text('승인대기')),
-                    DropdownMenuItem(value: 'approved', child: Text('승인완료')),
-                    DropdownMenuItem(value: 'admin', child: Text('관리자')),
-                  ],
-                  onChanged: (v) => setState(() => _filter = v ?? 'all'),
+                Theme(
+                  data: Theme.of(context).copyWith(
+                    hoverColor: Colors.transparent,
+                    focusColor: Colors.transparent,
+                    highlightColor: Colors.transparent,
+                  ),
+                  child: DropdownButton<String>(
+                    value: _filter,
+                    dropdownColor: Colors.white,
+                    style: const TextStyle(color: Colors.black),
+                    underline: Container(height: 2, color: AppColor.main),
+                    items: const [
+                      DropdownMenuItem(value: 'all', child: Text('전체')),
+                      DropdownMenuItem(value: 'pending', child: Text('승인대기')),
+                      DropdownMenuItem(value: 'approved', child: Text('승인완료')),
+                      DropdownMenuItem(value: 'admin', child: Text('관리자')),
+                    ],
+                    onChanged: (v) => setState(() => _filter = v ?? 'all'),
+                  ),
                 ),
               ],
             ),

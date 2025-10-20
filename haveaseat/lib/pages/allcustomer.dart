@@ -10,6 +10,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:math' show max;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import 'dart:async';
 
 class AllCustomerPage extends ConsumerStatefulWidget {
   const AllCustomerPage({super.key});
@@ -19,6 +20,7 @@ class AllCustomerPage extends ConsumerStatefulWidget {
 }
 
 class _AllCustomerPageState extends ConsumerState<AllCustomerPage> {
+  Timer? _debounceTimer;
   final Set<String> _selectedCustomers = {};
   bool _allCheck = false;
 
@@ -338,30 +340,37 @@ class _AllCustomerPageState extends ConsumerState<AllCustomerPage> {
             width: totalWidth * STATUS_RATIO,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<CustomerStatus>(
-                  value: customer.status,
-                  isExpanded: true,
-                  icon: const Icon(Icons.arrow_drop_down, size: 20),
-                  items: CustomerStatus.values.map((CustomerStatus status) {
-                    return DropdownMenuItem<CustomerStatus>(
-                      value: status,
-                      child: Text(
-                        status.label,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: AppColor.font1,
+              child: Theme(
+                data: Theme.of(context).copyWith(
+                  hoverColor: Colors.transparent,
+                  focusColor: Colors.transparent,
+                  highlightColor: Colors.transparent,
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<CustomerStatus>(
+                    value: customer.status,
+                    isExpanded: true,
+                    icon: const Icon(Icons.arrow_drop_down, size: 20),
+                    items: CustomerStatus.values.map((CustomerStatus status) {
+                      return DropdownMenuItem<CustomerStatus>(
+                        value: status,
+                        child: Text(
+                          status.label,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: AppColor.font1,
+                          ),
                         ),
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: (CustomerStatus? newStatus) {
-                    if (newStatus != null) {
-                      ref
-                          .read(customerDataProvider.notifier)
-                          .updateCustomerStatus(customer.id, newStatus);
-                    }
-                  },
+                      );
+                    }).toList(),
+                    onChanged: (CustomerStatus? newStatus) {
+                      if (newStatus != null) {
+                        ref
+                            .read(customerDataProvider.notifier)
+                            .updateCustomerStatus(customer.id, newStatus);
+                      }
+                    },
+                  ),
                 ),
               ),
             ),

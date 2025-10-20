@@ -1137,31 +1137,39 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
                                 decoration: BoxDecoration(
                                   border: Border.all(color: AppColor.line1),
                                 ),
-                                child: DropdownButtonHideUnderline(
-                                  child: DropdownButton<String>(
-                                    value: selectedUnit,
-                                    icon: const Icon(Icons.arrow_drop_down),
-                                    style: const TextStyle(
-                                      color: AppColor.font1,
-                                      fontSize: 14,
+                                child: Theme(
+                                  data: Theme.of(context).copyWith(
+                                    hoverColor: Colors.transparent,
+                                    focusColor: Colors.transparent,
+                                    highlightColor: Colors.transparent,
+                                  ),
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<String>(
+                                      value: selectedUnit,
+                                      icon: const Icon(Icons.arrow_drop_down),
+                                      style: const TextStyle(
+                                        color: AppColor.font1,
+                                        fontSize: 14,
+                                      ),
+                                      isExpanded: true,
+                                      alignment: AlignmentDirectional.center,
+                                      items: <String>['평', '㎡']
+                                          .map<DropdownMenuItem<String>>(
+                                              (String value) {
+                                        return DropdownMenuItem<String>(
+                                          value: value,
+                                          child: Text(value),
+                                        );
+                                      }).toList(),
+                                      onChanged: (String? newValue) {
+                                        if (newValue != null) {
+                                          setState(() {
+                                            selectedUnit =
+                                                newValue; // 단순히 단위만 변경
+                                          });
+                                        }
+                                      },
                                     ),
-                                    isExpanded: true,
-                                    alignment: AlignmentDirectional.center,
-                                    items: <String>['평', '㎡']
-                                        .map<DropdownMenuItem<String>>(
-                                            (String value) {
-                                      return DropdownMenuItem<String>(
-                                        value: value,
-                                        child: Text(value),
-                                      );
-                                    }).toList(),
-                                    onChanged: (String? newValue) {
-                                      if (newValue != null) {
-                                        setState(() {
-                                          selectedUnit = newValue; // 단순히 단위만 변경
-                                        });
-                                      }
-                                    },
                                   ),
                                 ),
                               ),
@@ -1272,44 +1280,51 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
                               borderRadius: BorderRadius.circular(4),
                             ),
                             padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: DropdownButtonHideUnderline(
-                              child: DropdownButton<String>(
-                                value: selectedBusinessType,
-                                isExpanded: true,
-                                icon: const Icon(Icons.expand_more,
-                                    color: AppColor.font1),
-                                hint: const Text(
-                                  '선택',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: AppColor.font3,
-                                  ),
-                                ),
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  color: AppColor.font1,
-                                ),
-                                items: businessTypes
-                                    .map<DropdownMenuItem<String>>(
-                                        (Map<String, String> item) {
-                                  return DropdownMenuItem<String>(
-                                    value: item['value'],
-                                    child: Text(
-                                      item['label']!,
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        color: AppColor.font1,
-                                      ),
+                            child: Theme(
+                              data: Theme.of(context).copyWith(
+                                hoverColor: Colors.transparent,
+                                focusColor: Colors.transparent,
+                                highlightColor: Colors.transparent,
+                              ),
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<String>(
+                                  value: selectedBusinessType,
+                                  isExpanded: true,
+                                  icon: const Icon(Icons.expand_more,
+                                      color: AppColor.font1),
+                                  hint: const Text(
+                                    '선택',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: AppColor.font3,
                                     ),
-                                  );
-                                }).toList(),
-                                onChanged: (String? newValue) {
-                                  if (newValue != null) {
-                                    setState(() {
-                                      selectedBusinessType = newValue;
-                                    });
-                                  }
-                                },
+                                  ),
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    color: AppColor.font1,
+                                  ),
+                                  items: businessTypes
+                                      .map<DropdownMenuItem<String>>(
+                                          (Map<String, String> item) {
+                                    return DropdownMenuItem<String>(
+                                      value: item['value'],
+                                      child: Text(
+                                        item['label']!,
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          color: AppColor.font1,
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
+                                  onChanged: (String? newValue) {
+                                    if (newValue != null) {
+                                      setState(() {
+                                        selectedBusinessType = newValue;
+                                      });
+                                    }
+                                  },
+                                ),
                               ),
                             ),
                           ),

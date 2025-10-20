@@ -1275,44 +1275,53 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
                                                   .requestFocus(_addressFocus);
                                             },
                                           )
-                                        : DropdownButtonHideUnderline(
-                                            child: DropdownButton<String>(
-                                              value: selectedDomain,
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                      horizontal: 16,
-                                                      vertical: 14),
-                                              items: [
-                                                'gmail.com',
-                                                'naver.com',
-                                                'kakao.com',
-                                                'nate.com',
-                                                'hanmail.net',
-                                                'daum.net',
-                                                '직접 입력'
-                                              ].map((String value) {
-                                                return DropdownMenuItem<String>(
-                                                  value: value,
-                                                  child: Text(
-                                                    value,
-                                                    style: const TextStyle(
-                                                      fontSize: 14,
-                                                      color: AppColor.font1,
+                                        : Theme(
+                                            data: Theme.of(context).copyWith(
+                                              hoverColor: Colors.transparent,
+                                              focusColor: Colors.transparent,
+                                              highlightColor:
+                                                  Colors.transparent,
+                                            ),
+                                            child: DropdownButtonHideUnderline(
+                                              child: DropdownButton<String>(
+                                                value: selectedDomain,
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 16,
+                                                        vertical: 14),
+                                                items: [
+                                                  'gmail.com',
+                                                  'naver.com',
+                                                  'kakao.com',
+                                                  'nate.com',
+                                                  'hanmail.net',
+                                                  'daum.net',
+                                                  '직접 입력'
+                                                ].map((String value) {
+                                                  return DropdownMenuItem<
+                                                      String>(
+                                                    value: value,
+                                                    child: Text(
+                                                      value,
+                                                      style: const TextStyle(
+                                                        fontSize: 14,
+                                                        color: AppColor.font1,
+                                                      ),
                                                     ),
-                                                  ),
-                                                );
-                                              }).toList(),
-                                              onChanged: (String? newValue) {
-                                                setState(() {
-                                                  if (newValue == '직접 입력') {
-                                                    isDirectInput = true;
-                                                    selectedDomain = null;
-                                                  } else {
-                                                    isDirectInput = false;
-                                                    selectedDomain = newValue;
-                                                  }
-                                                });
-                                              },
+                                                  );
+                                                }).toList(),
+                                                onChanged: (String? newValue) {
+                                                  setState(() {
+                                                    if (newValue == '직접 입력') {
+                                                      isDirectInput = true;
+                                                      selectedDomain = null;
+                                                    } else {
+                                                      isDirectInput = false;
+                                                      selectedDomain = newValue;
+                                                    }
+                                                  });
+                                                },
+                                              ),
                                             ),
                                           )),
                               ],
