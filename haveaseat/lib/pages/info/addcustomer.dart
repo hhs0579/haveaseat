@@ -124,6 +124,22 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
     return _uploadedUrls;
   }
 
+  // 취소 시 임시저장 데이터 삭제 함수
+  Future<void> _deleteTempData() async {
+    try {
+      if (widget.estimateId != null) {
+        // 기존 임시저장 데이터 삭제
+        await FirebaseFirestore.instance
+            .collection('estimates')
+            .doc(widget.estimateId!)
+            .delete();
+        print('임시저장 데이터 삭제 완료: ${widget.estimateId}');
+      }
+    } catch (e) {
+      print('임시저장 데이터 삭제 중 오류: $e');
+    }
+  }
+
   // 임시 저장 함수
   Future<void> _saveTempCustomer() async {
     try {
@@ -1519,7 +1535,9 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
                             Row(
                               children: [
                                 InkWell(
-                                  onTap: () {
+                                  onTap: () async {
+                                    // 취소 시 임시저장 데이터 삭제
+                                    await _deleteTempData();
                                     GoRouter.of(context).go('/main');
                                   },
                                   child: Container(

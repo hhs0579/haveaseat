@@ -44,11 +44,41 @@ class _OrderEstimatePageState extends ConsumerState<OrderEstimatePage> {
   final TextEditingController _memoController = TextEditingController();
   final screenshotController = ScreenshotController();
   final String _orderMemo = '';
+  final ScrollController _scrollController = ScrollController();
+
+  // 데이터 캐싱을 위한 변수 추가
+  Map<String, dynamic>? _cachedData;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAndCacheData();
+  }
 
   @override
   void dispose() {
     _memoController.dispose();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadAndCacheData() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      _cachedData = await _loadEstimateData();
+    } catch (e) {
+      print('Error loading data: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   Future<Map<String, dynamic>> _loadEstimateData() async {
@@ -699,7 +729,17 @@ class _OrderEstimatePageState extends ConsumerState<OrderEstimatePage> {
                                                 .update({
                                               'furnitureList': updatedList,
                                             });
-                                            setState(() {});
+
+                                            // 캐시된 데이터 업데이트 (스크롤 위치 유지)
+                                            if (_cachedData != null) {
+                                              (_cachedData!['estimate'] as Map<
+                                                          String, dynamic>)[
+                                                      'furnitureList'] =
+                                                  updatedList;
+                                              if (mounted) {
+                                                setState(() {});
+                                              }
+                                            }
                                           }
                                         },
                                       ),
@@ -789,7 +829,18 @@ class _OrderEstimatePageState extends ConsumerState<OrderEstimatePage> {
                                                   .update({
                                                 'furnitureList': updatedList,
                                               });
-                                              setState(() {});
+
+                                              // 캐시된 데이터 업데이트 (스크롤 위치 유지)
+                                              if (_cachedData != null) {
+                                                (_cachedData!['estimate']
+                                                            as Map<String,
+                                                                dynamic>)[
+                                                        'furnitureList'] =
+                                                    updatedList;
+                                                if (mounted) {
+                                                  setState(() {});
+                                                }
+                                              }
                                             }
                                           },
                                         ),
@@ -835,6 +886,114 @@ class _OrderEstimatePageState extends ConsumerState<OrderEstimatePage> {
                                         initialDate: DateTime.now(),
                                         firstDate: DateTime(2000),
                                         lastDate: DateTime(2100),
+                                        builder: (context, child) {
+                                          return Theme(
+                                            data: Theme.of(context).copyWith(
+                                              colorScheme:
+                                                  const ColorScheme.light(
+                                                primary: Colors.transparent,
+                                                onPrimary: Colors.white,
+                                                onSurface: AppColor.font1,
+                                                surface: Colors.white,
+                                                brightness: Brightness.light,
+                                              ),
+                                              dialogBackgroundColor:
+                                                  Colors.white,
+                                              scaffoldBackgroundColor:
+                                                  Colors.white,
+                                              canvasColor: Colors.white,
+                                              cardColor: Colors.white,
+                                              textButtonTheme:
+                                                  TextButtonThemeData(
+                                                style: TextButton.styleFrom(
+                                                  foregroundColor:
+                                                      AppColor.primary,
+                                                ),
+                                              ),
+                                              datePickerTheme:
+                                                  DatePickerThemeData(
+                                                // 원형 크기 조절
+                                                dayStyle: const TextStyle(
+                                                    fontSize: 14),
+                                                yearStyle: const TextStyle(
+                                                    fontSize: 14),
+                                                // 호버 효과 제거 및 크기 조절을 위한 패딩 설정
+
+                                                // 오늘 날짜 표시
+                                                todayBorder: const BorderSide(
+                                                    color: AppColor.primary,
+                                                    width: 1),
+                                                todayBackgroundColor:
+                                                    MaterialStateProperty.all(
+                                                        Colors.transparent),
+                                                todayForegroundColor:
+                                                    MaterialStateProperty.all(
+                                                        AppColor.primary),
+                                                // 선택된 날짜 배경색
+                                                dayBackgroundColor:
+                                                    MaterialStateProperty
+                                                        .resolveWith((states) {
+                                                  if (states.contains(
+                                                      MaterialState.selected)) {
+                                                    return AppColor.primary;
+                                                  }
+                                                  // 호버 효과 제거
+                                                  if (states.contains(
+                                                      MaterialState.hovered)) {
+                                                    return Colors.transparent;
+                                                  }
+                                                  return Colors.transparent;
+                                                }),
+                                                // 선택된 날짜 텍스트 색상
+                                                dayForegroundColor:
+                                                    MaterialStateProperty
+                                                        .resolveWith((states) {
+                                                  if (states.contains(
+                                                      MaterialState.selected)) {
+                                                    return Colors.white;
+                                                  }
+                                                  return Colors.black;
+                                                }),
+                                                // 년도 선택 스타일
+                                                yearBackgroundColor:
+                                                    MaterialStateProperty
+                                                        .resolveWith((states) {
+                                                  if (states.contains(
+                                                      MaterialState.selected)) {
+                                                    return AppColor.primary;
+                                                  }
+                                                  // 호버 효과 제거
+                                                  if (states.contains(
+                                                      MaterialState.hovered)) {
+                                                    return Colors.transparent;
+                                                  }
+                                                  return Colors.transparent;
+                                                }),
+                                                yearForegroundColor:
+                                                    MaterialStateProperty
+                                                        .resolveWith((states) {
+                                                  if (states.contains(
+                                                      MaterialState.selected)) {
+                                                    return Colors.white;
+                                                  }
+                                                  return Colors.black;
+                                                }),
+                                                headerForegroundColor:
+                                                    Colors.black,
+                                                weekdayStyle: const TextStyle(
+                                                  color: Colors.black,
+                                                  fontSize: 14,
+                                                ),
+                                                // 선택된 날짜 모양 크기 조절
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(16),
+                                                ),
+                                              ),
+                                            ),
+                                            child: child!,
+                                          );
+                                        },
                                       );
                                       if (picked != null) {
                                         final updatedList =
@@ -853,7 +1012,16 @@ class _OrderEstimatePageState extends ConsumerState<OrderEstimatePage> {
                                           'furnitureList': updatedList,
                                         });
 
-                                        setState(() {});
+                                        // 캐시된 데이터 업데이트 (스크롤 위치 유지)
+                                        if (_cachedData != null) {
+                                          (_cachedData!['estimate'] as Map<
+                                                  String,
+                                                  dynamic>)['furnitureList'] =
+                                              updatedList;
+                                          if (mounted) {
+                                            setState(() {});
+                                          }
+                                        }
                                       }
                                     },
                                     child: Container(
@@ -910,41 +1078,44 @@ class _OrderEstimatePageState extends ConsumerState<OrderEstimatePage> {
 
   Future<void> _saveOrderStatus() async {
     try {
-      final estimateDoc = await FirebaseFirestore.instance
-          .collection('estimates')
-          .doc(widget.estimateId)
-          .get();
-
-      if (!estimateDoc.exists) {
-        throw Exception('견적서를 찾을 수 없습니다');
+      // 캐시된 데이터에서 최신 가구 목록 가져오기
+      if (_cachedData == null) {
+        throw Exception('데이터를 찾을 수 없습니다');
       }
 
-      final furnitureList =
-          (estimateDoc.data()?['furnitureList'] as List<dynamic>?) ?? [];
+      final furnitureList = (_cachedData!['estimate']
+          as Map<String, dynamic>)['furnitureList'] as List<dynamic>?;
 
-      // 업데이트할 가구 목록
-      List<Map<String, dynamic>> updatedFurnitureList =
-          furnitureList.map((furniture) {
-        return {
-          ...furniture as Map<String, dynamic>,
-          'orderStatus': furniture['orderStatus'] ?? '발주 신청',
-          'receivingStatus': furniture['receivingStatus'] ?? '미입고',
-          'expectedDate': furniture['expectedDate'],
-        };
-      }).toList();
+      if (furnitureList == null) {
+        throw Exception('가구 목록을 찾을 수 없습니다');
+      }
 
       // Firestore 업데이트
       await FirebaseFirestore.instance
           .collection('estimates')
           .doc(widget.estimateId)
           .update({
-        'furnitureList': updatedFurnitureList,
-        'orderMemo': _orderMemo, // 메모 필드 추가
+        'furnitureList': furnitureList,
+        'orderMemo': _memoController.text,
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
+      // 캐시 업데이트 (저장 후 자동 반영)
+      if (_cachedData != null) {
+        (_cachedData!['estimate'] as Map<String, dynamic>)['furnitureList'] =
+            furnitureList;
+        (_cachedData!['estimate'] as Map<String, dynamic>)['orderMemo'] =
+            _memoController.text;
+
+        if (mounted) {
+          setState(() {});
+        }
+      }
+
       if (mounted) {
-        // 성공적으로 저장됨
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('저장되었습니다')),
+        );
       }
     } catch (e) {
       print('Error saving order status: $e');
@@ -1016,11 +1187,22 @@ class _OrderEstimatePageState extends ConsumerState<OrderEstimatePage> {
         marginAll: 40,
       );
 
+      // 첫 번째 페이지: 견적 정보만
       pdf.addPage(
         pw.Page(
           pageFormat: pageFormat,
           build: (pw.Context context) {
-            return _buildPDFContent(data, ttf, ttfBold);
+            return _buildPDFFirstPage(data, ttf, ttfBold);
+          },
+        ),
+      );
+
+      // 두 번째 페이지: 발주 정보, 메모, 담당자
+      pdf.addPage(
+        pw.Page(
+          pageFormat: pageFormat,
+          build: (pw.Context context) {
+            return _buildPDFSecondPage(data, ttf, ttfBold);
           },
         ),
       );
@@ -1041,7 +1223,7 @@ class _OrderEstimatePageState extends ConsumerState<OrderEstimatePage> {
     }
   }
 
-  pw.Widget _buildPDFContent(
+  pw.Widget _buildPDFFirstPage(
       Map<String, dynamic> data, pw.Font ttf, pw.Font ttfBold) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -1053,12 +1235,31 @@ class _OrderEstimatePageState extends ConsumerState<OrderEstimatePage> {
         ),
         pw.SizedBox(height: 32),
 
-        // 각 섹션
+        // 견적 정보만
         _buildPDFEstimateSection(data['estimate'], ttf, ttfBold),
+      ],
+    );
+  }
 
+  pw.Widget _buildPDFSecondPage(
+      Map<String, dynamic> data, pw.Font ttf, pw.Font ttfBold) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
         pw.SizedBox(height: 48),
-        _buildPDFOrderSection(data['estimate'], ttf, ttfBold),
+        _buildPDFOrderSection(
+            data['estimate'],
+            (data['estimate']['furnitureList'] as List<dynamic>?) ?? [],
+            ttf,
+            ttfBold),
         pw.SizedBox(height: 48),
+
+        // 메모 섹션 추가
+        if (data['memo'] != null && data['memo'].toString().isNotEmpty)
+          _buildPDFMemoSection(data['memo'], ttf, ttfBold),
+
+        if (data['memo'] != null && data['memo'].toString().isNotEmpty)
+          pw.SizedBox(height: 48),
 
         _buildPDFManagerSection(data['userData'], ttf, ttfBold),
       ],
@@ -1101,9 +1302,12 @@ class _OrderEstimatePageState extends ConsumerState<OrderEstimatePage> {
     );
   }
 
-  pw.Widget _buildPDFOrderSection(
-      Map<String, dynamic> estimate, pw.Font ttf, pw.Font ttfBold) {
-    final furnitureList = (estimate['furnitureList'] as List<dynamic>?) ?? [];
+  pw.Widget _buildPDFOrderSection(Map<String, dynamic> estimate,
+      List<dynamic> furnitureList, pw.Font ttf, pw.Font ttfBold) {
+    // furnitureList가 비어있으면 빈 섹션 반환
+    if (furnitureList.isEmpty) {
+      return pw.SizedBox.shrink();
+    }
 
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -1460,6 +1664,44 @@ class _OrderEstimatePageState extends ConsumerState<OrderEstimatePage> {
     );
   }
 
+// PDF 메모 섹션
+  pw.Widget _buildPDFMemoSection(String memo, pw.Font ttf, pw.Font ttfBold) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        // 섹션 제목
+        pw.Text(
+          '메모',
+          style: pw.TextStyle(fontSize: 18, font: ttfBold),
+        ),
+        pw.SizedBox(height: 12),
+
+        // 구분선
+        pw.Container(
+          width: double.infinity,
+          height: 2,
+        ),
+        pw.SizedBox(height: 24),
+
+        // 메모 내용
+        pw.Container(
+          width: double.infinity,
+          padding: const pw.EdgeInsets.all(16),
+          decoration: pw.BoxDecoration(
+            border: pw.Border.all(),
+          ),
+          child: pw.Text(
+            memo,
+            style: pw.TextStyle(
+              fontSize: 14,
+              font: ttf,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
 // PDF 담당자 정보 섹션
   pw.Widget _buildPDFManagerSection(
       Map<String, dynamic>? userData, pw.Font ttf, pw.Font ttfBold) {
@@ -1628,62 +1870,6 @@ class _OrderEstimatePageState extends ConsumerState<OrderEstimatePage> {
         ],
       ),
     );
-  }
-
-  Future<void> _generateOrderPDF(Map<String, dynamic> data) async {
-    try {
-      final regularFont = await rootBundle.load(
-          'assets/fonts/notosans/Noto_Sans_KR/static/NotoSansKR-Regular.ttf');
-      final boldFont = await rootBundle.load(
-          'assets/fonts/notosans/Noto_Sans_KR/static/NotoSansKR-Bold.ttf');
-
-      final ttf = pw.Font.ttf(regularFont);
-      final ttfBold = pw.Font.ttf(boldFont);
-
-      final pdf = pw.Document();
-      final pageFormat = PdfPageFormat(
-        PdfPageFormat.a4.width * 1.5,
-        PdfPageFormat.a4.height * 2,
-        marginAll: 40,
-      );
-
-      pdf.addPage(
-        pw.Page(
-          pageFormat: pageFormat,
-          build: (pw.Context context) {
-            return pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Text(
-                  '발주서',
-                  style: pw.TextStyle(fontSize: 24, font: ttfBold),
-                ),
-                pw.SizedBox(height: 32),
-                _buildPDFEstimateSection(data['estimate'], ttf, ttfBold),
-                pw.SizedBox(height: 48),
-                _buildPDFOrderSection(data['estimate'], ttf, ttfBold),
-                pw.SizedBox(height: 48),
-                _buildPDFManagerSection(data['userData'], ttf, ttfBold),
-              ],
-            );
-          },
-        ),
-      );
-
-      final bytes = await pdf.save();
-      final blob = html.Blob([bytes], 'application/pdf');
-      final url = html.Url.createObjectUrlFromBlob(blob);
-      final anchor = html.AnchorElement()
-        ..href = url
-        ..style.display = 'none'
-        ..download = 'order.pdf';
-      html.document.body?.children.add(anchor);
-      anchor.click();
-      html.document.body?.children.remove(anchor);
-      html.Url.revokeObjectUrl(url);
-    } catch (e) {
-      print('Error generating PDF: $e');
-    }
   }
 
   String getFileName(String url) {
@@ -2078,205 +2264,176 @@ class _OrderEstimatePageState extends ConsumerState<OrderEstimatePage> {
 // 메인 컨텐츠 영역
             Expanded(
               child: Screenshot(
-                  controller: screenshotController,
-                  child: SingleChildScrollView(
+                controller: screenshotController,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    return SingleChildScrollView(
+                      controller: _scrollController,
                       padding: const EdgeInsets.all(24.0),
-                      child: FutureBuilder<Map<String, dynamic>>(
-                          future: _loadEstimateData(),
-                          builder: (context, snapshot) {
-                            if (snapshot.connectionState ==
-                                ConnectionState.waiting) {
-                              return const Center(
-                                  child: CircularProgressIndicator());
-                            }
-
-                            if (snapshot.hasError) {
-                              return Center(
-                                  child: Text('오류가 발생했습니다: ${snapshot.error}'));
-                            }
-
-                            if (!snapshot.hasData) {
-                              return const Center(
-                                  child: Text('데이터를 찾을 수 없습니다'));
-                            }
-
-                            return Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      InkWell(
-                                        onTap: () {
-                                          context.pop();
-                                        },
-                                        child: const Row(
-                                          children: [
-                                            Icon(Icons.arrow_back_ios),
-                                            SizedBox(
-                                              width: 4,
-                                            ),
-                                            Text(
-                                              '이전',
-                                              style: TextStyle(
-                                                  color: Colors.black,
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.w600),
-                                            )
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 56),
-                                  const Text(
-                                    '발주서',
-                                    style: TextStyle(
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColor.font1,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 32),
-                                  _buildEstimateSection(snapshot.data!),
-                                  const SizedBox(height: 48),
-                                  _buildOrderSection(snapshot.data!), // 여기에 추가
-                                  const SizedBox(height: 24),
-
-// 메모 섹션
-                                  Container(
-                                    width: double.infinity,
-                                    height: 200,
-                                    decoration: BoxDecoration(
-                                      border: Border.all(
-                                          color: AppColor.line1, width: 1),
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        // 메모 헤더
-                                        Container(
-                                          width: double.infinity,
-                                          height: 198,
-                                          decoration: BoxDecoration(
-                                            border: Border.all(
-                                                color: AppColor.line1,
-                                                width: 1),
-                                          ),
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              // 메모 헤더
-                                              Container(
-                                                width: double.infinity,
-                                                height: 40,
-                                                color: AppColor.back2,
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                        horizontal: 16,
-                                                        vertical: 12),
-                                                child: const Text(
-                                                  '메모',
-                                                  style: TextStyle(
-                                                    fontWeight: FontWeight.w600,
-                                                    fontSize: 14,
-                                                  ),
-                                                ),
-                                              ),
-                                              // 메모 입력 영역
-                                              Expanded(
-                                                child: Container(
-                                                  padding:
-                                                      const EdgeInsets.all(16),
-                                                  child: TextField(
-                                                    controller: _memoController,
-                                                    maxLines: null,
-                                                    expands: true,
-                                                    decoration:
-                                                        const InputDecoration(
-                                                      border: InputBorder.none,
-                                                      hintText: '메모를 입력하세요...',
-                                                      hintStyle: TextStyle(
-                                                        color: Colors.grey,
-                                                        fontSize: 14,
-                                                      ),
-                                                    ),
-                                                    style: const TextStyle(
-                                                      fontSize: 14,
-                                                      fontWeight:
-                                                          FontWeight.w400,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-
-                                  const SizedBox(height: 48),
-                                  _buildManagerSection(snapshot.data!),
-                                  const SizedBox(height: 48),
-                                  Row(
-                                    children: [
-                                      InkWell(
-                                        onTap: () {
-                                          _saveOrderStatus();
-                                        },
-                                        child: Container(
-                                          height: 48,
-                                          width: 87,
-                                          color: AppColor.main,
-                                          child: const Center(
-                                            child: Text(
-                                              '저장하기',
-                                              style: TextStyle(
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: Colors.white),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(
-                                        width: 8,
-                                      ),
-                                      InkWell(
-                                        onTap: () {
-                                          generatePDF(snapshot.data!);
-                                        },
-                                        child: Container(
-                                          height: 48,
-                                          width: 131,
-                                          decoration: BoxDecoration(
-                                              color: Colors.transparent,
-                                              border: Border.all(
-                                                  color: AppColor.line1,
-                                                  width: 1)),
-                                          child: const Center(
-                                            child: Text(
-                                              '발주서 다운로드',
-                                              style: TextStyle(
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: Colors.black),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ]);
-                          }))),
+                      child: _isLoading || _cachedData == null
+                          ? const Center(child: CircularProgressIndicator())
+                          : _buildContent(_cachedData!),
+                    );
+                  },
+                ),
+              ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildContent(Map<String, dynamic> data) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            InkWell(
+              onTap: () {
+                context.pop();
+              },
+              child: const Row(
+                children: [
+                  Icon(Icons.arrow_back_ios),
+                  SizedBox(width: 4),
+                  Text(
+                    '이전',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  )
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 56),
+        const Text(
+          '발주서',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w600,
+            color: AppColor.font1,
+          ),
+        ),
+        const SizedBox(height: 32),
+        _buildEstimateSection(data),
+        const SizedBox(height: 48),
+        _buildOrderSection(data),
+        const SizedBox(height: 24),
+
+        // 메모 섹션
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            border: Border.all(color: AppColor.line1, width: 1),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 메모 헤더
+              Container(
+                width: double.infinity,
+                color: AppColor.back2,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                child: const Text(
+                  '메모',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+              // 메모 입력 영역
+              Container(
+                padding: const EdgeInsets.all(16),
+                child: TextField(
+                  controller: _memoController,
+                  maxLines: null,
+                  minLines: 10,
+                  decoration: const InputDecoration(
+                    border: InputBorder.none,
+                    hintText: '메모를 입력하세요...',
+                    hintStyle: TextStyle(
+                      color: Colors.grey,
+                      fontSize: 14,
+                    ),
+                  ),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 48),
+        _buildManagerSection(data),
+        const SizedBox(height: 48),
+        Row(
+          children: [
+            InkWell(
+              onTap: () {
+                _saveOrderStatus();
+              },
+              child: Container(
+                height: 48,
+                width: 87,
+                color: AppColor.main,
+                child: const Center(
+                  child: Text(
+                    '저장하기',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            InkWell(
+              onTap: () {
+                // 캐시된 데이터를 사용하여 PDF 생성
+                if (_cachedData != null) {
+                  final dataForPDF = Map<String, dynamic>.from(_cachedData!);
+                  dataForPDF['memo'] = _memoController.text;
+                  generatePDF(dataForPDF);
+                }
+              },
+              child: Container(
+                height: 48,
+                width: 131,
+                decoration: BoxDecoration(
+                  color: Colors.transparent,
+                  border: Border.all(color: AppColor.line1, width: 1),
+                ),
+                child: const Center(
+                  child: Text(
+                    '발주서 다운로드',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

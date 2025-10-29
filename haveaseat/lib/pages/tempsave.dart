@@ -3,14 +3,11 @@ import 'package:haveaseat/components/colors.dart';
 import 'package:haveaseat/components/screensize.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:haveaseat/riverpod/customermodel.dart';
 import 'package:haveaseat/riverpod/usermodel.dart';
-import 'dart:html' as html;
 import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:math' show max;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart';
 import 'dart:async';
 
 class TempSavePage extends ConsumerStatefulWidget {
@@ -201,7 +198,11 @@ class _TempSavePageState extends ConsumerState<TempSavePage> {
 
         // 임시로 모든 데이터를 포함시켜서 디버깅
         print(
-            '_fetchTempSaveData: 전체 데이터 구조 확인 - doc.id = ${doc.id}, data = $data'); // 디버깅 로그
+            '_fetchTempSaveData: 전체 데이터 구조 확인 - doc.id = ${doc.id}'); // 디버깅 로그
+        print('_fetchTempSaveData: data[name] = ${data['name']}'); // 디버깅 로그
+        print('_fetchTempSaveData: data[type] = ${data['type']}'); // 디버깅 로그
+        print(
+            '_fetchTempSaveData: data[customerId] = ${data['customerId']}'); // 디버깅 로그
 
         // customerInfo에서 담당자 정보 가져오기
         String managerName = '담당자 미정';
@@ -222,11 +223,16 @@ class _TempSavePageState extends ConsumerState<TempSavePage> {
               '_fetchTempSaveData: top-level에서 찾은 managerName = $managerName'); // 디버깅 로그
         }
 
+        // name 필드 디버깅
+        String displayName = data['name'] ?? '무제';
+        print(
+            '_fetchTempSaveData: doc.id = ${doc.id}, data[name] = ${data['name']}, 최종 displayName = $displayName'); // 디버깅 로그
+
         tempSaveItems.add({
           'id': doc.id,
           'customerId': data['customerId'] ?? doc.id,
           'estimateId': doc.id, // estimates 컬렉션의 doc.id가 estimateId
-          'name': data['name'] ?? '무제',
+          'name': displayName,
           'type': data['type'] ?? '임시저장',
           'createdDate':
               data['createdAt'] ?? data['lastUpdated'] ?? Timestamp.now(),

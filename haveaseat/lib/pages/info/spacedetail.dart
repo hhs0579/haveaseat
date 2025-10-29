@@ -58,6 +58,11 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
   @override
   void initState() {
     super.initState();
+    print('SpaceDetailPage initState: widget.name = ${widget.name}'); // 디버깅 로그
+    print(
+        'SpaceDetailPage initState: widget.customerId = ${widget.customerId}'); // 디버깅 로그
+    print(
+        'SpaceDetailPage initState: widget.estimateId = ${widget.estimateId}'); // 디버깅 로그
     _loadTempEstimate();
   }
 
@@ -66,6 +71,25 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
     final currentPath =
         GoRouter.of(context).routerDelegate.currentConfiguration.uri.path;
     return currentPath.contains('/edit');
+  }
+
+  // 취소 시 임시저장 데이터 삭제 함수
+  Future<void> _deleteTempData() async {
+    try {
+      // customerId로 임시저장된 데이터 찾아서 삭제
+      final tempEstimates = await FirebaseFirestore.instance
+          .collection('estimates')
+          .where('customerId', isEqualTo: widget.customerId)
+          .where('isDraft', isEqualTo: true)
+          .get();
+
+      for (var doc in tempEstimates.docs) {
+        await doc.reference.delete();
+        print('임시저장 데이터 삭제 완료: ${doc.id}');
+      }
+    } catch (e) {
+      print('임시저장 데이터 삭제 중 오류: $e');
+    }
   }
 
   Widget _buildConceptButton(String text) {
@@ -120,8 +144,11 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
         if (estimateDoc.exists) {
           final data = estimateDoc.data()!;
           final type = data['type'] ?? '';
+          final existingName = data['name'] ?? '';
           print(
               'spacedetail _loadTempEstimate: type = $type, estimateId = ${widget.estimateId}'); // 디버깅 로그
+          print(
+              'spacedetail _loadTempEstimate: 기존 데이터의 name = $existingName'); // 디버깅 로그
 
           // 견적서 수정 모드에서는 모든 type의 데이터를 로드 가능하도록 수정
           // 임시저장된 데이터의 type이 '공간상세'이거나 비어있거나, 견적서 수정 모드일 때 데이터 로드
@@ -529,14 +556,67 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
           estimateId = estimateRef.id;
         }
       }
-      // name 값 보장: widget.name이 없으면 Firestore에서 고객명 조회
+      // name 값 보장: widget.name이 없으면 기존 데이터에서 조회
       String? nameValue = widget.name;
+      print('saveTempDetailInfo: widget.name = ${widget.name}'); // 디버깅 로그
+      print(
+          'saveTempDetailInfo: widget.customerId = ${widget.customerId}'); // 디버깅 로그
+
       if (nameValue == null || nameValue.trim().isEmpty) {
-        final customerDoc = await FirebaseFirestore.instance
-            .collection('customers')
-            .doc(widget.customerId)
-            .get();
-        nameValue = customerDoc.data()?['name'] ?? '무제';
+        print(
+            'saveTempDetailInfo: widget.name이 비어있어서 기존 데이터에서 조회 시작'); // 디버깅 로그
+
+        // 먼저 기존 estimate 데이터에서 name 확인
+        if (estimateId.isNotEmpty) {
+          try {
+            final existingDoc = await FirebaseFirestore.instance
+                .collection('estimates')
+                .doc(estimateId)
+                .get();
+
+            if (existingDoc.exists) {
+              final existingData = existingDoc.data()!;
+              nameValue = existingData['name']?.toString().trim();
+              print(
+                  'saveTempDetailInfo: 기존 estimate에서 name 조회 - $nameValue'); // 디버깅 로그
+            }
+          } catch (e) {
+            print('saveTempDetailInfo: 기존 estimate 조회 실패 - $e'); // 디버깅 로그
+          }
+        }
+
+        // 여전히 비어있으면 Firestore에서 고객명 조회
+        if (nameValue == null || nameValue.trim().isEmpty) {
+          print(
+              'saveTempDetailInfo: 기존 estimate에서 name이 없어서 고객 데이터에서 조회'); // 디버깅 로그
+          try {
+            final customerDoc = await FirebaseFirestore.instance
+                .collection('customers')
+                .doc(widget.customerId)
+                .get();
+
+            if (customerDoc.exists && customerDoc.data() != null) {
+              final customerData = customerDoc.data()!;
+              print('saveTempDetailInfo: 고객 데이터 = $customerData'); // 디버깅 로그
+              nameValue = customerData['name']?.toString().trim();
+              if (nameValue == null || nameValue.isEmpty) {
+                nameValue = customerData['directDomain']?.toString().trim();
+              }
+              if (nameValue == null || nameValue.isEmpty) {
+                nameValue = '무제';
+              }
+              print('saveTempDetailInfo: 고객명 조회 성공 - $nameValue'); // 디버깅 로그
+            } else {
+              nameValue = '무제';
+              print('saveTempDetailInfo: 고객 문서가 존재하지 않음'); // 디버깅 로그
+            }
+          } catch (e) {
+            nameValue = '무제';
+            print('saveTempDetailInfo: 고객명 조회 실패 - $e'); // 디버깅 로그
+          }
+        }
+      } else {
+        print('saveTempDetailInfo: widget.name 사용 - $nameValue'); // 디버깅 로그
       }
       final estimateRef =
           FirebaseFirestore.instance.collection('estimates').doc(estimateId);
@@ -582,8 +662,23 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
           'managerPhone': managerPhone,
         }
       };
-      print('임시저장 tempData: $tempData');
+      print('saveTempDetailInfo: 저장할 tempData = $tempData'); // 디버깅 로그
+
+      // name 필드를 항상 명시적으로 업데이트하여 회사명이 보이도록 함
       await estimateRef.set(tempData, SetOptions(merge: true));
+      await estimateRef.update({'name': nameValue});
+
+      // 추가로 customerInfo.name도 업데이트
+      await estimateRef.update({
+        'customerInfo.name': nameValue,
+      });
+
+      // 저장 후 실제로 저장된 데이터 확인
+      final savedDoc = await estimateRef.get();
+      final savedData = savedDoc.data();
+      print(
+          'saveTempDetailInfo: 저장 후 실제 데이터 확인 - name: ${savedData?['name']}'); // 디버깅 로그
+      print('saveTempDetailInfo: name 필드 명시적 업데이트 완료 - $nameValue'); // 디버깅 로그
       context.go('/temp');
     } catch (e) {
       print('임시 저장 중 오류: $e');
@@ -608,6 +703,35 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
         estimateId = estimateRef.id;
         // 임시저장이므로 customers 컬렉션에 저장하지 않음
       }
+      // name 값 보장: widget.name이 없으면 Firestore에서 고객명 조회
+      String? nameValue = widget.name;
+      if (nameValue == null || nameValue.trim().isEmpty) {
+        try {
+          final customerDoc = await FirebaseFirestore.instance
+              .collection('customers')
+              .doc(widget.customerId)
+              .get();
+
+          if (customerDoc.exists && customerDoc.data() != null) {
+            final customerData = customerDoc.data()!;
+            nameValue = customerData['name']?.toString().trim();
+            if (nameValue == null || nameValue.isEmpty) {
+              nameValue = customerData['directDomain']?.toString().trim();
+            }
+            if (nameValue == null || nameValue.isEmpty) {
+              nameValue = '무제';
+            }
+            print('goNext: 고객명 조회 성공 - $nameValue'); // 디버깅 로그
+          } else {
+            nameValue = '무제';
+            print('goNext: 고객 문서가 존재하지 않음'); // 디버깅 로그
+          }
+        } catch (e) {
+          nameValue = '무제';
+          print('goNext: 고객명 조회 실패 - $e'); // 디버깅 로그
+        }
+      }
+
       final estimateRef =
           FirebaseFirestore.instance.collection('estimates').doc(estimateId);
       final tempData = {
@@ -617,7 +741,7 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
         'lastUpdated': FieldValue.serverTimestamp(),
         'isDraft': true,
         'type': '가구',
-        'name': widget.name ?? '무제',
+        'name': nameValue,
         'managerName': user.displayName ?? '',
         'managerPhone': user.phoneNumber ?? '',
         'spaceDetailInfo': {
@@ -637,7 +761,7 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
       await estimateRef.set(tempData, SetOptions(merge: true));
       context.go(
           '/main/addpage/spaceadd/${widget.customerId}/$estimateId/space-detail/furniture',
-          extra: {'companyName': widget.name ?? '무제'});
+          extra: {'companyName': nameValue});
     } catch (e) {
       print('다음 단계 저장 중 오류: $e');
       if (mounted) {
@@ -649,7 +773,7 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
   }
 
   Future<void> saveSpaceDetailInfo() async {
-    if (!validateInputs()) return;
+    // 입력 검증 제거 - 공간 세부는 선택 입력이므로 빈 값도 허용
     try {
       // estimateId가 없으면 새로 생성
       String estimateId = widget.estimateId ?? '';
@@ -661,14 +785,22 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
       }
 
       final estimateData = {
-        'minBudget': double.parse(_minBudgetController.text),
-        'maxBudget': double.parse(_maxBudgetController.text),
-        'spaceArea': double.parse(_areaController.text),
+        'minBudget': _minBudgetController.text.isNotEmpty
+            ? double.tryParse(_minBudgetController.text) ?? 0
+            : 0,
+        'maxBudget': _maxBudgetController.text.isNotEmpty
+            ? double.tryParse(_maxBudgetController.text) ?? 0
+            : 0,
+        'spaceArea': _areaController.text.isNotEmpty
+            ? double.tryParse(_areaController.text) ?? 0
+            : 0,
         'spaceUnit': selectedUnit,
         'targetAgeGroups': [selectedAgeRange],
-        'businessType': businessTypes.firstWhere(
-            (type) => type['value'] == selectedBusinessType,
-            orElse: () => {'label': ''})['label'],
+        'businessType': selectedBusinessType != null
+            ? businessTypes.firstWhere(
+                (type) => type['value'] == selectedBusinessType,
+                orElse: () => {'label': ''})['label']
+            : '',
         'concept': selectedConcepts.toList(),
         'detailNotes': _noteController.text,
         'designFileUrls': _otherDocumentUrls,
@@ -680,14 +812,22 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
         if (!isEditMode) 'isDraft': false,
         // spaceDetailInfo 하위 맵에도 저장
         'spaceDetailInfo': {
-          'minBudget': double.parse(_minBudgetController.text),
-          'maxBudget': double.parse(_maxBudgetController.text),
-          'spaceArea': double.parse(_areaController.text),
+          'minBudget': _minBudgetController.text.isNotEmpty
+              ? double.tryParse(_minBudgetController.text) ?? 0
+              : 0,
+          'maxBudget': _maxBudgetController.text.isNotEmpty
+              ? double.tryParse(_maxBudgetController.text) ?? 0
+              : 0,
+          'spaceArea': _areaController.text.isNotEmpty
+              ? double.tryParse(_areaController.text) ?? 0
+              : 0,
           'spaceUnit': selectedUnit,
           'targetAgeGroups': [selectedAgeRange],
-          'businessType': businessTypes.firstWhere(
-              (type) => type['value'] == selectedBusinessType,
-              orElse: () => {'label': ''})['label'],
+          'businessType': selectedBusinessType != null
+              ? businessTypes.firstWhere(
+                  (type) => type['value'] == selectedBusinessType,
+                  orElse: () => {'label': ''})['label']
+              : '',
           'concept': selectedConcepts.toList(),
           'detailNotes': _noteController.text,
           'designFileUrls': _otherDocumentUrls,
@@ -699,14 +839,22 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
           .set(estimateData, SetOptions(merge: true));
       await ref.read(estimatesProvider.notifier).updateSpaceDetailInfo(
             estimateId: estimateId,
-            minBudget: double.parse(_minBudgetController.text),
-            maxBudget: double.parse(_maxBudgetController.text),
-            spaceArea: double.parse(_areaController.text),
+            minBudget: _minBudgetController.text.isNotEmpty
+                ? (double.tryParse(_minBudgetController.text) ?? 0)
+                : 0,
+            maxBudget: _maxBudgetController.text.isNotEmpty
+                ? (double.tryParse(_maxBudgetController.text) ?? 0)
+                : 0,
+            spaceArea: _areaController.text.isNotEmpty
+                ? (double.tryParse(_areaController.text) ?? 0)
+                : 0,
             spaceUnit: selectedUnit,
             targetAgeGroups: [selectedAgeRange],
-            businessType: businessTypes.firstWhere(
-                (type) => type['value'] == selectedBusinessType,
-                orElse: () => {'label': ''})['label']!,
+            businessType: selectedBusinessType != null
+                ? businessTypes.firstWhere(
+                    (type) => type['value'] == selectedBusinessType,
+                    orElse: () => {'label': ''})['label']!
+                : '',
             concept: selectedConcepts.toList(),
             detailNotes: _noteController.text,
             designFileUrls: _otherDocumentUrls,
@@ -719,8 +867,9 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
       }
       if (mounted) {
         if (isEditMode) {
-          // 편집 모드일 때는 customer 화면으로 돌아가기
-          context.go('/main/customer/${widget.customerId}');
+          // 편집 모드일 때는 customer 화면으로 돌아가기 (새로고침 플래그 전달)
+          context.go('/main/customer/${widget.customerId}',
+              extra: {'refresh': true});
         } else {
           // 새로 생성된 estimateId를 URL에 포함하여 전달
           context.go(
@@ -1498,13 +1647,14 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
                             children: [
                               InkWell(
                                 onTap: () async {
-                                  loadPreviousData();
                                   if (isEditMode) {
-                                    // 편집 모드일 때는 customer 화면으로 돌아가기
+                                    // 편집 모드일 때는 customer 화면으로 돌아가기 (새로고침 플래그 전달)
                                     context.go(
-                                        '/main/customer/${widget.customerId}');
+                                        '/main/customer/${widget.customerId}',
+                                        extra: {'refresh': true});
                                   } else {
-                                    // 새로 생성 모드일 때는 메인 화면으로
+                                    // 새로 생성 모드일 때는 임시저장 데이터 삭제 후 메인 화면으로
+                                    await _deleteTempData();
                                     GoRouter.of(context).go('/main');
                                   }
                                 },

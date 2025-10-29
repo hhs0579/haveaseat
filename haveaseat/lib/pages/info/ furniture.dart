@@ -1,6 +1,4 @@
-import 'dart:io';
 import 'dart:math';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:haveaseat/components/colors.dart';
 import 'package:haveaseat/components/screensize.dart';
@@ -9,7 +7,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:haveaseat/riverpod/customermodel.dart';
 import 'package:haveaseat/riverpod/usermodel.dart';
-import 'package:flutter/gestures.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -89,8 +86,6 @@ class _furniturePageState extends ConsumerState<furniturePage> {
 
   // PageController 추가
   late PageController _pageController;
-
-  final _currency = NumberFormat('#,###');
 
   // ===== Firestore 검색 =====
   Future<List<ProductRef>> _searchProductsFS(String query) async {
@@ -191,14 +186,68 @@ class _furniturePageState extends ConsumerState<furniturePage> {
           estimateId = estimateRef.id;
         }
       }
-      // name 값 보장: widget.name이 없으면 Firestore에서 고객명 조회
+
+      // name 값 보장: widget.name이 없으면 기존 데이터에서 조회
       String? nameValue = widget.name;
+      print('_saveTempFurniture: widget.name = ${widget.name}'); // 디버깅 로그
+      print(
+          '_saveTempFurniture: widget.customerId = ${widget.customerId}'); // 디버깅 로그
+
       if (nameValue == null || nameValue.trim().isEmpty) {
-        final customerDoc = await FirebaseFirestore.instance
-            .collection('customers')
-            .doc(widget.customerId)
-            .get();
-        nameValue = customerDoc.data()?['name'] ?? '무제';
+        print(
+            '_saveTempFurniture: widget.name이 비어있어서 기존 데이터에서 조회 시작'); // 디버깅 로그
+
+        // 먼저 기존 estimate 데이터에서 name 확인
+        if (estimateId.isNotEmpty) {
+          try {
+            final existingDoc = await FirebaseFirestore.instance
+                .collection('estimates')
+                .doc(estimateId)
+                .get();
+
+            if (existingDoc.exists) {
+              final existingData = existingDoc.data()!;
+              nameValue = existingData['name']?.toString().trim();
+              print(
+                  '_saveTempFurniture: 기존 estimate에서 name 조회 - $nameValue'); // 디버깅 로그
+            }
+          } catch (e) {
+            print('_saveTempFurniture: 기존 estimate 조회 실패 - $e'); // 디버깅 로그
+          }
+        }
+
+        // 여전히 비어있으면 Firestore에서 고객명 조회
+        if (nameValue == null || nameValue.trim().isEmpty) {
+          print(
+              '_saveTempFurniture: 기존 estimate에서 name이 없어서 고객 데이터에서 조회'); // 디버깅 로그
+          try {
+            final customerDoc = await FirebaseFirestore.instance
+                .collection('customers')
+                .doc(widget.customerId)
+                .get();
+
+            if (customerDoc.exists && customerDoc.data() != null) {
+              final customerData = customerDoc.data()!;
+              print('_saveTempFurniture: 고객 데이터 = $customerData'); // 디버깅 로그
+              nameValue = customerData['name']?.toString().trim();
+              if (nameValue == null || nameValue.isEmpty) {
+                nameValue = customerData['directDomain']?.toString().trim();
+              }
+              if (nameValue == null || nameValue.isEmpty) {
+                nameValue = '무제';
+              }
+              print('_saveTempFurniture: 고객명 조회 성공 - $nameValue'); // 디버깅 로그
+            } else {
+              nameValue = '무제';
+              print('_saveTempFurniture: 고객 문서가 존재하지 않음'); // 디버깅 로그
+            }
+          } catch (e) {
+            nameValue = '무제';
+            print('_saveTempFurniture: 고객명 조회 실패 - $e'); // 디버깅 로그
+          }
+        }
+      } else {
+        print('_saveTempFurniture: widget.name 사용 - $nameValue'); // 디버깅 로그
       }
       final estimateRef =
           FirebaseFirestore.instance.collection('estimates').doc(estimateId);
@@ -220,7 +269,22 @@ class _furniturePageState extends ConsumerState<furniturePage> {
           'managerPhone': managerPhone,
         },
       };
+      print('_saveTempFurniture: 저장할 tempData = $tempData'); // 디버깅 로그
+      // name 필드를 항상 명시적으로 업데이트하여 회사명이 보이도록 함
       await estimateRef.set(tempData, SetOptions(merge: true));
+      await estimateRef.update({'name': nameValue});
+
+      // 추가로 customerInfo.name도 업데이트
+      await estimateRef.update({
+        'customerInfo.name': nameValue,
+      });
+
+      // 저장 후 실제로 저장된 데이터 확인
+      final savedDoc = await estimateRef.get();
+      final savedData = savedDoc.data();
+      print(
+          '_saveTempFurniture: 저장 후 실제 데이터 확인 - name: ${savedData?['name']}'); // 디버깅 로그
+      print('_saveTempFurniture: name 필드 명시적 업데이트 완료 - $nameValue'); // 디버깅 로그
       if (mounted) {
         context.go('/temp');
       }
@@ -356,8 +420,9 @@ class _furniturePageState extends ConsumerState<furniturePage> {
       if (mounted) {
         // 다음 페이지 이동 경로 분기
         if (isEditMode) {
-          // 편집 모드일 때는 customer 화면으로 돌아가기
-          context.go('/main/customer/${widget.customerId}');
+          // 편집 모드일 때는 customer 화면으로 돌아가기 (새로고침 플래그 전달)
+          context.go('/main/customer/${widget.customerId}',
+              extra: {'refresh': true});
         } else {
           // 새로 생성된 estimateId를 URL에 포함하여 전달
           context.go(
@@ -793,6 +858,9 @@ class _furniturePageState extends ConsumerState<furniturePage> {
 
         if (estimateDoc.exists) {
           final data = estimateDoc.data()!;
+          final existingName = data['name'] ?? '';
+          print(
+              '_loadExistingEstimateData: 기존 데이터의 name = $existingName'); // 디버깅 로그
           final furnitureList = data['furnitureList'] as List<dynamic>? ?? [];
 
           // 기존 리스트 초기화
@@ -857,6 +925,29 @@ class _furniturePageState extends ConsumerState<furniturePage> {
         estimateId = estimateRef.id;
         // 임시저장이므로 customers 컬렉션에 저장하지 않음
       }
+
+      // name 값 보장: widget.name이 없으면 Firestore에서 고객명 조회
+      String? nameValue = widget.name;
+      if (nameValue == null || nameValue.trim().isEmpty) {
+        try {
+          final customerDoc = await FirebaseFirestore.instance
+              .collection('customers')
+              .doc(widget.customerId)
+              .get();
+
+          if (customerDoc.exists && customerDoc.data() != null) {
+            nameValue = customerDoc.data()!['name'] ?? '무제';
+            print('_goNext: 고객명 조회 성공 - $nameValue'); // 디버깅 로그
+          } else {
+            nameValue = '무제';
+            print('_goNext: 고객 문서가 존재하지 않음'); // 디버깅 로그
+          }
+        } catch (e) {
+          nameValue = '무제';
+          print('_goNext: 고객명 조회 실패 - $e'); // 디버깅 로그
+        }
+      }
+
       final estimateRef =
           FirebaseFirestore.instance.collection('estimates').doc(estimateId);
       final tempData = {
@@ -866,10 +957,14 @@ class _furniturePageState extends ConsumerState<furniturePage> {
         'lastUpdated': FieldValue.serverTimestamp(),
         'isDraft': true,
         'type': '견적',
-        'name': widget.name ?? '무제',
+        'name': nameValue,
         'furnitureList': [],
       };
+      print('_goNext: 저장할 tempData = $tempData'); // 디버깅 로그
+      // name 필드를 항상 명시적으로 업데이트하여 회사명이 보이도록 함
       await estimateRef.set(tempData, SetOptions(merge: true));
+      await estimateRef.update({'name': nameValue});
+      print('_goNext: name 필드 명시적 업데이트 완료 - $nameValue'); // 디버깅 로그
       context.go(
           '/main/addpage/spaceadd/${widget.customerId}/$estimateId/space-detail/furniture/estimate');
     } catch (e) {
@@ -973,6 +1068,11 @@ class _furniturePageState extends ConsumerState<furniturePage> {
   @override
   void initState() {
     super.initState();
+    print('furniturePage initState: widget.name = ${widget.name}'); // 디버깅 로그
+    print(
+        'furniturePage initState: widget.customerId = ${widget.customerId}'); // 디버깅 로그
+    print(
+        'furniturePage initState: widget.estimateId = ${widget.estimateId}'); // 디버깅 로그
 
     // 기존 견적 편집 모드가 아닌 경우에만 첫 번째 항목 추가
     if (widget.estimateId == null) {
@@ -992,6 +1092,25 @@ class _furniturePageState extends ConsumerState<furniturePage> {
     final currentPath =
         GoRouter.of(context).routerDelegate.currentConfiguration.uri.path;
     return currentPath.contains('/edit');
+  }
+
+  // 취소 시 임시저장 데이터 삭제 함수
+  Future<void> _deleteTempData() async {
+    try {
+      // customerId로 임시저장된 데이터 찾아서 삭제
+      final tempEstimates = await FirebaseFirestore.instance
+          .collection('estimates')
+          .where('customerId', isEqualTo: widget.customerId)
+          .where('isDraft', isEqualTo: true)
+          .get();
+
+      for (var doc in tempEstimates.docs) {
+        await doc.reference.delete();
+        print('임시저장 데이터 삭제 완료: ${doc.id}');
+      }
+    } catch (e) {
+      print('임시저장 데이터 삭제 중 오류: $e');
+    }
   }
 
   @override
@@ -1016,7 +1135,6 @@ class _furniturePageState extends ConsumerState<furniturePage> {
   @override
   Widget build(BuildContext context) {
     final userData = ref.watch(UserProvider.userDataProvider);
-    final customers = ref.watch(customerDataProvider);
 
     return Scaffold(
       body: ResponsiveLayout(
@@ -1200,7 +1318,6 @@ class _furniturePageState extends ConsumerState<furniturePage> {
             Expanded(
               child: LayoutBuilder(
                 builder: (BuildContext context, BoxConstraints constraints) {
-                  final double availableHeight = constraints.maxHeight - 48;
                   final double availableWidth = constraints.maxWidth - 48;
                   final double tableWidth = max(1200, availableWidth);
 
@@ -1518,13 +1635,14 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                               children: [
                                 InkWell(
                                   onTap: () async {
-                                    _loadPreviousData();
                                     if (isEditMode) {
-                                      // 편집 모드일 때는 customer 화면으로 돌아가기
+                                      // 편집 모드일 때는 customer 화면으로 돌아가기 (새로고침 플래그 전달)
                                       context.go(
-                                          '/main/customer/${widget.customerId}');
+                                          '/main/customer/${widget.customerId}',
+                                          extra: {'refresh': true});
                                     } else {
-                                      // 새로 생성 모드일 때는 메인 화면으로
+                                      // 새로 생성 모드일 때는 임시저장 데이터 삭제 후 메인 화면으로
+                                      await _deleteTempData();
                                       GoRouter.of(context).go('/main');
                                     }
                                   },

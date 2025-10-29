@@ -1,19 +1,13 @@
-import 'dart:io';
-import 'package:haveaseat/riverpod/spacemodel.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:haveaseat/components/colors.dart';
 import 'package:haveaseat/components/screensize.dart';
-import 'package:go_router/go_router.dart'; // 이 줄 추가
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:haveaseat/riverpod/customermodel.dart';
 import 'package:haveaseat/riverpod/usermodel.dart';
 import 'package:haveaseat/widget/address.dart';
-import 'package:haveaseat/widget/fileupload.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:uuid/uuid.dart';
 
 class SpaceAddPage extends ConsumerStatefulWidget {
   // ConsumerWidget을 ConsumerStatefulWidget으로 변경
@@ -44,15 +38,8 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
   String? _shippingMethod; // 배송 방법
   String? _paymentMethod; // 결제 방법
   final _formKey = GlobalKey<FormState>(); // Form Key 추가
-  final int _textLength = 0;
   // 상태 변수들
   DateTime? _openingDate;
-  String? _deliveryMethod;
-  String? _tempSaveDocId;
-  final int _notesLength = 0;
-
-  // 배송 방법 옵션
-  final List<String> _deliveryMethods = ['직접 배송', '택배', '용달', '기타'];
 
   @override
   void dispose() {
@@ -152,6 +139,25 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
     }
   }
 
+  // 취소 시 임시저장 데이터 삭제 함수
+  Future<void> _deleteTempData() async {
+    try {
+      // customerId로 임시저장된 데이터 찾아서 삭제
+      final tempEstimates = await FirebaseFirestore.instance
+          .collection('estimates')
+          .where('customerId', isEqualTo: widget.customerId)
+          .where('isDraft', isEqualTo: true)
+          .get();
+
+      for (var doc in tempEstimates.docs) {
+        await doc.reference.delete();
+        print('임시저장 데이터 삭제 완료: ${doc.id}');
+      }
+    } catch (e) {
+      print('임시저장 데이터 삭제 중 오류: $e');
+    }
+  }
+
 // 임시 저장 함수
   Future<void> saveTempBasicInfo() async {
     try {
@@ -183,15 +189,33 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
           estimateId = estimateRef.id;
         }
       }
-      // 임시저장이므로 customers 컬렉션에 저장하지 않음
       // name 값 보장: widget.name이 없으면 Firestore에서 고객명 조회
       String? nameValue = widget.name;
       if (nameValue == null || nameValue.trim().isEmpty) {
-        final customerDoc = await FirebaseFirestore.instance
-            .collection('customers')
-            .doc(widget.customerId)
-            .get();
-        nameValue = customerDoc.data()?['name'] ?? '무제';
+        try {
+          final customerDoc = await FirebaseFirestore.instance
+              .collection('customers')
+              .doc(widget.customerId)
+              .get();
+
+          if (customerDoc.exists && customerDoc.data() != null) {
+            final customerData = customerDoc.data()!;
+            nameValue = customerData['name']?.toString().trim();
+            if (nameValue == null || nameValue.isEmpty) {
+              nameValue = customerData['directDomain']?.toString().trim();
+            }
+            if (nameValue == null || nameValue.isEmpty) {
+              nameValue = '무제';
+            }
+            print('saveTempBasicInfo: 고객명 조회 성공 - $nameValue'); // 디버깅 로그
+          } else {
+            nameValue = '무제';
+            print('saveTempBasicInfo: 고객 문서가 존재하지 않음'); // 디버깅 로그
+          }
+        } catch (e) {
+          nameValue = '무제';
+          print('saveTempBasicInfo: 고객명 조회 실패 - $e'); // 디버깅 로그
+        }
       }
       final estimateRef =
           FirebaseFirestore.instance.collection('estimates').doc(estimateId);
@@ -222,7 +246,10 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
         },
       };
       print('임시저장 tempData: $tempData');
+
+      // name 필드를 항상 명시적으로 업데이트하여 회사명이 보이도록 함
       await estimateRef.set(tempData, SetOptions(merge: true));
+      await estimateRef.update({'name': nameValue});
       if (mounted) {
         context.go('/temp');
       }
@@ -370,9 +397,14 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
             colorScheme: const ColorScheme.light(
               primary: Colors.transparent,
               onPrimary: Colors.white,
-              onSurface: Colors.black,
+              onSurface: AppColor.font1,
               surface: Colors.white,
+              brightness: Brightness.light,
             ),
+            dialogBackgroundColor: Colors.white,
+            scaffoldBackgroundColor: Colors.white,
+            canvasColor: Colors.white,
+            cardColor: Colors.white,
             textButtonTheme: TextButtonThemeData(
               style: TextButton.styleFrom(
                 foregroundColor: AppColor.primary,
@@ -1023,13 +1055,13 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
                             children: [
                               InkWell(
                                 onTap: () async {
-                                  loadPreviousData();
                                   if (isEditMode) {
                                     // 편집 모드일 때는 customer 화면으로 돌아가기
                                     context.go(
                                         '/main/customer/${widget.customerId}');
                                   } else {
-                                    // 새로 생성 모드일 때는 메인 화면으로
+                                    // 새로 생성 모드일 때는 임시저장 데이터 삭제 후 메인 화면으로
+                                    await _deleteTempData();
                                     GoRouter.of(context).go('/main');
                                   }
                                 },
