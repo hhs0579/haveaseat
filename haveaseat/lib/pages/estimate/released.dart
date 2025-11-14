@@ -465,7 +465,7 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          '단가 정보',
+          '제품 정보',
           style: TextStyle(
               fontWeight: FontWeight.w600, fontSize: 18, color: Colors.black),
         ),
@@ -476,139 +476,103 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
           height: 2,
           color: Colors.black,
         ),
+        const SizedBox(height: 16),
         Container(
-          margin: const EdgeInsets.symmetric(vertical: 16),
           decoration: BoxDecoration(
             border: Border.all(color: AppColor.line1),
           ),
           child: Column(
             children: [
-              // 테이블 헤더
+              // 테이블 헤더 - 모든 세로 구분선 추가
               Container(
-                color: AppColor.back2,
+                decoration: const BoxDecoration(
+                  color: AppColor.back2,
+                  border: Border(
+                    bottom: BorderSide(color: AppColor.line1),
+                  ),
+                ),
                 child: Row(
                   children: [
-                    _buildTableHeader('제품명', 3),
-                    _buildTableHeader('단가', 2),
-                    _buildTableHeader('수량', 2),
-                    _buildTableHeader('금액', 2),
+                    _buildTableHeader('상품명', 4, textAlign: TextAlign.left),
+                    _buildVerticalDivider(),
+                    _buildTableHeader('규격', 3, textAlign: TextAlign.center),
+                    _buildVerticalDivider(),
+                    _buildTableHeader('단가', 2, textAlign: TextAlign.center),
+                    _buildVerticalDivider(),
+                    _buildTableHeader('수량', 1, textAlign: TextAlign.center),
+                    _buildVerticalDivider(),
+                    _buildTableHeader('금액', 2, textAlign: TextAlign.center),
                   ],
                 ),
               ),
-              // 테이블 내용
+              // 테이블 내용 - 모든 행에 구분선 추가
               ...furnitureList.map((furniture) {
-                final quantity = (furniture['quantity'] as int?) ?? 0;
-                final unitPrice =
-                    ((furniture['unitPrice'] ?? furniture['price']) as num?)
-                            ?.toInt() ??
-                        0;
-                final totalPrice = quantity * unitPrice;
+                final price = furniture['price'] ?? 0;
+                final quantity = furniture['quantity'] ?? 0;
+                final itemTotal = price * quantity;
 
                 return Container(
                   decoration: const BoxDecoration(
                     border: Border(
-                      top: BorderSide(color: AppColor.line1),
+                      bottom: BorderSide(color: AppColor.line1),
                     ),
                   ),
                   child: Row(
                     children: [
-                      _buildTableCell(furniture['name'] ?? '', 3),
-                      _buildTableCell('${_formatNumber(unitPrice)}원', 2),
-                      _buildTableCell(quantity.toString(), 2),
-                      _buildTableCell('${_formatNumber(totalPrice)}원', 2),
+                      _buildTableCell(furniture['name'] ?? '', 4),
+                      _buildVerticalDivider(),
+                      _buildTableCell(furniture['specification'] ?? '', 3,
+                          textAlign: TextAlign.center),
+                      _buildVerticalDivider(),
+                      _buildTableCell('${_formatNumber(price)}원', 2,
+                          textAlign: TextAlign.center),
+                      _buildVerticalDivider(),
+                      _buildTableCell(quantity.toString(), 1,
+                          textAlign: TextAlign.center),
+                      _buildVerticalDivider(),
+                      _buildTableCell('${_formatNumber(itemTotal)}원', 2,
+                          textAlign: TextAlign.center),
                     ],
                   ),
                 );
               }).toList(),
-              // 합산금액 행 (견적일자와 총금액)
+              // 총금액 행
               Container(
+                height: 48,
                 decoration: const BoxDecoration(
+                  color: AppColor.back2,
                   border: Border(
-                    top: BorderSide(color: AppColor.line1, width: 2),
+                    top: BorderSide(color: Colors.black, width: 2),
+                    bottom: BorderSide(color: AppColor.line1),
                   ),
                 ),
                 child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    Expanded(
-                      child: Container(
-                        height: 48,
-                        decoration: const BoxDecoration(
-                          border: Border(
-                            bottom: BorderSide(color: AppColor.line1, width: 1),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 200,
-                              color: AppColor.back2,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 14),
-                              child: const Text(
-                                '견적일자',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w400,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              child: Container(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 16),
-                                child: Text(
-                                  _formatDate(estimate['updatedAt']),
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w400,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
+                    // 총금액 레이블
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      alignment: Alignment.center,
+                      child: const Text(
+                        '총금액',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
                         ),
                       ),
                     ),
-                    Expanded(
-                      child: Container(
-                        height: 48,
-                        decoration: const BoxDecoration(
-                          border: Border(
-                            bottom: BorderSide(color: AppColor.line1, width: 1),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 200,
-                              color: AppColor.back2,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 14),
-                              child: const Text(
-                                '총금액',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w400,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              child: Container(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 16),
-                                child: Text(
-                                  '${_formatNumber(_calculateTotal(furnitureList))}원',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w400,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
+                    // 총금액 값
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      alignment: Alignment.center,
+                      child: Text(
+                        '${_formatNumber(_calculateTotal(furnitureList))}원',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
                         ),
                       ),
-                    )
+                    ),
                   ],
                 ),
               ),
@@ -628,13 +592,17 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
         pw.Text(
-          '단가 정보',
+          '제품 정보',
           style: pw.TextStyle(fontSize: 18, font: ttfBold),
         ),
         pw.SizedBox(height: 12),
         pw.Container(
           width: double.infinity,
-          height: 2,
+          decoration: const pw.BoxDecoration(
+            border: pw.Border(
+              bottom: pw.BorderSide(width: 2),
+            ),
+          ),
         ),
         pw.SizedBox(height: 16),
         pw.Container(
@@ -643,120 +611,287 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
           ),
           child: pw.Column(
             children: [
-              // 테이블 헤더
-              pw.Container(
-                padding: const pw.EdgeInsets.all(12),
-                child: pw.Row(
-                  children: [
-                    pw.Expanded(
-                        flex: 3,
-                        child: pw.Text('제품명',
-                            style: pw.TextStyle(font: ttfBold, fontSize: 12))),
-                    pw.Expanded(
-                        flex: 2,
-                        child: pw.Text('단가',
-                            style: pw.TextStyle(font: ttfBold, fontSize: 12))),
-                    pw.Expanded(
-                        flex: 2,
-                        child: pw.Text('수량',
-                            style: pw.TextStyle(font: ttfBold, fontSize: 12))),
-                    pw.Expanded(
-                        flex: 3,
-                        child: pw.Text('금액',
-                            style: pw.TextStyle(font: ttfBold, fontSize: 12))),
-                  ],
-                ),
-              ),
-              ...furnitureList.map((furniture) {
-                final quantity = (furniture['quantity'] as int?) ?? 0;
-                final unitPrice =
-                    ((furniture['unitPrice'] ?? furniture['price']) as num?)
-                            ?.toInt() ??
-                        0;
-                final totalPrice = quantity * unitPrice;
-
-                return pw.Container(
-                  decoration: const pw.BoxDecoration(
-                    border: pw.Border(
-                      top: pw.BorderSide(),
-                    ),
-                  ),
-                  padding: const pw.EdgeInsets.all(12),
-                  child: pw.Row(
-                    children: [
-                      pw.Expanded(
-                          flex: 3,
-                          child: pw.Text(furniture['name'] ?? '',
-                              style: pw.TextStyle(font: ttf, fontSize: 12))),
-                      pw.Expanded(
-                          flex: 2,
-                          child: pw.Text('${_formatNumber(unitPrice)}원',
-                              style: pw.TextStyle(font: ttf, fontSize: 12))),
-                      pw.Expanded(
-                          flex: 2,
-                          child: pw.Text(quantity.toString(),
-                              style: pw.TextStyle(font: ttf, fontSize: 12))),
-                      pw.Expanded(
-                          flex: 3,
-                          child: pw.Text('${_formatNumber(totalPrice)}원',
-                              style: pw.TextStyle(font: ttf, fontSize: 12))),
-                    ],
-                  ),
-                );
-              }).toList(),
-              // 견적일자와 총금액 행
+              // 테이블 헤더 - 구분선 추가
               pw.Container(
                 decoration: const pw.BoxDecoration(
                   border: pw.Border(
-                    top: pw.BorderSide(width: 2),
+                    bottom: pw.BorderSide(),
                   ),
                 ),
-                padding: const pw.EdgeInsets.all(12),
+                padding: const pw.EdgeInsets.all(16),
                 child: pw.Row(
                   children: [
-                    // 제품명 영역
                     pw.Expanded(
-                      flex: 3,
+                        flex: 4,
+                        child:
+                            pw.Text('상품명', style: pw.TextStyle(font: ttfBold))),
+                    pw.Container(
+                      width: 1,
+                      height: 20,
+                      decoration: const pw.BoxDecoration(),
+                    ),
+                    pw.Expanded(
+                        flex: 3,
+                        child: pw.Text('규격',
+                            style: pw.TextStyle(font: ttfBold),
+                            textAlign: pw.TextAlign.center)),
+                    pw.Container(
+                      width: 1,
+                      height: 20,
+                      decoration: const pw.BoxDecoration(),
+                    ),
+                    pw.Expanded(
+                        flex: 1,
+                        child: pw.Text('수량',
+                            style: pw.TextStyle(font: ttfBold),
+                            textAlign: pw.TextAlign.center)),
+                  ],
+                ),
+              ),
+              // 테이블 내용 - 모든 행에 구분선 추가
+              ...furnitureList.map((furniture) => pw.Container(
+                    decoration: const pw.BoxDecoration(
+                      border: pw.Border(
+                        bottom: pw.BorderSide(),
+                      ),
+                    ),
+                    padding: const pw.EdgeInsets.all(16),
+                    child: pw.Row(
+                      children: [
+                        pw.Expanded(
+                            flex: 4,
+                            child: pw.Text(furniture['name'] ?? '',
+                                style: pw.TextStyle(font: ttf))),
+                        pw.Container(
+                          width: 1,
+                          height: 20,
+                          decoration: const pw.BoxDecoration(),
+                        ),
+                        pw.Expanded(
+                            flex: 3,
+                            child: pw.Text(furniture['specification'] ?? '',
+                                style: pw.TextStyle(font: ttf),
+                                textAlign: pw.TextAlign.center)),
+                        pw.Container(
+                          width: 1,
+                          height: 20,
+                          decoration: const pw.BoxDecoration(),
+                        ),
+                        pw.Expanded(
+                            flex: 1,
+                            child: pw.Text(
+                                furniture['quantity']?.toString() ?? '',
+                                style: pw.TextStyle(font: ttf),
+                                textAlign: pw.TextAlign.center)),
+                      ],
+                    ),
+                  )),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+// PDF 사인 양식 섹션
+  pw.Widget _buildPDFSignatureSection(
+      Map<String, dynamic>? userData, pw.Font ttf, pw.Font ttfBold) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        // 담당자 정보
+        pw.Text(
+          '담당자 정보',
+          style: pw.TextStyle(fontSize: 18, font: ttfBold),
+        ),
+        pw.SizedBox(height: 12),
+        pw.Container(
+          width: double.infinity,
+          decoration: const pw.BoxDecoration(
+            border: pw.Border(
+              bottom: pw.BorderSide(width: 2),
+            ),
+          ),
+        ),
+        pw.SizedBox(height: 16),
+        pw.Container(
+          decoration: pw.BoxDecoration(
+            border: pw.Border.all(),
+          ),
+          child: pw.Column(
+            children: [
+              pw.Row(
+                children: [
+                  pw.Expanded(
+                    child: pw.Container(
+                      padding: const pw.EdgeInsets.all(16),
+                      decoration: const pw.BoxDecoration(
+                        border: pw.Border(
+                          bottom: pw.BorderSide(),
+                        ),
+                      ),
                       child: pw.Row(
                         children: [
-                          pw.Text(
-                            '견적일자',
-                            style: pw.TextStyle(font: ttf, fontSize: 12),
-                          ),
-                          pw.SizedBox(width: 24),
-                          pw.Expanded(
+                          pw.Container(
+                            width: 120,
+                            padding:
+                                const pw.EdgeInsets.symmetric(horizontal: 8),
                             child: pw.Text(
-                              _formatDate(estimate['updatedAt']),
-                              style: pw.TextStyle(font: ttf, fontSize: 12),
+                              '담당자 성함',
+                              style: pw.TextStyle(fontSize: 14, font: ttf),
+                            ),
+                          ),
+                          pw.Expanded(
+                            child: pw.Padding(
+                              padding:
+                                  const pw.EdgeInsets.symmetric(horizontal: 8),
+                              child: pw.Text(
+                                userData?['name'] ?? '',
+                                style: pw.TextStyle(fontSize: 14, font: ttf),
+                              ),
                             ),
                           ),
                         ],
                       ),
                     ),
-                    // 단가+수량 영역
-                    pw.Expanded(
-                      flex: 4,
+                  ),
+                  pw.Container(
+                    width: 1,
+                    height: 48,
+                    decoration: const pw.BoxDecoration(
+                      border: pw.Border(
+                        left: pw.BorderSide(),
+                      ),
+                    ),
+                  ),
+                  pw.Expanded(
+                    child: pw.Container(
+                      padding: const pw.EdgeInsets.all(16),
+                      decoration: const pw.BoxDecoration(
+                        border: pw.Border(
+                          bottom: pw.BorderSide(),
+                        ),
+                      ),
                       child: pw.Row(
-                        mainAxisAlignment: pw.MainAxisAlignment.end,
                         children: [
-                          pw.Text(
-                            '총 합계',
-                            style: pw.TextStyle(font: ttf, fontSize: 12),
+                          pw.Container(
+                            width: 120,
+                            padding:
+                                const pw.EdgeInsets.symmetric(horizontal: 8),
+                            child: pw.Text(
+                              '연락처',
+                              style: pw.TextStyle(fontSize: 14, font: ttf),
+                            ),
                           ),
-                          pw.SizedBox(width: 24),
+                          pw.Expanded(
+                            child: pw.Padding(
+                              padding:
+                                  const pw.EdgeInsets.symmetric(horizontal: 8),
+                              child: pw.Text(
+                                userData?['phoneNumber'] ?? '',
+                                style: pw.TextStyle(fontSize: 14, font: ttf),
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ),
-                    // 금액 영역 - 값만
-                    pw.Expanded(
-                      flex: 3,
-                      child: pw.Text(
-                        '${_formatNumber(_calculateTotal(furnitureList))}원',
-                        style: pw.TextStyle(fontSize: 12, font: ttf),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        pw.SizedBox(height: 24),
+        // 인수자 정보
+        pw.Text(
+          '인수자 정보',
+          style: pw.TextStyle(fontSize: 18, font: ttfBold),
+        ),
+        pw.SizedBox(height: 12),
+        pw.Container(
+          width: double.infinity,
+          decoration: const pw.BoxDecoration(
+            border: pw.Border(
+              bottom: pw.BorderSide(width: 2),
+            ),
+          ),
+        ),
+        pw.SizedBox(height: 16),
+        pw.Container(
+          decoration: pw.BoxDecoration(
+            border: pw.Border.all(),
+          ),
+          child: pw.Column(
+            children: [
+              pw.Row(
+                children: [
+                  pw.Expanded(
+                    child: pw.Container(
+                      padding: const pw.EdgeInsets.all(16),
+                      child: pw.Row(
+                        children: [
+                          pw.Container(
+                            width: 120,
+                            padding:
+                                const pw.EdgeInsets.symmetric(horizontal: 8),
+                            child: pw.Text(
+                              '인수자 성함',
+                              style: pw.TextStyle(fontSize: 14, font: ttf),
+                            ),
+                          ),
+                          pw.Expanded(
+                            child: pw.Padding(
+                              padding:
+                                  const pw.EdgeInsets.symmetric(horizontal: 8),
+                              child: pw.Text(
+                                '',
+                                style: pw.TextStyle(fontSize: 14, font: ttf),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                  pw.Container(
+                    width: 1,
+                    height: 48,
+                    decoration: const pw.BoxDecoration(
+                      border: pw.Border(
+                        left: pw.BorderSide(),
+                      ),
+                    ),
+                  ),
+                  pw.Expanded(
+                    child: pw.Container(
+                      padding: const pw.EdgeInsets.all(16),
+                      child: pw.Row(
+                        children: [
+                          pw.Container(
+                            width: 120,
+                            padding:
+                                const pw.EdgeInsets.symmetric(horizontal: 8),
+                            child: pw.Text(
+                              '연락처',
+                              style: pw.TextStyle(fontSize: 14, font: ttf),
+                            ),
+                          ),
+                          pw.Expanded(
+                            child: pw.Padding(
+                              padding:
+                                  const pw.EdgeInsets.symmetric(horizontal: 8),
+                              child: pw.Text(
+                                '',
+                                style: pw.TextStyle(fontSize: 14, font: ttf),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -817,17 +952,29 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
   }
 
 // 유틸리티 함수들
-  Widget _buildTableHeader(String text, int flex) {
+  Widget _buildVerticalDivider() {
+    return Container(
+      width: 1,
+      color: AppColor.line1,
+    );
+  }
+
+  Widget _buildTableHeader(String text, int flex,
+      {TextAlign textAlign = TextAlign.center}) {
     return Expanded(
       flex: flex,
       child: Container(
         padding: const EdgeInsets.all(16),
+        alignment: textAlign == TextAlign.center
+            ? Alignment.center
+            : Alignment.centerLeft,
         child: Text(
           text,
           style: const TextStyle(
             fontWeight: FontWeight.w600,
             fontSize: 14,
           ),
+          textAlign: textAlign,
         ),
       ),
     );
@@ -839,6 +986,9 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
       flex: flex,
       child: Container(
         padding: const EdgeInsets.all(16),
+        alignment: textAlign == TextAlign.center
+            ? Alignment.center
+            : Alignment.centerLeft,
         child: Text(
           text,
           style: TextStyle(
@@ -899,6 +1049,48 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
         'note': customer.note,
       };
 
+      // 제품 정보의 행 수를 확인하여 페이지 분리 여부 결정
+      final furnitureList =
+          (estimateWithCustomer['furnitureList'] as List<dynamic>?) ?? [];
+
+      // 고객 정보 섹션 높이 계산 (주소가 길 경우 72, 기본 48)
+      final siteAddress = estimateWithCustomer['siteAddress'] ?? '';
+      final customerInfoHeight =
+          siteAddress.length > 30 ? 220 : 180; // 주소가 길면 더 높게
+
+      // 기본 높이 계산
+      // - 제목(24) + 여백(32) = 56
+      // - 고객정보 섹션: 제목(18) + 여백(12) + 구분선(2) + 여백(24) + 테이블 높이 = customerInfoHeight
+      // - 여백(48)
+      // - 제품정보: 제목(18) + 여백(12) + 구분선(2) + 여백(16) + 헤더(50) + 행당(50) + 여백
+      const titleHeight = 24 + 32;
+      const estimateSectionHeaderHeight = 18 + 12 + 2 + 16;
+      const estimateTableHeaderHeight = 50;
+      const estimateRowHeight = 50;
+      final estimateTableHeight = estimateTableHeaderHeight +
+          (furnitureList.length * estimateRowHeight);
+      final estimateSectionHeight =
+          estimateSectionHeaderHeight + estimateTableHeight;
+
+      // 사인양식 높이: 약 280px (담당자정보 + 인수자정보)
+      const estimatedSignatureHeight = 280;
+
+      // 첫 페이지 예상 총 높이
+      final estimatedFirstPageContentHeight = titleHeight +
+          customerInfoHeight +
+          48 + // 여백
+          estimateSectionHeight;
+
+      // 사인 양식까지 포함한 총 높이
+      final totalHeightWithSignature = estimatedFirstPageContentHeight +
+          48 + // 여백
+          estimatedSignatureHeight;
+
+      final availablePageHeight = pageFormat.availableHeight;
+      final shouldSplit =
+          totalHeightWithSignature > availablePageHeight * 0.9; // 90% 이상이면 분리
+
+      // 첫 번째 페이지: 출고증, 고객 정보, 제품 정보
       pdf.addPage(
         pw.Page(
           pageFormat: pageFormat,
@@ -914,13 +1106,28 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
                 _buildPDFCustomerSection(estimateWithCustomer, ttf, ttfBold),
                 pw.SizedBox(height: 48),
                 _buildPDFEstimateSection(estimateWithCustomer, ttf, ttfBold),
-                pw.SizedBox(height: 48),
-                _buildPDFManagerSection(data['userData'], ttf, ttfBold),
+                // 페이지가 충분히 크면 사인 양식도 함께 표시
+                if (!shouldSplit) ...[
+                  pw.SizedBox(height: 48),
+                  _buildPDFSignatureSection(data['userData'], ttf, ttfBold),
+                ],
               ],
             );
           },
         ),
       );
+
+      // 페이지가 충분히 크지 않으면 사인 양식을 별도 페이지로 분리
+      if (shouldSplit) {
+        pdf.addPage(
+          pw.Page(
+            pageFormat: pageFormat,
+            build: (pw.Context context) {
+              return _buildPDFSignatureSection(data['userData'], ttf, ttfBold);
+            },
+          ),
+        );
+      }
 
       final bytes = await pdf.save();
       final blob = html.Blob([bytes], 'application/pdf');
@@ -1068,6 +1275,7 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
                   pw.Expanded(
                     child: pw.Container(
                       padding: const pw.EdgeInsets.all(12),
+                      height: 72,
                       child: pw.Row(
                         children: [
                           pw.Container(
@@ -1095,7 +1303,7 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
                   ),
                   pw.Container(
                     width: 1,
-                    height: 48,
+                    height: 72,
                     decoration: const pw.BoxDecoration(
                       border: pw.Border(
                         left: pw.BorderSide(),
@@ -1105,6 +1313,7 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
                   pw.Expanded(
                     child: pw.Container(
                       padding: const pw.EdgeInsets.all(12),
+                      height: 72,
                       child: pw.Row(
                         children: [
                           pw.Container(
@@ -1166,7 +1375,8 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
             },
             children: [
               pw.TableRow(children: [
-                _buildPDFInfoCell('현장주소', estimate['siteAddress'] ?? '', ttf),
+                _buildPDFInfoCell('현장주소', estimate['siteAddress'] ?? '', ttf,
+                    isAddress: true),
                 _buildPDFInfoCell(
                     '공간오픈일정', _formatDate(estimate['openingDate']), ttf),
               ]),
@@ -1355,7 +1565,8 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
   }
 
 // PDF용 정보 셀 위젯
-  pw.Widget _buildPDFInfoCell(String label, String value, pw.Font ttf) {
+  pw.Widget _buildPDFInfoCell(String label, String value, pw.Font ttf,
+      {bool isAddress = false}) {
     return pw.Container(
       padding: const pw.EdgeInsets.all(12),
       decoration: const pw.BoxDecoration(
@@ -1384,6 +1595,7 @@ class _ReleaseEstimatePageState extends ConsumerState<ReleaseEstimatePage> {
           ),
         ],
       ),
+      height: isAddress ? 72 : null,
     );
   }
 

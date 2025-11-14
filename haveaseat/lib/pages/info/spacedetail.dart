@@ -679,7 +679,17 @@ class _SpaceDetailPageState extends ConsumerState<SpaceDetailPage> {
       print(
           'saveTempDetailInfo: 저장 후 실제 데이터 확인 - name: ${savedData?['name']}'); // 디버깅 로그
       print('saveTempDetailInfo: name 필드 명시적 업데이트 완료 - $nameValue'); // 디버깅 로그
-      context.go('/temp');
+
+      // 저장 성공 메시지 표시 (페이지 이동하지 않음)
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('임시저장이 완료되었습니다.'),
+            backgroundColor: AppColor.main,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
     } catch (e) {
       print('임시 저장 중 오류: $e');
       if (mounted) {

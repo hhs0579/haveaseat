@@ -217,8 +217,15 @@ class _addCustomerPageState extends ConsumerState<addCustomerPage> {
       print(
           '_saveTempCustomer: 저장된 데이터 확인 - estimateId: $estimateId, customerId: $customerId'); // 디버깅 로그
 
+      // 저장 성공 메시지 표시 (페이지 이동하지 않음)
       if (mounted) {
-        context.go('/temp');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('임시저장이 완료되었습니다.'),
+            backgroundColor: AppColor.main,
+            duration: Duration(seconds: 2),
+          ),
+        );
       }
     } catch (e) {
       print('임시 저장 중 오류: $e');

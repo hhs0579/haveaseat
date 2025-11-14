@@ -502,51 +502,76 @@ class _CustomerEstimatePageState extends ConsumerState<CustomerEstimatePage> {
                 color: AppColor.back2,
                 child: Row(
                   children: [
-                    _buildTableHeader('견적종류', 2),
-                    _buildTableHeader('가구명', 3),
-                    _buildTableHeader('수량', 1),
-                    _buildTableHeader('견적일자', 2),
-                    _buildTableHeader('가격', 2),
+                    _buildTableHeader('상품명', 4, textAlign: TextAlign.left),
+                    _buildTableHeader('규격', 3, textAlign: TextAlign.center),
+                    _buildTableHeader('단가', 2, textAlign: TextAlign.center),
+                    _buildTableHeader('수량', 1, textAlign: TextAlign.center),
+                    _buildTableHeader('금액', 2, textAlign: TextAlign.center),
                   ],
                 ),
               ),
               // 테이블 내용
-              ...furnitureList
-                  .map((furniture) => Container(
-                        decoration: const BoxDecoration(
-                          border: Border(
-                            top: BorderSide(color: AppColor.line1),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            _buildTableCell('기존가구', 2),
-                            _buildTableCell(furniture['name'] ?? '', 3),
-                            _buildTableCell(
-                                furniture['quantity']?.toString() ?? '', 1),
-                            _buildTableCell(
-                                _formatDate(estimate['updatedAt']), 2),
-                            _buildTableCell(
-                                '${_formatNumber(furniture['price'])}원', 2),
-                          ],
-                        ),
-                      ))
-                  .toList(),
+              ...furnitureList.map((furniture) {
+                final price = furniture['price'] ?? 0;
+                final quantity = furniture['quantity'] ?? 0;
+                final itemTotal = price * quantity;
+
+                return Container(
+                  decoration: const BoxDecoration(
+                    border: Border(
+                      top: BorderSide(color: AppColor.line1),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      _buildTableCell(furniture['name'] ?? '', 4),
+                      _buildTableCell(furniture['specification'] ?? '', 3,
+                          textAlign: TextAlign.center),
+                      _buildTableCell('${_formatNumber(price)}원', 2,
+                          textAlign: TextAlign.center),
+                      _buildTableCell(quantity.toString(), 1,
+                          textAlign: TextAlign.center),
+                      _buildTableCell('${_formatNumber(itemTotal)}원', 2,
+                          textAlign: TextAlign.center),
+                    ],
+                  ),
+                );
+              }).toList(),
               // 총 합계
               Container(
+                height: 48,
                 decoration: const BoxDecoration(
+                  color: AppColor.back2,
                   border: Border(
-                    top: BorderSide(color: AppColor.line1, width: 2),
+                    top: BorderSide(color: Colors.black, width: 2),
+                    bottom: BorderSide(color: AppColor.line1),
                   ),
                 ),
+                alignment: Alignment.center,
                 child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    const Spacer(flex: 8),
-                    _buildTableCell('총 합계', 1, isHeader: true),
-                    _buildTableCell(
-                      '${_formatNumber(_calculateTotal(furnitureList))}원',
-                      1,
-                      textAlign: TextAlign.right,
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      alignment: Alignment.center,
+                      child: const Text(
+                        '총금액',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      alignment: Alignment.center,
+                      child: Text(
+                        '${_formatNumber(_calculateTotal(furnitureList))}원',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -600,17 +625,22 @@ class _CustomerEstimatePageState extends ConsumerState<CustomerEstimatePage> {
   }
 
 // 유틸리티 함수들
-  Widget _buildTableHeader(String text, int flex) {
+  Widget _buildTableHeader(String text, int flex,
+      {TextAlign textAlign = TextAlign.center}) {
     return Expanded(
       flex: flex,
       child: Container(
         padding: const EdgeInsets.all(16),
+        alignment: textAlign == TextAlign.center
+            ? Alignment.center
+            : Alignment.centerLeft,
         child: Text(
           text,
           style: const TextStyle(
             fontWeight: FontWeight.w600,
             fontSize: 14,
           ),
+          textAlign: textAlign,
         ),
       ),
     );
@@ -622,6 +652,9 @@ class _CustomerEstimatePageState extends ConsumerState<CustomerEstimatePage> {
       flex: flex,
       child: Container(
         padding: const EdgeInsets.all(16),
+        alignment: textAlign == TextAlign.center
+            ? Alignment.center
+            : Alignment.centerLeft,
         child: Text(
           text,
           style: TextStyle(
@@ -726,10 +759,35 @@ class _CustomerEstimatePageState extends ConsumerState<CustomerEstimatePage> {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        // 제목
-        pw.Text(
-          '견적서',
-          style: pw.TextStyle(fontSize: 24, font: ttfBold),
+        // 제목과 견적일자 같은 행
+        pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: pw.CrossAxisAlignment.center,
+          children: [
+            pw.Text(
+              '견적서',
+              style: pw.TextStyle(fontSize: 24, font: ttfBold),
+            ),
+            pw.Row(
+              children: [
+                pw.Text(
+                  '견적일자: ',
+                  style: pw.TextStyle(
+                    fontSize: 18,
+                    font: ttfBold,
+                  ),
+                ),
+                pw.Text(
+                  _formatDate(
+                      (data['estimate'] as Map<String, dynamic>)['updatedAt']),
+                  style: pw.TextStyle(
+                    fontSize: 18,
+                    font: ttfBold,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
         pw.SizedBox(height: 32),
 
@@ -816,6 +874,7 @@ class _CustomerEstimatePageState extends ConsumerState<CustomerEstimatePage> {
                   pw.Expanded(
                     child: pw.Container(
                       padding: const pw.EdgeInsets.all(12),
+                      height: 72,
                       child: pw.Row(
                         children: [
                           pw.Container(
@@ -843,7 +902,7 @@ class _CustomerEstimatePageState extends ConsumerState<CustomerEstimatePage> {
                   ),
                   pw.Container(
                     width: 1,
-                    height: 48,
+                    height: 72,
                     decoration: const pw.BoxDecoration(
                       border: pw.Border(
                         left: pw.BorderSide(),
@@ -853,6 +912,7 @@ class _CustomerEstimatePageState extends ConsumerState<CustomerEstimatePage> {
                   pw.Expanded(
                     child: pw.Container(
                       padding: const pw.EdgeInsets.all(12),
+                      height: 72,
                       child: pw.Row(
                         children: [
                           pw.Container(
@@ -887,17 +947,28 @@ class _CustomerEstimatePageState extends ConsumerState<CustomerEstimatePage> {
     );
   }
 
-// PDF 헤더 위젯
-  pw.Widget _buildPDFHeader(pw.Font ttfBold) {
+// PDF 헤더 위젯 - 견적일자 표시
+  pw.Widget _buildPDFHeader(pw.Font ttfBold, Map<String, dynamic> estimate) {
     return pw.Row(
-      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+      mainAxisAlignment: pw.MainAxisAlignment.end,
       children: [
-        pw.Text(
-          '${DateTime.now().year}년 ${DateTime.now().month}월 ${DateTime.now().day}일',
-          style: pw.TextStyle(
-            fontSize: 18,
-            font: ttfBold,
-          ),
+        pw.Row(
+          children: [
+            pw.Text(
+              '견적일자: ',
+              style: pw.TextStyle(
+                fontSize: 18,
+                font: ttfBold,
+              ),
+            ),
+            pw.Text(
+              _formatDate(estimate['updatedAt']),
+              style: pw.TextStyle(
+                fontSize: 18,
+                font: ttfBold,
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -935,7 +1006,8 @@ class _CustomerEstimatePageState extends ConsumerState<CustomerEstimatePage> {
               ]),
               pw.TableRow(children: [
                 _buildPDFInfoCell('이메일주소', customer.email, ttf),
-                _buildPDFInfoCell('배송지주소', customer.address, ttf),
+                _buildPDFInfoCell('배송지주소', customer.address, ttf,
+                    isAddress: true),
               ]),
               pw.TableRow(children: [
                 pw.Container(
@@ -1025,7 +1097,8 @@ class _CustomerEstimatePageState extends ConsumerState<CustomerEstimatePage> {
             },
             children: [
               pw.TableRow(children: [
-                _buildPDFInfoCell('현장주소', estimate['siteAddress'] ?? '', ttf),
+                _buildPDFInfoCell('현장주소', estimate['siteAddress'] ?? '', ttf,
+                    isAddress: true),
                 _buildPDFInfoCell(
                     '공간오픈일정', _formatDate(estimate['openingDate']), ttf),
               ]),
@@ -1214,7 +1287,8 @@ class _CustomerEstimatePageState extends ConsumerState<CustomerEstimatePage> {
   }
 
 // PDF용 정보 셀 위젯
-  pw.Widget _buildPDFInfoCell(String label, String value, pw.Font ttf) {
+  pw.Widget _buildPDFInfoCell(String label, String value, pw.Font ttf,
+      {bool isAddress = false}) {
     return pw.Container(
       padding: const pw.EdgeInsets.all(12),
       decoration: const pw.BoxDecoration(
@@ -1243,6 +1317,7 @@ class _CustomerEstimatePageState extends ConsumerState<CustomerEstimatePage> {
           ),
         ],
       ),
+      height: isAddress ? 72 : null,
     );
   }
 
@@ -1391,9 +1466,20 @@ class _CustomerEstimatePageState extends ConsumerState<CustomerEstimatePage> {
                       decoration: const pw.BoxDecoration(),
                     ),
                     pw.Expanded(
+                        flex: 3,
+                        child: pw.Text('규격',
+                            style: pw.TextStyle(font: ttfBold),
+                            textAlign: pw.TextAlign.center)),
+                    pw.Container(
+                      width: 1,
+                      height: 20,
+                      decoration: const pw.BoxDecoration(),
+                    ),
+                    pw.Expanded(
                         flex: 2,
-                        child:
-                            pw.Text('단가', style: pw.TextStyle(font: ttfBold))),
+                        child: pw.Text('단가',
+                            style: pw.TextStyle(font: ttfBold),
+                            textAlign: pw.TextAlign.center)),
                     pw.Container(
                       width: 1,
                       height: 20,
@@ -1401,8 +1487,9 @@ class _CustomerEstimatePageState extends ConsumerState<CustomerEstimatePage> {
                     ),
                     pw.Expanded(
                         flex: 1,
-                        child:
-                            pw.Text('수량', style: pw.TextStyle(font: ttfBold))),
+                        child: pw.Text('수량',
+                            style: pw.TextStyle(font: ttfBold),
+                            textAlign: pw.TextAlign.center)),
                     pw.Container(
                       width: 1,
                       height: 20,
@@ -1410,8 +1497,9 @@ class _CustomerEstimatePageState extends ConsumerState<CustomerEstimatePage> {
                     ),
                     pw.Expanded(
                         flex: 2,
-                        child:
-                            pw.Text('금액', style: pw.TextStyle(font: ttfBold))),
+                        child: pw.Text('금액',
+                            style: pw.TextStyle(font: ttfBold),
+                            textAlign: pw.TextAlign.center)),
                   ],
                 ),
               ),
@@ -1435,10 +1523,21 @@ class _CustomerEstimatePageState extends ConsumerState<CustomerEstimatePage> {
                           decoration: const pw.BoxDecoration(),
                         ),
                         pw.Expanded(
+                            flex: 3,
+                            child: pw.Text(furniture['specification'] ?? '',
+                                style: pw.TextStyle(font: ttf),
+                                textAlign: pw.TextAlign.center)),
+                        pw.Container(
+                          width: 1,
+                          height: 20,
+                          decoration: const pw.BoxDecoration(),
+                        ),
+                        pw.Expanded(
                             flex: 2,
                             child: pw.Text(
                                 '${_formatNumber(furniture['price'])}원',
-                                style: pw.TextStyle(font: ttf))),
+                                style: pw.TextStyle(font: ttf),
+                                textAlign: pw.TextAlign.center)),
                         pw.Container(
                           width: 1,
                           height: 20,
@@ -1448,7 +1547,8 @@ class _CustomerEstimatePageState extends ConsumerState<CustomerEstimatePage> {
                             flex: 1,
                             child: pw.Text(
                                 furniture['quantity']?.toString() ?? '',
-                                style: pw.TextStyle(font: ttf))),
+                                style: pw.TextStyle(font: ttf),
+                                textAlign: pw.TextAlign.center)),
                         pw.Container(
                           width: 1,
                           height: 20,
@@ -1458,11 +1558,12 @@ class _CustomerEstimatePageState extends ConsumerState<CustomerEstimatePage> {
                             flex: 2,
                             child: pw.Text(
                                 '${_formatNumber((furniture['price'] ?? 0) * (furniture['quantity'] ?? 0))}원',
-                                style: pw.TextStyle(font: ttf))),
+                                style: pw.TextStyle(font: ttf),
+                                textAlign: pw.TextAlign.center)),
                       ],
                     ),
                   )),
-              // 견적일자와 총금액 행
+              // 총금액 행
               pw.Container(
                 decoration: const pw.BoxDecoration(
                   border: pw.Border(
@@ -1471,57 +1572,16 @@ class _CustomerEstimatePageState extends ConsumerState<CustomerEstimatePage> {
                 ),
                 padding: const pw.EdgeInsets.all(12),
                 child: pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.end,
                   children: [
-                    // 상품명 영역
-                    pw.Expanded(
-                      flex: 4,
-                      child: pw.Row(
-                        children: [
-                          pw.Text(
-                            '견적일자',
-                            style: pw.TextStyle(font: ttf, fontSize: 12),
-                          ),
-                          pw.SizedBox(width: 24),
-                          pw.Expanded(
-                            child: pw.Text(
-                              _formatDate(estimate['updatedAt']),
-                              style: pw.TextStyle(font: ttf, fontSize: 12),
-                            ),
-                          ),
-                        ],
-                      ),
+                    pw.Text(
+                      '총 합계',
+                      style: pw.TextStyle(font: ttfBold, fontSize: 14),
                     ),
-                    pw.Container(
-                      width: 1,
-                      height: 20,
-                      decoration: const pw.BoxDecoration(),
-                    ),
-                    // 단가+수량 영역
-                    pw.Expanded(
-                      flex: 3,
-                      child: pw.Row(
-                        mainAxisAlignment: pw.MainAxisAlignment.end,
-                        children: [
-                          pw.Text(
-                            '총 합계',
-                            style: pw.TextStyle(font: ttf, fontSize: 12),
-                          ),
-                          pw.SizedBox(width: 24),
-                        ],
-                      ),
-                    ),
-                    pw.Container(
-                      width: 1,
-                      height: 20,
-                      decoration: const pw.BoxDecoration(),
-                    ),
-                    // 금액 영역 - 값만
-                    pw.Expanded(
-                      flex: 2,
-                      child: pw.Text(
-                        '${_formatNumber(_calculateTotal(furnitureList))}원',
-                        style: pw.TextStyle(fontSize: 12, font: ttf),
-                      ),
+                    pw.SizedBox(width: 16),
+                    pw.Text(
+                      '${_formatNumber(_calculateTotal(furnitureList))}원',
+                      style: pw.TextStyle(fontSize: 14, font: ttfBold),
                     ),
                   ],
                 ),

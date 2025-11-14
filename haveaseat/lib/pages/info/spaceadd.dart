@@ -250,8 +250,16 @@ class _SpaceAddPageState extends ConsumerState<SpaceAddPage> {
       // name 필드를 항상 명시적으로 업데이트하여 회사명이 보이도록 함
       await estimateRef.set(tempData, SetOptions(merge: true));
       await estimateRef.update({'name': nameValue});
+
+      // 저장 성공 메시지 표시 (페이지 이동하지 않음)
       if (mounted) {
-        context.go('/temp');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('임시저장이 완료되었습니다.'),
+            backgroundColor: AppColor.main,
+            duration: Duration(seconds: 2),
+          ),
+        );
       }
     } catch (e) {
       print('임시 저장 중 오류: $e');
