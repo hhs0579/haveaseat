@@ -951,24 +951,24 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                     // 총금액 레이블
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      alignment: Alignment.center,
-                      child: const Text(
-                        '총금액',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
+                        alignment: Alignment.center,
+                        child: const Text(
+                          '총금액',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
                         ),
                       ),
-                    ),
                     // 총금액 값
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      alignment: Alignment.center,
-                      child: Text(
-                        '${_formatNumber(_calculateTotal(furnitureList))}원',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
+                        alignment: Alignment.center,
+                        child: Text(
+                          '${_formatNumber(_calculateTotal(furnitureList))}원',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
                         ),
                       ),
                     ),
@@ -1156,15 +1156,15 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           crossAxisAlignment: pw.CrossAxisAlignment.center,
           children: [
-            pw.Text(
-              '견적서',
+        pw.Text(
+          '견적서',
               style: pw.TextStyle(fontSize: 24, font: ttfBold),
             ),
             pw.Row(
               children: [
                 pw.Text(
                   '견적일자: ',
-                  style: pw.TextStyle(
+          style: pw.TextStyle(
                     fontSize: 18,
                     font: ttfBold,
                   ),
@@ -1292,7 +1292,7 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
             border: pw.Border.all(),
           ),
           child: pw.Column(
-            children: [
+          children: [
               // 고객명과 연락처
               pw.Row(
                 children: [
@@ -1375,7 +1375,7 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                     decoration: const pw.BoxDecoration(
                       border: pw.Border(
                         left: pw.BorderSide(),
-                      ),
+        ),
                     ),
                   ),
                   pw.Expanded(
@@ -1880,11 +1880,11 @@ class _EstimatePageState extends ConsumerState<EstimatePage> {
                   children: [
                     pw.Text(
                       '총 합계',
-                      style: pw.TextStyle(font: ttfBold, fontSize: 14),
-                    ),
+                        style: pw.TextStyle(font: ttfBold, fontSize: 14),
+                      ),
                     pw.SizedBox(width: 16),
                     pw.Text(
-                      '${_formatNumber(_calculateTotal(furnitureList))}원',
+                        '${_formatNumber(_calculateTotal(furnitureList))}원',
                       style: pw.TextStyle(fontSize: 14, font: ttfBold),
                     ),
                   ],

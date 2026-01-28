@@ -14,6 +14,8 @@ class AdminPage extends StatefulWidget {
 class _AdminPageState extends State<AdminPage> {
   String _query = '';
   String _filter = 'all';
+  bool _isSelectionMode = false;
+  Set<String> _selectedUids = {};
 
   Future<void> _setApproval(String uid, bool value) async {
     await FirebaseFirestore.instance.collection('users').doc(uid).set({
@@ -57,6 +59,85 @@ class _AdminPageState extends State<AdminPage> {
     context.go('/login');
   }
 
+  void _toggleSelectionMode() {
+    setState(() {
+      _isSelectionMode = !_isSelectionMode;
+      if (!_isSelectionMode) {
+        _selectedUids.clear();
+      }
+    });
+  }
+
+  void _toggleSelectAll(List<QueryDocumentSnapshot<Map<String, dynamic>>> filtered) {
+    setState(() {
+      if (_selectedUids.length == filtered.length) {
+        _selectedUids.clear();
+      } else {
+        _selectedUids = filtered.map((doc) => doc.id).toSet();
+      }
+    });
+  }
+
+  void _toggleSelectItem(String uid) {
+    setState(() {
+      if (_selectedUids.contains(uid)) {
+        _selectedUids.remove(uid);
+      } else {
+        _selectedUids.add(uid);
+      }
+    });
+  }
+
+  Future<void> _deleteSelected() async {
+    if (_selectedUids.isEmpty) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('삭제 확인'),
+        content: Text('선택한 ${_selectedUids.length}명의 사용자를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('삭제'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      try {
+        final count = _selectedUids.length;
+        final batch = FirebaseFirestore.instance.batch();
+        for (final uid in _selectedUids) {
+          batch.delete(FirebaseFirestore.instance.collection('users').doc(uid));
+        }
+        await batch.commit();
+        
+        if (mounted) {
+          setState(() {
+            _selectedUids.clear();
+            _isSelectionMode = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('$count명의 사용자가 삭제되었습니다.')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('삭제 중 오류가 발생했습니다: $e')),
+          );
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -81,6 +162,19 @@ class _AdminPageState extends State<AdminPage> {
             ),
           ],
         ),
+        actions: [
+          if (_isSelectionMode && _selectedUids.isNotEmpty)
+            TextButton(
+              onPressed: _deleteSelected,
+              style: TextButton.styleFrom(foregroundColor: Colors.red[200]),
+              child: Text('삭제 (${_selectedUids.length})'),
+            ),
+          IconButton(
+            icon: Icon(_isSelectionMode ? Icons.close : Icons.check_box),
+            onPressed: _toggleSelectionMode,
+            tooltip: _isSelectionMode ? '선택 모드 종료' : '선택 모드',
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -150,82 +244,121 @@ class _AdminPageState extends State<AdminPage> {
                 if (filtered.isEmpty) {
                   return const Center(child: Text('표시할 사용자가 없습니다.'));
                 }
-                return ListView.separated(
-                  itemCount: filtered.length,
-                  separatorBuilder: (_, __) =>
-                      const Divider(height: 1, color: AppColor.main),
-                  itemBuilder: (context, i) {
-                    final doc = filtered[i];
-                    final uid = doc.id;
-                    final d = doc.data();
-                    final name = (d['name'] as String?) ?? '';
-                    final email = (d['email'] as String?) ?? '';
-                    final phone = (d['phoneNumber'] as String?) ?? '';
-                    final role = (d['role'] as String?) ?? 'user';
-                    final approved = (d['approved'] as bool?) ?? false;
+                return Column(
+                  children: [
+                    if (_isSelectionMode)
+                      Container(
+                        color: AppColor.main.withOpacity(0.1),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        child: Row(
+                          children: [
+                            Checkbox(
+                              value: _selectedUids.length == filtered.length,
+                              tristate: false,
+                              onChanged: (_) => _toggleSelectAll(filtered),
+                            ),
+                            Text(
+                              _selectedUids.isEmpty
+                                  ? '전체 선택'
+                                  : '${_selectedUids.length}개 선택됨',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ),
+                    Expanded(
+                      child: ListView.separated(
+                        itemCount: filtered.length,
+                        separatorBuilder: (_, __) =>
+                            const Divider(height: 1, color: AppColor.main),
+                        itemBuilder: (context, i) {
+                          final doc = filtered[i];
+                          final uid = doc.id;
+                          final d = doc.data();
+                          final name = (d['name'] as String?) ?? '';
+                          final email = (d['email'] as String?) ?? '';
+                          final phone = (d['phoneNumber'] as String?) ?? '';
+                          final role = (d['role'] as String?) ?? 'user';
+                          final approved = (d['approved'] as bool?) ?? false;
+                          final isSelected = _selectedUids.contains(uid);
 
-                    return ListTile(
-                      tileColor:
-                          i % 2 == 0 ? AppColor.main.withOpacity(0.02) : null,
-                      title: Text(name.isEmpty ? email : '$name · $email',
-                          maxLines: 1, overflow: TextOverflow.ellipsis),
-                      subtitle: Text('uid: $uid\n전화: $phone'),
-                      isThreeLine: true,
-                      leading: CircleAvatar(
-                        backgroundColor: AppColor.main,
-                        child: Text(role == 'admin' ? 'A' : 'U',
-                            style: const TextStyle(color: Colors.white)),
-                      ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(role == 'admin'
-                                  ? '관리자'
-                                  : (approved ? '승인됨' : '대기중')),
-                              const SizedBox(height: 6),
-                              if (role != 'admin')
-                                SizedBox(
-                                  height: 24,
-                                  child: FittedBox(
-                                    child: Switch(
-                                      activeColor: AppColor.main,
-                                      value: approved,
-                                      onChanged: (v) => _setApproval(uid, v),
-                                    ),
+                          return ListTile(
+                            tileColor:
+                                i % 2 == 0 ? AppColor.main.withOpacity(0.02) : null,
+                            selected: isSelected,
+                            selectedTileColor: AppColor.main.withOpacity(0.1),
+                            title: Text(name.isEmpty ? email : '$name · $email',
+                                maxLines: 1, overflow: TextOverflow.ellipsis),
+                            subtitle: Text('uid: $uid\n전화: $phone'),
+                            isThreeLine: true,
+                            leading: _isSelectionMode
+                                ? Checkbox(
+                                    value: isSelected,
+                                    onChanged: (_) => _toggleSelectItem(uid),
+                                  )
+                                : CircleAvatar(
+                                    backgroundColor: AppColor.main,
+                                    child: Text(role == 'admin' ? 'A' : 'U',
+                                        style: const TextStyle(color: Colors.white)),
                                   ),
-                                ),
-                            ],
-                          ),
-                          const SizedBox(width: 8),
-                          PopupMenuButton<String>(
-                            color: Colors.white,
-                            tooltip: '역할 변경',
-                            onSelected: (v) async {
-                              if (v == 'toAdmin') {
-                                await _setRole(uid, 'admin');
-                              } else if (v == 'toUser') {
-                                await _setRole(uid, 'user');
-                              }
-                            },
-                            itemBuilder: (_) => [
-                              if (role != 'admin')
-                                const PopupMenuItem(
-                                    value: 'toAdmin', child: Text('관리자로 지정')),
-                              if (role == 'admin')
-                                const PopupMenuItem(
-                                    value: 'toUser', child: Text('관리자 해제')),
-                            ],
-                            icon: const Icon(Icons.more_vert,
-                                color: AppColor.main),
-                          ),
-                        ],
+                            trailing: _isSelectionMode
+                                ? null
+                                : Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        crossAxisAlignment: CrossAxisAlignment.end,
+                                        children: [
+                                          Text(role == 'admin'
+                                              ? '관리자'
+                                              : (approved ? '승인됨' : '대기중')),
+                                          const SizedBox(height: 6),
+                                          if (role != 'admin')
+                                            SizedBox(
+                                              height: 24,
+                                              child: FittedBox(
+                                                child: Switch(
+                                                  activeColor: AppColor.main,
+                                                  value: approved,
+                                                  onChanged: (v) => _setApproval(uid, v),
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                      const SizedBox(width: 8),
+                                      PopupMenuButton<String>(
+                                        color: Colors.white,
+                                        tooltip: '역할 변경',
+                                        onSelected: (v) async {
+                                          if (v == 'toAdmin') {
+                                            await _setRole(uid, 'admin');
+                                          } else if (v == 'toUser') {
+                                            await _setRole(uid, 'user');
+                                          }
+                                        },
+                                        itemBuilder: (_) => [
+                                          if (role != 'admin')
+                                            const PopupMenuItem(
+                                                value: 'toAdmin', child: Text('관리자로 지정')),
+                                          if (role == 'admin')
+                                            const PopupMenuItem(
+                                                value: 'toUser', child: Text('관리자 해제')),
+                                        ],
+                                        icon: const Icon(Icons.more_vert,
+                                            color: AppColor.main),
+                                      ),
+                                    ],
+                                  ),
+                            onTap: _isSelectionMode
+                                ? () => _toggleSelectItem(uid)
+                                : null,
+                          );
+                        },
                       ),
-                    );
-                  },
+                    ),
+                  ],
                 );
               },
             ),

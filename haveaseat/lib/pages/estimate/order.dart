@@ -1326,20 +1326,51 @@ class _OrderEstimatePageState extends ConsumerState<OrderEstimatePage> {
                   children: [
                     pw.Expanded(
                         flex: 3,
-                        child:
-                            pw.Text('제품명', style: pw.TextStyle(font: ttfBold))),
+                        child: pw.Text('제품명',
+                            style: pw.TextStyle(font: ttfBold),
+                            textAlign: pw.TextAlign.left)),
+                    pw.Container(
+                      width: 1,
+                      height: 20,
+                      decoration: const pw.BoxDecoration(
+                        border: pw.Border(
+                          left: pw.BorderSide(),
+                        ),
+                      ),
+                    ),
                     pw.Expanded(
                         flex: 2,
                         child: pw.Text('발주상태',
-                            style: pw.TextStyle(font: ttfBold))),
+                            style: pw.TextStyle(font: ttfBold),
+                            textAlign: pw.TextAlign.center)),
+                    pw.Container(
+                      width: 1,
+                      height: 20,
+                      decoration: const pw.BoxDecoration(
+                        border: pw.Border(
+                          left: pw.BorderSide(),
+                        ),
+                      ),
+                    ),
                     pw.Expanded(
                         flex: 2,
                         child: pw.Text('입고상태',
-                            style: pw.TextStyle(font: ttfBold))),
+                            style: pw.TextStyle(font: ttfBold),
+                            textAlign: pw.TextAlign.center)),
+                    pw.Container(
+                      width: 1,
+                      height: 20,
+                      decoration: const pw.BoxDecoration(
+                        border: pw.Border(
+                          left: pw.BorderSide(),
+                        ),
+                      ),
+                    ),
                     pw.Expanded(
                         flex: 3,
                         child: pw.Text('입고예정일',
-                            style: pw.TextStyle(font: ttfBold))),
+                            style: pw.TextStyle(font: ttfBold),
+                            textAlign: pw.TextAlign.center)),
                   ],
                 ),
               ),
@@ -1360,6 +1391,16 @@ class _OrderEstimatePageState extends ConsumerState<OrderEstimatePage> {
                               child: pw.Text(
                                 furniture['name'] ?? '',
                                 style: pw.TextStyle(font: ttf),
+                                textAlign: pw.TextAlign.left,
+                              ),
+                            ),
+                            pw.Container(
+                              width: 1,
+                              height: 20,
+                              decoration: const pw.BoxDecoration(
+                                border: pw.Border(
+                                  left: pw.BorderSide(),
+                                ),
                               ),
                             ),
                             pw.Expanded(
@@ -1367,6 +1408,16 @@ class _OrderEstimatePageState extends ConsumerState<OrderEstimatePage> {
                               child: pw.Text(
                                 furniture['orderStatus'] ?? '발주 신청',
                                 style: pw.TextStyle(font: ttf),
+                                textAlign: pw.TextAlign.center,
+                              ),
+                            ),
+                            pw.Container(
+                              width: 1,
+                              height: 20,
+                              decoration: const pw.BoxDecoration(
+                                border: pw.Border(
+                                  left: pw.BorderSide(),
+                                ),
                               ),
                             ),
                             pw.Expanded(
@@ -1374,6 +1425,16 @@ class _OrderEstimatePageState extends ConsumerState<OrderEstimatePage> {
                               child: pw.Text(
                                 furniture['receivingStatus'] ?? '미입고',
                                 style: pw.TextStyle(font: ttf),
+                                textAlign: pw.TextAlign.center,
+                              ),
+                            ),
+                            pw.Container(
+                              width: 1,
+                              height: 20,
+                              decoration: const pw.BoxDecoration(
+                                border: pw.Border(
+                                  left: pw.BorderSide(),
+                                ),
                               ),
                             ),
                             pw.Expanded(
@@ -1383,6 +1444,7 @@ class _OrderEstimatePageState extends ConsumerState<OrderEstimatePage> {
                                     ? _formatDate(furniture['expectedDate'])
                                     : '-',
                                 style: pw.TextStyle(font: ttf),
+                                textAlign: pw.TextAlign.center,
                               ),
                             ),
                           ],

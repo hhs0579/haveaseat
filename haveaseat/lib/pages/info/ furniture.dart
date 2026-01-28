@@ -324,23 +324,23 @@ class _furniturePageState extends ConsumerState<furniturePage> {
             throw Exception('선택된 제품을 찾을 수 없습니다: ${row.nameController.text}');
           }
           furnitureList.add({
-            'name': product.name,
+          'name': product.name,
             'specification': row.specificationController.text.trim(),
-            'quantity': quantity,
-            'price': product.price,
-            'isCustom': false,
+          'quantity': quantity,
+          'price': product.price,
+          'isCustom': false,
             'productType': '수입',
           });
         } else {
           furnitureList.add({
             'name': row.nameController.text.trim(),
             'specification': row.specificationController.text.trim(),
-            'quantity': quantity,
-            'price': price,
-            'isCustom': true,
+          'quantity': quantity,
+          'price': price,
+          'isCustom': true,
             'productType': '제작',
-          });
-        }
+        });
+      }
       }
 
       if (!isNewEstimate) {
@@ -390,8 +390,8 @@ class _furniturePageState extends ConsumerState<furniturePage> {
   // 검색 드롭다운 위젯 빌드
   Widget _buildSearchDropdown(int index, FurnitureRow row) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
         // 제품종류 컬럼 너비만큼 공간 (140 + 구분선 1)
         const SizedBox(width: 141),
         // 상품명 컬럼 너비에 맞춘 검색 리스트
@@ -413,24 +413,24 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                     spreadRadius: 0,
                   ),
                 ],
-              ),
-              child: ListView.builder(
-                shrinkWrap: true,
+                ),
+                child: ListView.builder(
+                  shrinkWrap: true,
                 physics: const AlwaysScrollableScrollPhysics(),
                 itemCount: row.filteredProducts.length,
-                itemBuilder: (context, prodIndex) {
+                  itemBuilder: (context, prodIndex) {
                   final product = row.filteredProducts[prodIndex];
                   return Material(
                     color: Colors.white,
-                    child: InkWell(
-                      onTap: () {
+                      child: InkWell(
+                        onTap: () {
                         row.nameController.text = product.name;
                         row.priceController.text = product.price.toString();
-                        setState(() {
+                          setState(() {
                           row.filteredProducts = [];
                           _activeSearchRowIndex = null;
-                        });
-                      },
+                          });
+                        },
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 8),
@@ -455,18 +455,18 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                             Text(
                               '${NumberFormat("#,###").format(product.price)}원',
                               style: const TextStyle(
-                                  fontSize: 14,
+                                fontSize: 14,
                                   color: Colors.black87,
                                   fontWeight: FontWeight.w500),
                             ),
                           ],
                         ),
+                        ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
-            ),
           ),
         ),
         // 나머지 컬럼들 공간 (규격, 수량, 단가, 삭제)
@@ -517,7 +517,7 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Center(
-                        child: Text(
+                    child: Text(
                           '수입',
                           style: TextStyle(
                             fontSize: 12,
@@ -526,10 +526,10 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                                     ? Colors.white
                                     : AppColor.font1,
                             fontWeight: FontWeight.w600,
-                          ),
-                        ),
                       ),
                     ),
+                  ),
+                ),
                   ),
                 ),
                 const SizedBox(width: 4),
@@ -553,7 +553,7 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                       child: Center(
                         child: Text(
                           '제작',
-                          style: TextStyle(
+                style: TextStyle(
                             fontSize: 12,
                             color:
                                 row.productType == FurnitureProductType.custom
@@ -562,12 +562,12 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                      ),
-                    ),
-                  ),
                 ),
-              ],
+              ),
             ),
+          ),
+        ],
+      ),
           ),
           Container(width: 1, height: 48, color: AppColor.line1),
 
@@ -575,7 +575,7 @@ class _furniturePageState extends ConsumerState<furniturePage> {
           Expanded(
             flex: 3,
             child: Container(
-              height: 48,
+          height: 48,
               padding: const EdgeInsets.symmetric(horizontal: 8),
               child: TextField(
                 controller: row.nameController,
@@ -635,91 +635,91 @@ class _furniturePageState extends ConsumerState<furniturePage> {
             child: Container(
               height: 48,
               padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: TextField(
+          child: TextField(
                 controller: row.specificationController,
-                decoration: const InputDecoration(
+            decoration: const InputDecoration(
                   hintText: '규격 입력',
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
                   contentPadding: EdgeInsets.symmetric(horizontal: 8),
-                ),
-              ),
             ),
+          ),
+        ),
           ),
           Container(width: 1, height: 48, color: AppColor.line1),
 
           // 수량
-          Container(
+        Container(
             width: 120,
-            height: 48,
+          height: 48,
             padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Row(
-              children: [
-                Expanded(
+          child: Row(
+            children: [
+              Expanded(
                   child: TextField(
                     controller: row.quantityController,
-                    keyboardType: TextInputType.number,
-                    textAlign: TextAlign.right,
-                    decoration: const InputDecoration(
+                      keyboardType: TextInputType.number,
+                      textAlign: TextAlign.right,
+                      decoration: const InputDecoration(
                       hintText: '0',
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
                       contentPadding: EdgeInsets.symmetric(horizontal: 8),
-                    ),
-                  ),
+                      ),
                 ),
+              ),
                 const Text('개', style: TextStyle(fontSize: 12)),
-              ],
-            ),
+            ],
           ),
+        ),
           Container(width: 1, height: 48, color: AppColor.line1),
 
           // 단가
-          Container(
+        Container(
             width: 180,
-            height: 48,
+          height: 48,
             padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Row(
-              children: [
-                Expanded(
+          child: Row(
+            children: [
+              Expanded(
                   child: TextField(
                     controller: row.priceController,
-                    keyboardType: TextInputType.number,
-                    textAlign: TextAlign.right,
-                    decoration: const InputDecoration(
+                      keyboardType: TextInputType.number,
+                      textAlign: TextAlign.right,
+                      decoration: const InputDecoration(
                       hintText: '0',
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
                       contentPadding: EdgeInsets.symmetric(horizontal: 8),
-                    ),
-                  ),
+                      ),
                 ),
+              ),
                 const Text('원', style: TextStyle(fontSize: 12)),
-              ],
-            ),
+            ],
           ),
+        ),
           Container(width: 1, height: 48, color: AppColor.line1),
 
           // 삭제 버튼
           SizedBox(
             width: 60,
-            height: 48,
+              height: 48,
             child: _furnitureRows.length > 1
                 ? IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red, size: 20),
-                    onPressed: () {
-                      setState(() {
+                icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                onPressed: () {
+                  setState(() {
                         _furnitureRows[index].dispose();
                         _furnitureRows.removeAt(index);
-                      });
-                    },
+                  });
+                },
                   )
                 : const SizedBox(),
           ),
-        ],
+      ],
       ),
     );
   }
@@ -749,22 +749,22 @@ class _furniturePageState extends ConsumerState<furniturePage> {
             row.nameController.text = furniture['name'] ?? '';
             row.specificationController.text = furniture['specification'] ?? '';
             row.quantityController.text =
-                furniture['quantity']?.toString() ?? '';
+                  furniture['quantity']?.toString() ?? '';
             row.priceController.text = furniture['price']?.toString() ?? '';
 
-            setState(() {
+              setState(() {
               _furnitureRows.add(row);
-            });
+              });
           }
 
           // 데이터가 없거나 5개 미만이면 기본 행 추가
           if (_furnitureRows.length < 5) {
             final rowsToAdd = 5 - _furnitureRows.length;
             for (int i = 0; i < rowsToAdd; i++) {
-              setState(() {
+            setState(() {
                 _furnitureRows.add(FurnitureRow());
-              });
-            }
+            });
+          }
           }
         }
       } catch (e) {
@@ -847,10 +847,10 @@ class _furniturePageState extends ConsumerState<furniturePage> {
     if (widget.estimateId == null) {
       for (int i = 0; i < 5; i++) {
         _furnitureRows.add(FurnitureRow());
-      }
+    }
     } else {
-      // 기존 견적 데이터 로드
-      _loadExistingEstimateData();
+    // 기존 견적 데이터 로드
+    _loadExistingEstimateData();
     }
   }
 
@@ -1131,7 +1131,7 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                                 border: Border.all(color: AppColor.line1),
                               ),
                               child: Column(
-                                children: [
+                              children: [
                                   // 테이블 헤더
                                   Container(
                                     height: 48,
@@ -1150,13 +1150,13 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                                               horizontal: 8),
                                           child: const Text(
                                             '제품종류',
-                                            style: TextStyle(
+                                  style: TextStyle(
                                               fontSize: 14,
-                                              fontWeight: FontWeight.w600,
+                                    fontWeight: FontWeight.w600,
                                             ),
                                             textAlign: TextAlign.center,
-                                          ),
-                                        ),
+                                  ),
+                                ),
                                         Container(
                                             width: 1,
                                             height: 48,
@@ -1168,12 +1168,12 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                                                 horizontal: 8),
                                             child: const Text(
                                               '상품명',
-                                              style: TextStyle(
+                                  style: TextStyle(
                                                 fontSize: 14,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                            ),
                                         ),
                                         Container(
                                             width: 1,
@@ -1186,13 +1186,13 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                                                 horizontal: 8),
                                             child: const Text(
                                               '규격',
-                                              style: TextStyle(
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w600,
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w600,
                                               ),
                                             ),
-                                          ),
-                                        ),
+                                                  ),
+                                                ),
                                         Container(
                                             width: 1,
                                             height: 48,
@@ -1202,31 +1202,31 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                                           padding: const EdgeInsets.symmetric(
                                               horizontal: 8),
                                           child: const Text(
-                                            '수량',
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w600,
+                                                  '수량',
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w600,
                                             ),
                                             textAlign: TextAlign.center,
                                           ),
                                         ),
-                                        Container(
+                                                Container(
                                             width: 1,
                                             height: 48,
-                                            color: AppColor.line1),
+                                                  color: AppColor.line1),
                                         Container(
                                           width: 180,
                                           padding: const EdgeInsets.symmetric(
                                               horizontal: 8),
                                           child: const Text(
                                             '단가',
-                                            style: TextStyle(
+                                                style: TextStyle(
                                               fontSize: 14,
-                                              fontWeight: FontWeight.w600,
-                                            ),
+                                                  fontWeight: FontWeight.w600,
+                                                ),
                                             textAlign: TextAlign.center,
+                                            ),
                                           ),
-                                        ),
                                         Container(
                                             width: 1,
                                             height: 48,
@@ -1242,8 +1242,8 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                                   ...List.generate(_furnitureRows.length,
                                       (index) {
                                     final row = _furnitureRows[index];
-                                    return Column(
-                                      children: [
+                                            return Column(
+                                              children: [
                                         _buildTableRow(index),
                                         // 검색 리스트를 해당 행 아래에 표시
                                         if (_activeSearchRowIndex == index &&
@@ -1253,40 +1253,40 @@ class _furniturePageState extends ConsumerState<furniturePage> {
                                                 .isNotEmpty &&
                                             row.filteredProducts.isNotEmpty)
                                           _buildSearchDropdown(index, row),
-                                      ],
-                                    );
+                                              ],
+                                            );
                                   }),
                                 ],
                               ),
-                            ),
+                                        ),
                             const SizedBox(height: 16),
                             // 행 추가 버튼
                             Align(
                               alignment: Alignment.centerRight,
                               child: InkWell(
-                                onTap: () {
-                                  setState(() {
+                                          onTap: () {
+                                            setState(() {
                                     _furnitureRows.add(FurnitureRow());
-                                  });
-                                },
-                                child: Container(
-                                  height: 36,
+                                            });
+                                          },
+                                          child: Container(
+                                            height: 36,
                                   width: 140,
-                                  decoration: BoxDecoration(
-                                    color: Colors.transparent,
+                                            decoration: BoxDecoration(
+                                              color: Colors.transparent,
                                     border: Border.all(color: AppColor.line1),
-                                  ),
-                                  child: const Center(
-                                    child: Text(
+                                            ),
+                                            child: const Center(
+                                              child: Text(
                                       '행 추가 +',
-                                      style: TextStyle(
-                                        color: AppColor.primary,
+                                                style: TextStyle(
+                                                  color: AppColor.primary,
                                         fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                ),
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
                               ),
                             ),
 

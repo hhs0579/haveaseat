@@ -5,6 +5,7 @@ import 'package:haveaseat/pages/product/repo.dart';
 import 'package:haveaseat/riverpod/product.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ProductExcelPage extends StatefulWidget {
   const ProductExcelPage({super.key});
@@ -29,6 +30,9 @@ class _ProductExcelPageState extends State<ProductExcelPage> {
   // 페이지네이션 상태
   int _rowsPerPage = 20;
   int _currentPage = 0;
+
+  // 선택 삭제 기능
+  Set<String> _selectedIds = {};
 
   @override
   void initState() {
@@ -70,6 +74,81 @@ class _ProductExcelPageState extends State<ProductExcelPage> {
   void _snack(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  void _toggleSelectAll(List<Product> paged) {
+    setState(() {
+      if (_selectedIds.length == paged.length) {
+        _selectedIds.clear();
+      } else {
+        _selectedIds = paged
+            .where((p) => p.id != null && p.id!.isNotEmpty)
+            .map((p) => p.id!)
+            .toSet();
+      }
+    });
+  }
+
+  void _toggleSelectItem(String? id) {
+    if (id == null || id.isEmpty) return;
+    setState(() {
+      if (_selectedIds.contains(id)) {
+        _selectedIds.remove(id);
+      } else {
+        _selectedIds.add(id);
+      }
+    });
+  }
+
+  Future<void> _deleteSelected() async {
+    if (_selectedIds.isEmpty) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('삭제 확인'),
+        content: Text(
+            '선택한 ${_selectedIds.length}개의 제품을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('삭제'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      setState(() => _loading = true);
+      try {
+        final count = _selectedIds.length;
+        final batch = FirebaseFirestore.instance.batch();
+        for (final id in _selectedIds) {
+          batch.delete(
+              FirebaseFirestore.instance.collection('products').doc(id));
+        }
+        await batch.commit();
+
+        if (mounted) {
+          setState(() {
+            _selectedIds.clear();
+          });
+          await _loadAll();
+          _snack('$count개의 제품이 삭제되었습니다.');
+        }
+      } catch (e) {
+        if (mounted) {
+          _snack('삭제 중 오류가 발생했습니다: $e');
+        }
+      } finally {
+        if (mounted) setState(() => _loading = false);
+      }
+    }
   }
 
   void _editProduct(Product p) async {
@@ -146,6 +225,14 @@ class _ProductExcelPageState extends State<ProductExcelPage> {
         backgroundColor: AppColor.main,
         foregroundColor: Colors.white,
         elevation: 1,
+        actions: [
+          if (_selectedIds.isNotEmpty)
+            TextButton(
+              onPressed: _deleteSelected,
+              style: TextButton.styleFrom(foregroundColor: Colors.red[200]),
+              child: Text('삭제 (${_selectedIds.length})'),
+            ),
+        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _loading ? null : _addProduct,
@@ -262,6 +349,20 @@ class _ProductExcelPageState extends State<ProductExcelPage> {
                           ? AppColor.main
                           : null),
                 ),
+                if (_selectedIds.isNotEmpty) ...[
+                  const SizedBox(width: 16),
+                  ElevatedButton.icon(
+                    onPressed: _deleteSelected,
+                    icon: const Icon(Icons.delete, size: 18),
+                    label: Text('삭제 (${_selectedIds.length})'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -273,23 +374,82 @@ class _ProductExcelPageState extends State<ProductExcelPage> {
                 ? const Center(child: CircularProgressIndicator())
                 : _paged.isEmpty
                     ? const _Empty()
-                    : ListView.separated(
-                        itemCount: _paged.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1),
-                        itemBuilder: (ctx, i) {
-                          final p = _paged[i];
-                          return ListTile(
-                            title: Text('${p.name} (${p.code})'),
-                            subtitle: Text(
-                              '공급사: ${p.supplier ?? '-'} · 공급가: ${_fmtMoney(p.supplyPrice)}원 · 판매가: ${_fmtMoney(p.salePrice)}원',
+                    : Column(
+                        children: [
+                          Builder(
+                            builder: (context) {
+                              final selectableCount = _paged
+                                  .where(
+                                      (p) => p.id != null && p.id!.isNotEmpty)
+                                  .length;
+                              final allSelected = selectableCount > 0 &&
+                                  _selectedIds.length == selectableCount;
+                              return Container(
+                                color: AppColor.main.withOpacity(0.1),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 8),
+                                child: Row(
+                                  children: [
+                                    Checkbox(
+                                      value: allSelected,
+                                      tristate: false,
+                                      onChanged: selectableCount > 0
+                                          ? (_) => _toggleSelectAll(_paged)
+                                          : null,
+                                    ),
+                                    Text(
+                                      _selectedIds.isEmpty
+                                          ? '전체 선택'
+                                          : '${_selectedIds.length}개 선택됨',
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                          Expanded(
+                            child: ListView.separated(
+                              itemCount: _paged.length,
+                              separatorBuilder: (_, __) =>
+                                  const Divider(height: 1),
+                              itemBuilder: (ctx, i) {
+                                final p = _paged[i];
+                                final isSelected =
+                                    p.id != null && _selectedIds.contains(p.id);
+                                return ListTile(
+                                  selected: isSelected,
+                                  selectedTileColor:
+                                      AppColor.main.withOpacity(0.1),
+                                  title: Text('${p.name} (${p.code})'),
+                                  subtitle: Text(
+                                    '공급사: ${p.supplier ?? '-'} · 공급가: ${_fmtMoney(p.supplyPrice)}원 · 판매가: ${_fmtMoney(p.salePrice)}원',
+                                  ),
+                                  leading: Checkbox(
+                                    value: isSelected,
+                                    onChanged: p.id != null && p.id!.isNotEmpty
+                                        ? (_) => _toggleSelectItem(p.id)
+                                        : null,
+                                  ),
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(Icons.edit,
+                                            color: AppColor.main),
+                                        onPressed: () => _editProduct(p),
+                                      ),
+                                    ],
+                                  ),
+                                  onTap: p.id != null && p.id!.isNotEmpty
+                                      ? () => _toggleSelectItem(p.id)
+                                      : null,
+                                );
+                              },
                             ),
-                            trailing: IconButton(
-                              icon:
-                                  const Icon(Icons.edit, color: AppColor.main),
-                              onPressed: () => _editProduct(p),
-                            ),
-                          );
-                        },
+                          ),
+                        ],
                       ),
           ),
         ],
